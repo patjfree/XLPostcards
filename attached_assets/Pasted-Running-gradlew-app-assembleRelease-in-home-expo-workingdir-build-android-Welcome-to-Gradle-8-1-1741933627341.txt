@@ -1,0 +1,774 @@
+Running 'gradlew :app:assembleRelease' in /home/expo/workingdir/build/android
+Welcome to Gradle 8.10.2!
+Here are the highlights of this release:
+- Support for Java 23
+ - Faster configuration cache
+ - Better configuration cache reports
+For more details see https://docs.gradle.org/8.10.2/release-notes.html
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugin:settings-plugin:pluginDescriptors
+> Task :gradle-plugin:settings-plugin:processResources
+> Task :gradle-plugin:shared:processResources
+NO-SOURCE
+> Task :gradle-plugin:shared:compileKotlin
+> Task :gradle-plugin:shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:jar
+> Task :gradle-plugin:settings-plugin:compileKotlin
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:classes
+> Task :gradle-plugin:settings-plugin:jar
+> Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-updates-gradle-plugin:pluginDescriptors
+> Task :expo-dev-launcher-gradle-plugin:pluginDescriptors
+> Task :expo-updates-gradle-plugin:processResources
+> Task :expo-dev-launcher-gradle-plugin:processResources
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
+> Task :gradle-plugin:react-native-gradle-plugin:processResources
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:classes
+> Task :gradle-plugin:react-native-gradle-plugin:jar
+> Task :expo-updates-gradle-plugin:compileKotlin
+> Task :expo-updates-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-updates-gradle-plugin:classes
+> Task :expo-dev-launcher-gradle-plugin:compileKotlin
+> Task :expo-updates-gradle-plugin:jar
+> Task :expo-dev-launcher-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-dev-launcher-gradle-plugin:classes
+> Task :expo-dev-launcher-gradle-plugin:jar
+> Configure project :app
+ℹ️  [33mApplying gradle plugin[0m '[32mexpo-dev-launcher-gradle-plugin[0m' (expo-dev-launcher@5.0.30)
+ ℹ️  [33mApplying gradle plugin[0m '[32mexpo-updates-gradle-plugin[0m' (expo-updates@0.26.17)
+> Configure project :expo
+Using expo modules
+  - [32mexpo-asset[0m (11.0.3)
+- [32mexpo-blur[0m (14.0.3)
+  - [32mexpo-constants[0m (17.0.5)
+  - [32mexpo-dev-client[0m (5.0.14)
+  - [32mexpo-dev-launcher[0m (5.0.30)
+  - [32mexpo-dev-menu[0m (6.0.21)
+  - [32mexpo-eas-client[0m (0.13.2)
+  - [32mexpo-file-system[0m (18.0.11)
+  - [32mexpo-font[0m (13.0.3)
+  - [32mexpo-haptics[0m (14.0.1)
+  - [32mexpo-image-loader[0m (5.0.0)
+  - [32mexpo-image-manipulator[0m (12.0.5)
+  - [32mexpo-image-picker[0m (16.0.6)
+  - [32mexpo-json-utils[0m (0.14.0)
+  - [32mexpo-keep-awake[0m (14.0.2)
+  - [32mexpo-linking[0m (7.0.5)
+  - [32mexpo-location[0m (17.0.1)
+  - [32mexpo-manifests[0m (0.15.7)
+  - [32mexpo-media-library[0m (17.0.6)
+  - [32mexpo-modules-core[0m (2.2.1)
+  - [32mexpo-splash-screen[0m (0.29.21)
+  - [32mexpo-structured-headers[0m (4.0.0)
+  - [32mexpo-system-ui[0m (4.0.8)
+  - [32mexpo-updates[0m (0.26.17)
+  - [32mexpo-web-browser[0m (14.0.2)
+> Configure project :react-native-reanimated
+Android gradle plugin: 8.6.0
+Gradle: 8.10.2
+> Task :expo-asset:preBuild UP-TO-DATE
+> Task :expo-asset:preReleaseBuild UP-TO-DATE
+> Task :expo-blur:preBuild UP-TO-DATE
+> Task :expo-blur:preReleaseBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateAutolinkingNewArchitectureFiles
+> Task :app:generateAutolinkingPackageList
+> Task :app:generateCodegenSchemaFromJavaScript SKIPPED
+> Task :app:generateCodegenArtifactsFromSchema SKIPPED
+> Task :app:preBuild
+> Task :app:preReleaseBuild
+> Task :expo-asset:writeReleaseAarMetadata
+> Task :expo-blur:writeReleaseAarMetadata
+> Task :expo-dev-client:preBuild UP-TO-DATE
+> Task :expo-dev-client:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-client:writeReleaseAarMetadata
+> Task :expo-dev-launcher:preBuild UP-TO-DATE
+> Task :expo-dev-launcher:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-launcher:writeReleaseAarMetadata
+> Task :expo-dev-menu:preBuild UP-TO-DATE
+> Task :expo-dev-menu:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig
+> Task :expo-dev-menu-interface:preBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu:writeReleaseAarMetadata
+> Task :expo-eas-client:preBuild UP-TO-DATE
+> Task :expo-eas-client:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:writeReleaseAarMetadata
+> Task :expo-eas-client:writeReleaseAarMetadata
+> Task :expo-file-system:preBuild UP-TO-DATE
+> Task :expo-file-system:preReleaseBuild UP-TO-DATE
+> Task :expo-font:preBuild UP-TO-DATE
+> Task :expo-font:preReleaseBuild UP-TO-DATE
+> Task :expo-file-system:writeReleaseAarMetadata
+> Task :expo-haptics:preBuild UP-TO-DATE
+> Task :expo-font:writeReleaseAarMetadata
+> Task :expo-haptics:preReleaseBuild UP-TO-DATE
+> Task :expo-image-loader:preBuild UP-TO-DATE
+> Task :expo-image-loader:preReleaseBuild UP-TO-DATE
+> Task :expo-image-loader:writeReleaseAarMetadata
+> Task :expo-image-manipulator:preBuild UP-TO-DATE
+> Task :expo-haptics:writeReleaseAarMetadata
+> Task :expo-image-picker:preBuild UP-TO-DATE
+> Task :expo-image-picker:preReleaseBuild UP-TO-DATE
+> Task :expo-image-manipulator:preReleaseBuild UP-TO-DATE
+> Task :expo-image-picker:writeReleaseAarMetadata
+> Task :expo-json-utils:preBuild UP-TO-DATE
+> Task :expo-image-manipulator:writeReleaseAarMetadata
+> Task :expo-json-utils:preReleaseBuild UP-TO-DATE
+> Task :expo-keep-awake:preBuild UP-TO-DATE
+> Task :expo-keep-awake:preReleaseBuild UP-TO-DATE
+> Task :expo-json-utils:writeReleaseAarMetadata
+> Task :expo-linking:preBuild UP-TO-DATE
+> Task :expo-linking:preReleaseBuild UP-TO-DATE
+> Task :expo-linking:writeReleaseAarMetadata
+> Task :expo-keep-awake:writeReleaseAarMetadata
+> Task :expo-location:preBuild UP-TO-DATE
+> Task :expo-manifests:preBuild UP-TO-DATE
+> Task :expo-location:preReleaseBuild UP-TO-DATE
+> Task :expo-manifests:preReleaseBuild UP-TO-DATE
+> Task :expo-manifests:writeReleaseAarMetadata
+> Task :expo-media-library:preBuild
+UP-TO-DATE
+> Task :expo-location:writeReleaseAarMetadata
+> Task :expo-modules-core:preBuild UP-TO-DATE
+> Task :expo-modules-core:preReleaseBuild UP-TO-DATE
+> Task :expo-media-library:preReleaseBuild UP-TO-DATE
+> Task :expo-modules-core:writeReleaseAarMetadata
+> Task :expo-splash-screen:preBuild UP-TO-DATE
+> Task :expo-splash-screen:preReleaseBuild UP-TO-DATE
+> Task :expo-media-library:writeReleaseAarMetadata
+> Task :expo-structured-headers:preBuild UP-TO-DATE
+> Task :expo-structured-headers:preReleaseBuild UP-TO-DATE
+> Task :expo-splash-screen:writeReleaseAarMetadata
+> Task :expo-system-ui:preBuild UP-TO-DATE
+> Task :expo-system-ui:preReleaseBuild UP-TO-DATE
+> Task :expo-structured-headers:writeReleaseAarMetadata
+> Task :expo-updates:preBuild UP-TO-DATE
+> Task :expo-updates:preReleaseBuild UP-TO-DATE
+> Task :expo-system-ui:writeReleaseAarMetadata
+> Task :expo-updates-interface:preBuild UP-TO-DATE
+> Task :expo-updates-interface:preReleaseBuild UP-TO-DATE
+> Task :expo-updates-interface:writeReleaseAarMetadata
+> Task :expo-web-browser:preBuild UP-TO-DATE
+> Task :expo-web-browser:preReleaseBuild UP-TO-DATE
+> Task :expo-updates:writeReleaseAarMetadata
+> Task :react-native-exif:preBuild UP-TO-DATE
+> Task :react-native-exif:preReleaseBuild UP-TO-DATE
+> Task :expo-web-browser:writeReleaseAarMetadata
+> Task :react-native-exif:writeReleaseAarMetadata
+> Task :react-native-reanimated:assertLatestReactNativeWithNewArchitectureTask SKIPPED
+> Task :react-native-reanimated:assertMinimalReactNativeVersionTask SKIPPED
+> Task :react-native-reanimated:generateCodegenSchemaFromJavaScript
+> Task :react-native-gesture-handler:generateCodegenSchemaFromJavaScript
+> Task :expo:generateExpoModulesPackageListTask
+> Task :expo:preBuild
+> Task :expo:preReleaseBuild
+> Task :expo:writeReleaseAarMetadata
+> Task :expo-constants:createExpoConfig
+> Task :expo-constants:preBuild
+> Task :expo-constants:preReleaseBuild
+> Task :expo-constants:writeReleaseAarMetadata
+The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
+Proceeding without mode-specific .env
+> Task :react-native-gesture-handler:generateCodegenArtifactsFromSchema
+> Task :react-native-gesture-handler:preBuild
+> Task :react-native-gesture-handler:preReleaseBuild
+> Task :react-native-gesture-handler:writeReleaseAarMetadata
+> Task :react-native-reanimated:generateCodegenArtifactsFromSchema
+> Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs
+> Task :react-native-safe-area-context:generateCodegenSchemaFromJavaScript
+> Task :react-native-reanimated:prepareWorkletsHeadersForPrefabs
+> Task :react-native-reanimated:preBuild
+> Task :react-native-reanimated:preReleaseBuild
+> Task :react-native-reanimated:writeReleaseAarMetadata
+> Task :react-native-screens:generateCodegenSchemaFromJavaScript
+> Task :react-native-view-shot:generateCodegenSchemaFromJavaScript
+> Task :react-native-safe-area-context:generateCodegenArtifactsFromSchema
+> Task :react-native-safe-area-context:preBuild
+> Task :react-native-safe-area-context:preReleaseBuild
+> Task :react-native-safe-area-context:writeReleaseAarMetadata
+> Task :react-native-webview:generateCodegenSchemaFromJavaScript
+> Task :react-native-screens:generateCodegenArtifactsFromSchema
+> Task :react-native-screens:preBuild
+> Task :react-native-screens:preReleaseBuild
+> Task :react-native-view-shot:generateCodegenArtifactsFromSchema
+> Task :react-native-view-shot:preBuild
+> Task :react-native-view-shot:preReleaseBuild
+> Task :react-native-screens:writeReleaseAarMetadata
+> Task :react-native-view-shot:writeReleaseAarMetadata
+> Task :expo-asset:generateReleaseResValues
+> Task :expo:generateReleaseResValues
+> Task :expo:generateReleaseResources
+> Task :expo-asset:generateReleaseResources
+> Task :expo:packageReleaseResources
+> Task :expo-asset:packageReleaseResources
+> Task :expo-blur:generateReleaseResValues
+> Task :expo-constants:generateReleaseResValues
+> Task :expo-constants:generateReleaseResources
+> Task :expo-blur:generateReleaseResources
+> Task :expo-constants:packageReleaseResources
+> Task :expo-blur:packageReleaseResources
+> Task :expo-dev-client:generateReleaseResValues
+> Task :expo-dev-launcher:generateReleaseResValues
+> Task :expo-dev-client:generateReleaseResources
+> Task :expo-dev-launcher:generateReleaseResources
+> Task :expo-dev-client:packageReleaseResources
+> Task :expo-dev-menu:generateReleaseResValues
+> Task :react-native-webview:generateCodegenArtifactsFromSchema
+> Task :react-native-webview:preBuild
+> Task :react-native-webview:preReleaseBuild
+> Task :react-native-webview:writeReleaseAarMetadata
+> Task :expo-dev-menu-interface:generateReleaseResValues
+> Task :expo-dev-menu-interface:generateReleaseResources
+> Task :expo-dev-menu:generateReleaseResources
+> Task :expo-dev-menu-interface:packageReleaseResources
+> Task :expo-eas-client:generateReleaseResValues
+> Task :expo-eas-client:generateReleaseResources
+> Task :expo-eas-client:packageReleaseResources
+> Task :expo-file-system:generateReleaseResValues
+> Task :expo-file-system:generateReleaseResources
+> Task :expo-file-system:packageReleaseResources
+> Task :expo-font:generateReleaseResValues
+> Task :expo-font:generateReleaseResources
+> Task :expo-font:packageReleaseResources
+> Task :expo-haptics:generateReleaseResValues
+> Task :expo-haptics:generateReleaseResources
+> Task :expo-haptics:packageReleaseResources
+> Task :expo-image-loader:generateReleaseResValues
+> Task :expo-image-loader:generateReleaseResources
+> Task :expo-image-loader:packageReleaseResources
+> Task :expo-dev-menu:packageReleaseResources
+> Task :expo-image-manipulator:generateReleaseResValues
+> Task :expo-image-picker:generateReleaseResValues
+> Task :expo-image-manipulator:generateReleaseResources
+> Task :expo-image-picker:generateReleaseResources
+> Task :expo-image-picker:packageReleaseResources
+> Task :expo-image-manipulator:packageReleaseResources
+> Task :expo-json-utils:generateReleaseResValues
+> Task :expo-keep-awake:generateReleaseResValues
+> Task :expo-json-utils:generateReleaseResources
+> Task :expo-keep-awake:generateReleaseResources
+> Task :expo-keep-awake:packageReleaseResources
+> Task :expo-linking:generateReleaseResValues
+> Task :expo-json-utils:packageReleaseResources
+> Task :expo-linking:generateReleaseResources
+> Task :expo-location:generateReleaseResValues
+> Task :expo-location:generateReleaseResources
+> Task :expo-linking:packageReleaseResources
+> Task :expo-manifests:generateReleaseResValues
+> Task :expo-manifests:generateReleaseResources
+> Task :expo-location:packageReleaseResources
+> Task :expo-media-library:generateReleaseResValues
+> Task :expo-media-library:generateReleaseResources
+> Task :expo-manifests:packageReleaseResources
+> Task :expo-modules-core:generateReleaseResValues
+> Task :expo-media-library:packageReleaseResources
+> Task :expo-splash-screen:generateReleaseResValues
+> Task :expo-modules-core:generateReleaseResources
+> Task :expo-splash-screen:generateReleaseResources
+> Task :expo-modules-core:packageReleaseResources
+> Task :expo-structured-headers:generateReleaseResValues
+> Task :expo-structured-headers:generateReleaseResources
+> Task :expo-structured-headers:packageReleaseResources
+> Task :expo-splash-screen:packageReleaseResources
+> Task :expo-system-ui:generateReleaseResValues
+> Task :expo-updates:generateReleaseResValues
+> Task :expo-system-ui:generateReleaseResources
+> Task :expo-updates:generateReleaseResources
+> Task :expo-system-ui:packageReleaseResources
+> Task :expo-updates-interface:generateReleaseResValues
+> Task :expo-updates:packageReleaseResources
+> Task :expo-updates-interface:generateReleaseResources
+> Task :expo-web-browser:generateReleaseResValues
+> Task :expo-web-browser:generateReleaseResources
+> Task :expo-updates-interface:packageReleaseResources
+> Task :expo-web-browser:packageReleaseResources
+> Task :react-native-exif:generateReleaseResValues
+> Task :react-native-gesture-handler:generateReleaseResValues
+> Task :react-native-exif:generateReleaseResources
+> Task :react-native-gesture-handler:generateReleaseResources
+> Task :react-native-exif:packageReleaseResources
+> Task :react-native-gesture-handler:packageReleaseResources
+> Task :react-native-reanimated:generateReleaseResValues
+> Task :react-native-safe-area-context:generateReleaseResValues
+> Task :react-native-reanimated:generateReleaseResources
+> Task :react-native-safe-area-context:generateReleaseResources
+> Task :react-native-reanimated:packageReleaseResources
+> Task :react-native-screens:generateReleaseResValues
+> Task :react-native-safe-area-context:packageReleaseResources
+> Task :react-native-view-shot:generateReleaseResValues
+> Task :react-native-screens:generateReleaseResources
+> Task :expo-dev-launcher:packageReleaseResources
+> Task :react-native-webview:generateReleaseResValues
+> Task :react-native-view-shot:generateReleaseResources
+> Task :react-native-screens:packageReleaseResources
+> Task :react-native-view-shot:packageReleaseResources
+> Task :react-native-webview:generateReleaseResources
+> Task :expo:extractDeepLinksRelease
+> Task :expo-asset:extractDeepLinksRelease
+> Task :react-native-webview:packageReleaseResources
+> Task :expo-blur:extractDeepLinksRelease
+> Task :expo-blur:processReleaseManifest
+> Task :expo-asset:processReleaseManifest
+> Task :expo:processReleaseManifest
+> Task :expo-dev-launcher:extractDeepLinksRelease
+> Task :expo-constants:extractDeepLinksRelease
+> Task :expo-dev-client:extractDeepLinksRelease
+> Task :expo-dev-client:processReleaseManifest
+> Task :expo-constants:processReleaseManifest
+> Task :expo-dev-menu:extractDeepLinksRelease
+> Task :expo-dev-launcher:processReleaseManifest
+> Task :expo-dev-menu-interface:extractDeepLinksRelease
+> Task :expo-eas-client:extractDeepLinksRelease
+> Task :expo-eas-client:processReleaseManifest
+> Task :expo-dev-menu:processReleaseManifest
+> Task :expo-file-system:extractDeepLinksRelease
+> Task :expo-dev-menu-interface:processReleaseManifest
+> Task :expo-font:extractDeepLinksRelease
+> Task :expo-haptics:extractDeepLinksRelease
+> Task :expo-haptics:processReleaseManifest
+> Task :expo-font:processReleaseManifest
+> Task :expo-image-loader:extractDeepLinksRelease
+> Task :expo-file-system:processReleaseManifest
+/home/expo/workingdir/build/node_modules/expo-file-system/android/src/main/AndroidManifest.xml:6:9-8:20 Warning:
+	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:6 to replace other declarations but no other declaration present
+> Task :expo-image-manipulator:extractDeepLinksRelease
+> Task :expo-image-picker:extractDeepLinksRelease
+> Task :expo-image-loader:processReleaseManifest
+> Task :expo-json-utils:extractDeepLinksRelease
+> Task :expo-image-manipulator:processReleaseManifest
+> Task :expo-json-utils:processReleaseManifest
+> Task :expo-image-picker:processReleaseManifest
+> Task :expo-keep-awake:extractDeepLinksRelease
+> Task :expo-linking:extractDeepLinksRelease
+> Task :expo-location:extractDeepLinksRelease
+> Task :expo-linking:processReleaseManifest
+> Task :expo-keep-awake:processReleaseManifest
+> Task :expo-location:processReleaseManifest
+> Task :expo-manifests:extractDeepLinksRelease
+> Task :expo-media-library:extractDeepLinksRelease
+> Task :expo-modules-core:extractDeepLinksRelease
+> Task :expo-manifests:processReleaseManifest
+> Task :expo-splash-screen:extractDeepLinksRelease
+> Task :expo-modules-core:processReleaseManifest
+/home/expo/workingdir/build/node_modules/expo-modules-core/android/src/main/AndroidManifest.xml:8:9-11:45 Warning:
+	meta-data#com.facebook.soloader.enabled@android:value was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+> Task :expo-media-library:processReleaseManifest
+> Task :expo-structured-headers:extractDeepLinksRelease
+> Task :expo-system-ui:extractDeepLinksRelease
+> Task :expo-splash-screen:processReleaseManifest
+> Task :expo-updates:extractDeepLinksRelease
+> Task :expo-structured-headers:processReleaseManifest
+> Task :expo-updates-interface:extractDeepLinksRelease
+> Task :expo-system-ui:processReleaseManifest
+> Task :expo-updates-interface:processReleaseManifest
+> Task :expo-web-browser:extractDeepLinksRelease
+> Task :react-native-exif:extractDeepLinksRelease
+> Task :expo-updates:processReleaseManifest
+> Task :react-native-gesture-handler:extractDeepLinksRelease
+> Task :react-native-gesture-handler:processReleaseManifest
+> Task :react-native-reanimated:extractDeepLinksRelease
+> Task :react-native-exif:processReleaseManifest
+package="com.devialab.exif" found in source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-exif/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.devialab.exif" from the source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-exif/android/src/main/AndroidManifest.xml.
+> Task :react-native-reanimated:processReleaseManifest
+> Task :expo-web-browser:processReleaseManifest
+> Task :react-native-safe-area-context:extractDeepLinksRelease
+> Task :react-native-screens:extractDeepLinksRelease
+> Task :react-native-view-shot:extractDeepLinksRelease
+> Task :react-native-safe-area-context:processReleaseManifest
+package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+> Task :react-native-screens:processReleaseManifest
+package="com.swmansion.rnscreens" found in source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.swmansion.rnscreens" from the source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+> Task :react-native-view-shot:processReleaseManifest
+package="fr.greweb.reactnativeviewshot" found in source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="fr.greweb.reactnativeviewshot" from the source AndroidManifest.xml: /home/expo/workingdir/build/node_modules/react-native-view-shot/android/src/main/AndroidManifest.xml.
+> Task :react-native-webview:extractDeepLinksRelease
+> Task :react-native-webview:processReleaseManifest
+> Task :expo-asset:compileReleaseLibraryResources
+> Task :expo-blur:compileReleaseLibraryResources
+> Task :expo:compileReleaseLibraryResources
+> Task :expo-asset:parseReleaseLocalResources
+> Task :expo-blur:parseReleaseLocalResources
+> Task :expo:parseReleaseLocalResources
+> Task :expo:generateReleaseRFile
+> Task :expo-asset:generateReleaseRFile
+> Task :expo-blur:generateReleaseRFile
+> Task :expo-constants:compileReleaseLibraryResources
+> Task :expo-dev-client:compileReleaseLibraryResources
+> Task :expo-constants:parseReleaseLocalResources
+> Task :app:createBundleReleaseJsAndAssets
+Starting Metro Bundler
+> Task :expo-dev-client:parseReleaseLocalResources
+> Task :expo-constants:generateReleaseRFile
+> Task :expo-dev-client:generateReleaseRFile
+> Task :expo-dev-launcher:parseReleaseLocalResources
+> Task :expo-dev-launcher:compileReleaseLibraryResources
+> Task :expo-dev-menu-interface:compileReleaseLibraryResources
+> Task :expo-dev-launcher:generateReleaseRFile
+> Task :expo-dev-menu-interface:parseReleaseLocalResources
+> Task :expo-dev-menu-interface:generateReleaseRFile
+> Task :expo-dev-menu:parseReleaseLocalResources
+> Task :expo-eas-client:compileReleaseLibraryResources
+> Task :expo-dev-menu:generateReleaseRFile
+> Task :expo-eas-client:parseReleaseLocalResources
+> Task :expo-file-system:compileReleaseLibraryResources
+> Task :expo-eas-client:generateReleaseRFile
+> Task :expo-font:compileReleaseLibraryResources
+> Task :expo-file-system:parseReleaseLocalResources
+> Task :expo-dev-menu:compileReleaseLibraryResources
+> Task :expo-font:parseReleaseLocalResources
+> Task :expo-haptics:compileReleaseLibraryResources
+> Task :expo-file-system:generateReleaseRFile
+> Task :expo-image-loader:compileReleaseLibraryResources
+> Task :expo-font:generateReleaseRFile
+> Task :expo-haptics:parseReleaseLocalResources
+> Task :expo-image-manipulator:compileReleaseLibraryResources
+> Task :expo-image-loader:parseReleaseLocalResources
+> Task :expo-image-manipulator:parseReleaseLocalResources
+> Task :expo-image-loader:generateReleaseRFile
+> Task :expo-haptics:generateReleaseRFile
+> Task :expo-json-utils:compileReleaseLibraryResources
+> Task :expo-image-picker:compileReleaseLibraryResources
+> Task :expo-image-manipulator:generateReleaseRFile
+> Task :expo-image-picker:parseReleaseLocalResources
+> Task :expo-json-utils:parseReleaseLocalResources
+> Task :expo-keep-awake:compileReleaseLibraryResources
+> Task :expo-keep-awake:parseReleaseLocalResources
+> Task :expo-image-picker:generateReleaseRFile
+> Task :expo-json-utils:generateReleaseRFile
+> Task :expo-location:compileReleaseLibraryResources
+> Task :expo-linking:compileReleaseLibraryResources
+> Task :expo-linking:parseReleaseLocalResources
+> Task :expo-keep-awake:generateReleaseRFile
+> Task :expo-location:parseReleaseLocalResources
+> Task :expo-manifests:compileReleaseLibraryResources
+> Task :expo-linking:generateReleaseRFile
+> Task :expo-location:generateReleaseRFile
+> Task :expo-manifests:parseReleaseLocalResources
+> Task :expo-modules-core:compileReleaseLibraryResources
+> Task :expo-media-library:compileReleaseLibraryResources
+> Task :expo-manifests:generateReleaseRFile
+> Task :expo-modules-core:parseReleaseLocalResources
+> Task :expo-media-library:parseReleaseLocalResources
+> Task :expo-splash-screen:compileReleaseLibraryResources
+> Task :expo-splash-screen:parseReleaseLocalResources
+> Task :expo-media-library:generateReleaseRFile
+> Task :expo-modules-core:generateReleaseRFile
+> Task :expo-structured-headers:compileReleaseLibraryResources
+> Task :expo-structured-headers:parseReleaseLocalResources
+> Task :expo-system-ui:compileReleaseLibraryResources
+> Task :expo-structured-headers:generateReleaseRFile
+> Task :expo-splash-screen:generateReleaseRFile
+> Task :expo-system-ui:parseReleaseLocalResources
+> Task :expo-updates:compileReleaseLibraryResources
+> Task :expo-updates-interface:compileReleaseLibraryResources
+> Task :expo-system-ui:generateReleaseRFile
+> Task :expo-updates:parseReleaseLocalResources
+> Task :expo-web-browser:compileReleaseLibraryResources
+> Task :expo-updates-interface:parseReleaseLocalResources
+> Task :expo-updates:generateReleaseRFile
+> Task :expo-web-browser:parseReleaseLocalResources
+> Task :react-native-exif:compileReleaseLibraryResources
+> Task :expo-updates-interface:generateReleaseRFile
+> Task :react-native-exif:parseReleaseLocalResources
+> Task :react-native-gesture-handler:compileReleaseLibraryResources
+> Task :expo-web-browser:generateReleaseRFile
+> Task :react-native-reanimated:compileReleaseLibraryResources
+> Task :react-native-exif:generateReleaseRFile
+> Task :react-native-gesture-handler:parseReleaseLocalResources
+> Task :react-native-safe-area-context:compileReleaseLibraryResources
+> Task :react-native-reanimated:parseReleaseLocalResources
+> Task :react-native-gesture-handler:generateReleaseRFile
+> Task :react-native-safe-area-context:parseReleaseLocalResources
+> Task :react-native-reanimated:generateReleaseRFile
+> Task :react-native-safe-area-context:generateReleaseRFile
+> Task :react-native-view-shot:compileReleaseLibraryResources
+> Task :react-native-screens:parseReleaseLocalResources
+> Task :react-native-view-shot:parseReleaseLocalResources
+> Task :react-native-screens:compileReleaseLibraryResources
+> Task :react-native-screens:generateReleaseRFile
+> Task :react-native-webview:compileReleaseLibraryResources
+> Task :expo:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-view-shot:generateReleaseRFile
+> Task :expo-asset:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-asset:generateReleaseBuildConfig
+> Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-webview:parseReleaseLocalResources
+> Task :expo:generateReleaseBuildConfig
+> Task :expo-modules-core:generateReleaseBuildConfig
+> Task :react-native-webview:generateReleaseRFile
+> Task :expo-blur:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-blur:generateReleaseBuildConfig
+> Task :expo-blur:javaPreCompileRelease
+> Task :expo-constants:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-asset:javaPreCompileRelease
+> Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-constants:generateReleaseBuildConfig
+> Task :expo-constants:javaPreCompileRelease
+> Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors
+> Task :app:createBundleReleaseJsAndAssets
+Android Bundled 2093ms node_modules/expo-router/entry.js (1160 modules)
+Writing bundle output to: /home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle
+Writing sourcemap output to: /home/expo/workingdir/build/android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.packager.map
+Copying 47 asset files
+Done writing bundle output
+Done writing sourcemap output
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle
+:2374:
+20: warning: the variable "Promise" was not declared in function "promiseMethodWrapper"
+        return new Promise((resolve, reject) => {
+                   ^~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:2596:23: warning: the variable "DebuggerInternal" was not declared in function "__shouldPauseOnThrow"
+        return typeof DebuggerInternal !== 'undefined' && DebuggerInternal.sh...
+                      ^~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:3918:5: warning: the variable "setImmediate" was not declared in function "handleResolved"
+    setImmediate(function () {
+    ^~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:5271:94: warning: the variable "setTimeout" was not declared in anonymous arrow function " 237#"
+...).then(callback).catch(error => setTimeout(() => {
+                                   ^~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7549:5: warning: the variable "Headers" was not declared in anonymous function " 310#"
+    Headers,
+    ^~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7550:5: warning: the variable "Request" was not declared in anonymous function " 310#"
+    Request,
+    ^~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle
+:
+7551:5: warning: the variable "Response" was not declared in anonymous function " 310#"
+    Response
+    ^~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7708:24: warning: the variable "FileReader" was not declared in function "readBlobAsArrayBuffer"
+      var reader = new FileReader();
+                       ^~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7759:36: warning: the variable "Blob" was not declared in anonymous function " 321#"
+        } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
+                                   ^~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7761:40: warning: the variable "FormData" was not declared in anonymous function " 321#"
+        } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
+                                       ^~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7763:44: warning: the variable "URLSearchParams" was not declared in anonymous function " 321#"
+...e if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body...
+                                 ^~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7882:26: warning: the variable "AbortController" was not declared in anonymous function " 327#"
+          var ctrl = new AbortController();
+                         ^~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8016:23: warning: the variable "XMLHttpRequest" was not declared in anonymous function " 331#"
+        var xhr = new XMLHttpRequest();
+                      ^~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:7561:71: warning: the variable "self" was not declared in anonymous function " 313#"
+...undefined' && globalThis || typeof self !== 'undefined' && self ||
+                                      ^~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:17150:31: warning: the variable "nativeFabricUIManager" was not declared in anonymous function " 644#"
+  var _nativeFabricUIManage = nativeFabricUIManager,
+                              ^~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:17178:21: warning: the variable "clearTimeout" was not declared in anonymous function " 644#"
+    cancelTimeout = clearTimeout;
+                    ^~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:17191:51: warning: the variable "RN$enableMicrotasksInReact" was not declared in anonymous function " 644#"
+... "undefined" !== typeof RN$enableMicrotasksInReact && !!RN$enableMicrotask...
+                           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:17192:47: warning: the variable "queueMicrotask" was not declared in anonymous function " 644#"
+...otask = "function" === typeof queueMicrotask ? queueMicrotask : scheduleTi...
+                                 ^~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:21613:30: warning: the variable "__REACT_DEVTOOLS_GLOBAL_HOOK__" was not declared in anonymous function " 644#"
+  if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
+                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:21751:26: warning: the variable "navigator" was not declared in anonymous function " 677#"
+  "undefined" !== typeof navigator && undefined !== navigator.scheduling && u...
+                         ^~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:21861:37: warning: the variable "MessageChannel" was not declared in anonymous function " 677#"
+  };else if ("undefined" !== typeof MessageChannel) {
+                                    ^~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:21876:34: warning: the variable "nativeRuntimeScheduler" was not declared in anonymous function " 677#"
+... = "undefined" !== typeof nativeRuntimeScheduler ? nativeRuntimeScheduler....
+                             ^~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:30728:16: warning: the variable "SharedArrayBuffer" was not declared in function "from"
+    if (typeof SharedArrayBuffer !== 'undefined' && (isInstance(value, Shared...
+               ^~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:38628:34: warning: the variable "requestAnimationFrame" was not declared in function "start 9#"
+...    this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+                              ^~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:53892:26: warning: the variable "SuppressedError" was not declared in anonymous function " 1652#"
+    "function" == typeof SuppressedError && SuppressedError;
+                         ^~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:54177:34: warning: the variable "structuredClone" was not declared in function "be"
+        } : "function" == typeof structuredClone ? function (e) {
+                                 ^~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:61726:16: warning: Direct call to eval(), but lexical scope is not supported.
+        return eval(body);
+               ^~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:70713:9: warning: the variable "REACT_NAVIGATION_DEVTOOLS" was not declared in anonymous arrow function " 2520#"
+        REACT_NAVIGATION_DEVTOOLS.set(refContainer.current, {
+        ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:76902:26: warning: the variable "ResizeObserver" was not declared in anonymous arrow function " 2726#"
+      var observer = new ResizeObserver(entries => {
+                         ^~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:82304:11: warning: the variable "cancelAnimationFrame" was not declared in function "cleanup"
+          cancelAnimationFrame(this.splashScreenAnimationFrame);
+          ^~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83517:16: warning: the variable "ReactNativeWebView" was not declared in function "emitDomEvent"
+    if (typeof ReactNativeWebView !== 'undefined') {
+               ^~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:91877:11: warning: the variable "_WORKLET" was not declared in function "assertEasingIsWorklet"
+      if (_WORKLET) {
+          ^~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:94122:12: warning: the variable "__reanimatedLoggerConfig" was not declared in function "replaceLoggerImplementation"
+        ...__reanimatedLoggerConfig,
+           ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:94723:26: warning: Direct call to eval(), but lexical scope is not supported.
+            workletFun = eval('(' + initData.code + '\n)');
+                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:94746:112: warning: the variable "_toString" was not declared in function "valueUnpacker"
+...recognized by value unpacker: "${_toString(objectToUnpack)}".`);
+                                    ^~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:112028:5: warning: the variable "document" was not declared in function "configureWebLayoutAnimations"
+    document.getElementById(PREDEFINED_WEB_ANIMATIONS_ID) !== null) {
+    ^~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:112123:27: warning: the variable "HTMLElement" was not declared in function "findDescendantWithExitingAnimation"
+    if (!(node instanceof HTMLElement)) {
+                          ^~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:112149:24: warning: the variable "MutationObserver" was not declared in function "addHTMLMutationObserver"
+    var observer = new MutationObserver(mutationsList => {
+                       ^~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:112194:41: warning: the variable "getComputedStyle" was not declared in function "fixElementPosition"
+...entBorderTopValue = parseInt(getComputedStyle(parent).borderTopWidth);
+                                ^~~~~~~~~~~~~~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:116169:5: warning: the variable "jest" was not declared in arrow function "beforeTest"
+    jest.useFakeTimers();
+    ^~~~
+/home/expo/workingdir/build/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:116746:26: warning: the variable "_getAnimationTimestamp" was not declared in function "computeEasingProgress"
+      var elapsedTime = (_getAnimationTimestamp() - startingTimestamp) / 1000;
+                         ^~~~~~~~~~~~~~~~~~~~~~
+> Task :expo-dev-client:dataBindingMergeDependencyArtifactsRelease
+> Task :expo-modules-core:javaPreCompileRelease
+> Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsRelease
+> Task :expo-dev-client:dataBindingGenBaseClassesRelease
+> Task :expo-dev-client:generateReleaseBuildConfig
+> Task :expo-dev-client:javaPreCompileRelease
+> Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu:generateReleaseBuildConfig
+> Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-menu-interface:generateReleaseBuildConfig
+> Task :expo-dev-menu-interface:javaPreCompileRelease
+> Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-json-utils:generateReleaseBuildConfig
+> Task :expo-json-utils:javaPreCompileRelease
+> Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-manifests:generateReleaseBuildConfig
+> Task :expo-manifests:javaPreCompileRelease
+> Task :expo-dev-menu:javaPreCompileRelease
+> Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-updates-interface:generateReleaseBuildConfig
+> Task :expo-dev-launcher:dataBindingGenBaseClassesRelease
+> Task :expo-updates-interface:javaPreCompileRelease
+> Task :expo-eas-client:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-dev-launcher:generateReleaseBuildConfig
+> Task :expo-eas-client:generateReleaseBuildConfig
+> Task :expo-dev-launcher:javaPreCompileRelease
+> Task :expo-eas-client:javaPreCompileRelease
+> Task :expo-file-system:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-font:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-font:generateReleaseBuildConfig
+> Task :expo-file-system:generateReleaseBuildConfig
+> Task :expo-file-system:javaPreCompileRelease
+> Task :expo-font:javaPreCompileRelease
+> Task :expo-haptics:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image-loader:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-haptics:generateReleaseBuildConfig
+> Task :expo-image-loader:generateReleaseBuildConfig
+> Task :expo-haptics:javaPreCompileRelease
+> Task :expo-image-manipulator:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image-loader:javaPreCompileRelease
+> Task :expo-image-picker:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-image-manipulator:generateReleaseBuildConfig
+> Task :expo-image-picker:generateReleaseBuildConfig
+> Task :expo-image-manipulator:javaPreCompileRelease
+> Task :expo-keep-awake:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-keep-awake:generateReleaseBuildConfig
+> Task :expo-image-picker:javaPreCompileRelease
+> Task :expo-linking:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-keep-awake:javaPreCompileRelease
+> Task :expo-location:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-location:generateReleaseBuildConfig
+> Task :expo-linking:generateReleaseBuildConfig
+> Task :expo-location:javaPreCompileRelease
+> Task :expo-media-library:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-linking:javaPreCompileRelease
+> Task :expo-splash-screen:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-splash-screen:generateReleaseBuildConfig
+> Task :expo-media-library:generateReleaseBuildConfig
+> Task :expo-media-library:javaPreCompileRelease
+> Task :expo-structured-headers:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-splash-screen:javaPreCompileRelease
+> Task :expo-system-ui:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-structured-headers:generateReleaseBuildConfig
+> Task :expo-system-ui:generateReleaseBuildConfig
+> Task :expo-system-ui:javaPreCompileRelease
+> Task :expo-updates:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-structured-headers:javaPreCompileRelease
+> Task :expo-web-browser:checkKotlinGradlePluginConfigurationErrors
+> Task :expo-web-browser:generateReleaseBuildConfig
+> Task :expo-updates:generateReleaseBuildConfig
+> Task :expo-web-browser:javaPreCompileRelease
+> Task :expo:javaPreCompileRelease
+> Task :react-native-exif:generateReleaseBuildConfig
+> Task :react-native-exif:javaPreCompileRelease
+> Task :expo-updates:javaPreCompileRelease
+> Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-gesture-handler:generateReleaseBuildConfig
+> Task :react-native-reanimated:generateReleaseBuildConfig
+> Task :react-native-reanimated:javaPreCompileRelease
+> Task :react-native-reanimated:packageNdkLibs NO-SOURCE
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :react-native-exif:compileReleaseJavaWithJavac
+Note: /home/expo/workingdir/build/node_modules/react-native-exif/android/src/main/java/com/devialab/exif/Exif.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+> Task :react-native-reanimated:compileReleaseJavaWithJavac
+> Task :app:mergeReleaseResources
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+/home/expo/.gradle/caches/8.10.2/transforms/c101593ce7aa7f30092f00088b4ab11e/transformed/material-1.6.1/res/values/values.xml:7497:4: Duplicate value for resource 'attr/actionBarSize' with config 'DEFAULT' and product ''. Resource was previously defined here: com.patjfree.nanagram.app-mergeReleaseResources-70:/values/values.xml:8627: .
+> Task :app:packageReleaseResources
+> Task :app:parseReleaseLocalResources
+> Task :react-native-exif:bundleLibCompileToJarRelease
+> Task :app:mergeReleaseResources
+FAILED
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :react-native-reanimated:bundleLibCompileToJarRelease
+> Task :expo-modules-core:compileReleaseKotlin
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':app:mergeReleaseResources'.
+> A failure occurred while executing com.android.build.gradle.internal.res.ResourceCompilerRunnable
+   > Resource compilation failed (Failed to compile values resource file /home/expo/workingdir/build/android/app/build/intermediates/incremental/release/mergeReleaseResources/merged.dir/values/values.xml. Cause: java.lang.IllegalStateException: Can not add resource (com.android.aaptcompiler.ParsedResource@22d78869) to table.). Check logs for more details.
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+BUILD FAILED in 2m 32s
+467 actionable tasks: 467 executed
+Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.

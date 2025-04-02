@@ -1,0 +1,9 @@
+// Root build.gradle file
+// This file is kept for compatibility but should not contain Android-specific configurations
+// Android configurations should be in the android/build.gradle file
+
+allprojects {
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+} 
