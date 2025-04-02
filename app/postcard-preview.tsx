@@ -400,7 +400,8 @@ export default function PostcardPreviewScreen() {
           ref={viewShotFrontRef} 
           style={[styles.postcardPreviewContainer, {
             width: screenWidth,
-            height: scaledHeight
+            height: scaledHeight,
+            paddingTop: 20  // Add padding to the container
           }]}
           options={{
             width: POSTCARD_WIDTH,

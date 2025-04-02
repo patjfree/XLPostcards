@@ -224,6 +224,8 @@ export default function HomeScreen() {
   });
   const [stateError, setStateError] = useState('');
   const [zipcodeError, setZipcodeError] = useState('');
+  const [isStateValid, setIsStateValid] = useState(false);
+  const [isZipcodeValid, setIsZipcodeValid] = useState(false);
 
   const router = useRouter();
 
@@ -352,7 +354,7 @@ export default function HomeScreen() {
   };
 
   // Add validation functions
-  const validateState = (state: string) => {
+  const validateState = (state: string): boolean => {
     const upperState = state.toUpperCase();
     if (!VALID_STATES.includes(upperState)) {
       setStateError('Invalid 2-letter state code');
@@ -362,7 +364,7 @@ export default function HomeScreen() {
     return true;
   };
 
-  const validateZipcode = (zipcode: string) => {
+  const validateZipcode = (zipcode: string): boolean => {
     const zipRegex = /^\d{5}(-\d{4})?$/;
     if (!zipRegex.test(zipcode)) {
       setZipcodeError('Please enter a valid 5 or 9-digit zipcode');
@@ -372,18 +374,20 @@ export default function HomeScreen() {
     return true;
   };
 
-  // Update handleRecipientChange to include validation
+  // Update handleRecipientChange to remove validation
   const handleRecipientChange = (field: string, value: string | boolean) => {
     setRecipientInfo(prev => ({
       ...prev,
       [field]: value
     }));
+  };
 
-    // Validate state and zipcode as they're typed
+  // Add new validation handler for blur events
+  const handleFieldBlur = (field: string) => {
     if (field === 'state') {
-      validateState(value as string);
+      setIsStateValid(validateState(recipientInfo.state));
     } else if (field === 'zipcode') {
-      validateZipcode(value as string);
+      setIsZipcodeValid(validateZipcode(recipientInfo.zipcode));
     }
   };
 
@@ -618,22 +622,23 @@ export default function HomeScreen() {
     */
   };
 
-  // Modify handleCreatePostcard to include validation
+  // Update handleCreatePostcard to validate before proceeding
   const handleCreatePostcard = async () => {
     if (!image) {
       Alert.alert('No image', 'Please select a photo first.');
       return;
     }
 
-    try {
-      // Validate address before proceeding
-      const validationResult = await validateAddress(recipientInfo);
-      
-      if (!validationResult.isValid) {
-        Alert.alert('Invalid Address', validationResult.message);
-        return;
-      }
+    // Validate fields before proceeding
+    const stateValid = validateState(recipientInfo.state);
+    const zipcodeValid = validateZipcode(recipientInfo.zipcode);
+    
+    if (!stateValid || !zipcodeValid) {
+      Alert.alert('Invalid Input', 'Please fix the errors in the form before proceeding.');
+      return;
+    }
 
+    try {
       // Create a permanent directory if it doesn't exist
       const postcardDir = `${FileSystem.documentDirectory}postcards/`;
       await FileSystem.makeDirectoryAsync(postcardDir, { intermediates: true }).catch(() => {});
@@ -664,7 +669,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Update isFormValid to include new validations
+  // Update isFormValid to use stored validation results
   const isFormValid = () => {
     return (
       image !== null &&
@@ -672,8 +677,8 @@ export default function HomeScreen() {
       recipientInfo.to.trim() !== '' &&
       recipientInfo.addressLine1.trim() !== '' &&
       recipientInfo.city.trim() !== '' &&
-      validateState(recipientInfo.state) &&
-      validateZipcode(recipientInfo.zipcode) &&
+      isStateValid &&
+      isZipcodeValid &&
       recipientInfo.country.trim() !== ''
     );
   };
@@ -793,6 +798,7 @@ export default function HomeScreen() {
               style={[styles.input, stateError ? styles.inputError : null]}
               value={recipientInfo.state}
               onChangeText={(text) => handleRecipientChange('state', text)}
+              onBlur={() => handleFieldBlur('state')}
               placeholder="State"
               textContentType="addressState"
               autoComplete="address-line2"
@@ -808,6 +814,7 @@ export default function HomeScreen() {
           style={[styles.input, zipcodeError ? styles.inputError : null]}
           value={recipientInfo.zipcode}
           onChangeText={(text) => handleRecipientChange('zipcode', text)}
+          onBlur={() => handleFieldBlur('zipcode')}
           placeholder="Zipcode"
           keyboardType="numeric"
           textContentType="postalCode"
