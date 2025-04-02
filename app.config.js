@@ -1,7 +1,49 @@
 require("dotenv").config();
 
+const getAppName = () => {
+  // Get the build profile from environment variable or default to 'development'
+  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
+  
+  switch (buildProfile) {
+    case 'preview':
+      return 'P:NanaGram';
+    case 'production':
+      return 'NanaGram';
+    default:
+      return 'D:NanaGram';
+  }
+};
+
+const getPackageName = () => {
+  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
+  const basePackage = 'com.patjfree.nanagram';
+  
+  switch (buildProfile) {
+    case 'preview':
+      return `${basePackage}.preview`;
+    case 'production':
+      return basePackage;
+    default:
+      return `${basePackage}.dev`;
+  }
+};
+
+const getBundleIdentifier = () => {
+  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
+  const baseIdentifier = 'com.patjfree.nanagram';
+  
+  switch (buildProfile) {
+    case 'preview':
+      return `${baseIdentifier}.preview`;
+    case 'production':
+      return baseIdentifier;
+    default:
+      return `${baseIdentifier}.dev`;
+  }
+};
+
 module.exports = {
-  name: "NanaGram",
+  name: getAppName(),
   slug: "NanaGram",
   version: "1.0.0",
   orientation: "portrait",
@@ -16,7 +58,7 @@ module.exports = {
   },
   assetBundlePatterns: ["**/*"],
   ios: {
-    bundleIdentifier: "com.patjfree.nanagram",
+    bundleIdentifier: getBundleIdentifier(),
     supportsTablet: true,
     deploymentTarget: "13.0",
     infoPlist: {
@@ -26,7 +68,7 @@ module.exports = {
     },
   },
   android: {
-    package: "com.patjfree.nanagram",
+    package: getPackageName(),
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#ffffff",
