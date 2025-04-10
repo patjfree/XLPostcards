@@ -245,7 +245,7 @@ export default function PostcardPreviewScreen() {
       formData.append('clearzone', 'true');
       
       // Create authorization header with invalid API key for testing
-      const authHeader = 'Basic ' + btoa(`${apiKey}invalid:`);
+      const authHeader = 'Basic ' + btoa(`${apiKey}:`);
       
       // Make the API request
       console.log("Sending request to Stannp API...");
