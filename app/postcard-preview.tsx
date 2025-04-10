@@ -439,6 +439,16 @@ export default function PostcardPreviewScreen() {
           <ThemedText style={styles.modalText}>
             We've received your Nanagram, your recipient will receive their Postcard within a week.
           </ThemedText>
+          {__DEV__ && sendResult?.pdfUrl && (
+            <TouchableOpacity 
+              style={[styles.modalButton, { marginBottom: 12 }]}
+              onPress={() => {
+                Linking.openURL(sendResult.pdfUrl as string);
+              }}
+            >
+              <ThemedText style={styles.modalButtonText}>View PDF Preview</ThemedText>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
@@ -737,16 +747,7 @@ export default function PostcardPreviewScreen() {
                 >
                   <ThemedText style={styles.buttonText}>Continue</ThemedText>
                 </TouchableOpacity>
-              ) : sendResult?.pdfUrl && (
-                <TouchableOpacity 
-                  style={styles.submitButton}
-                  onPress={() => {
-                    Linking.openURL(sendResult.pdfUrl as string);
-                  }}
-                >
-                  <ThemedText style={styles.buttonText}>View PDF Preview</ThemedText>
-                </TouchableOpacity>
-              )}
+              ) : null}
             </View>
           </View>
         </View>
@@ -859,8 +860,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   disclaimerText: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 24,
     color: 'white',
     marginBottom: 12,
     textAlign: 'center',
@@ -901,7 +902,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 24,
   },
   statusContainer: {
     marginTop: 20,
@@ -1011,7 +1012,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 24,
   },
   footer: {
     padding: 16,
