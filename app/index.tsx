@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 24,
+    fontSize: 22,
   },
   imagePreviewContainer: {
     marginBottom: 10,

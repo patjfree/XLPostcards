@@ -300,10 +300,7 @@ export default function PostcardPreviewScreen() {
       
       // Error case - update all states in one batch
       const updates = async () => {
-        setSendResult({
-          success: false,
-          message: `Failed to generate postcard preview: ${errorMessage}`
-        });
+        // Don't set sendResult for errors anymore, only handle via modal
         setStannpAttempts(prev => prev + 1);
         setShowErrorModal(true);
         setRefundData(prev => ({
@@ -355,6 +352,7 @@ export default function PostcardPreviewScreen() {
       }
     } catch (error) {
       console.error("Error checking status:", error);
+      // Silently handle status check errors
     }
   };
   
@@ -513,6 +511,11 @@ export default function PostcardPreviewScreen() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const handleDismiss = () => {
+      setShowRefundModal(false);
+      router.replace('/');
+    };
+
     const handleSubmitRefund = async () => {
       setIsSubmitting(true);
       try {
@@ -553,10 +556,16 @@ export default function PostcardPreviewScreen() {
         animationType="slide"
         transparent={true}
         visible={showRefundModal}
-        onRequestClose={() => setShowRefundModal(false)}
+        onRequestClose={handleDismiss}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={handleDismiss}
+            >
+              <MaterialIcons name="close" size={24} color="white" />
+            </TouchableOpacity>
             <ThemedText style={styles.modalTitle}>Request Refund</ThemedText>
             <ThemedText style={styles.modalText}>
               Please provide your information for the refund request:
@@ -761,15 +770,6 @@ export default function PostcardPreviewScreen() {
         </View>
       )}
       
-      {sendResult?.message && (
-        <View style={[
-          styles.statusContainer, 
-          sendResult.success ? styles.successContainer : styles.errorContainer
-        ]}>
-          <ThemedText style={styles.statusText}>{sendResult.message}</ThemedText>
-        </View>
-      )}
-      
       {/* Add the new modals */}
       <PurchaseModal />
       <SuccessModal />
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 24,
+    fontSize: 22,
   },
   statusContainer: {
     marginTop: 20,
@@ -913,16 +913,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  successContainer: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.5)',
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(244, 67, 54, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.5)',
   },
   statusText: {
     marginLeft: 10,
@@ -1012,7 +1002,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 24,
+    fontSize: 22,
   },
   footer: {
     padding: 16,
@@ -1039,5 +1029,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     backgroundColor: 'white',
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    padding: 8,
+    zIndex: 1,
   },
 }); 
