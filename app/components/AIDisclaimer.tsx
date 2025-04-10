@@ -48,14 +48,16 @@ type ReportFormData = {
 
 interface AIDisclaimerProps {
   contentToReport?: string;
+  onSubmitSuccess?: () => void;
+  defaultComments?: string;
 }
 
-export default function AIDisclaimer({ contentToReport }: AIDisclaimerProps) {
+export default function AIDisclaimer({ contentToReport, onSubmitSuccess, defaultComments }: AIDisclaimerProps) {
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
   const [reportForm, setReportForm] = useState<ReportFormData>({
     name: '',
     email: '',
-    comments: ''
+    comments: defaultComments || ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -99,6 +101,10 @@ export default function AIDisclaimer({ contentToReport }: AIDisclaimerProps) {
       setReportForm({ name: '', email: '', comments: '' });
       setIsReportModalVisible(false);
       Alert.alert('Submitted', 'We will review the report and take the appropriate action. Thank you for your feedback.');
+
+      if (onSubmitSuccess) {
+        onSubmitSuccess();
+      }
 
       try {
         console.debug('Report submitted successfully');

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import AIDisclaimer from './components/AIDisclaimer';
 
 // Postcard dimensions at 300 DPI
 const POSTCARD_WIDTH = 1871;
@@ -72,23 +73,21 @@ export default function PostcardPreviewScreen() {
     message: string;
     pdfUrl?: string;
   } | null>(null);
-  
-  // Add effect to auto-hide success message
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    
-    if (sendResult?.success) {
-      timeoutId = setTimeout(() => {
-        setSendResult((prev: SendResult | null) => prev?.success ? { ...prev, message: '' } : prev);
-      }, 5000);
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [sendResult?.success]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showRefundSuccessModal, setShowRefundSuccessModal] = useState(false);
+  const [stannpAttempts, setStannpAttempts] = useState(0);
+  const [refundData, setRefundData] = useState({
+    date: new Date().toISOString(),
+    name: '',
+    email: '',
+    comments: '',
+    platform: Platform.OS,
+    transactionId: '',
+    stannpError: ''
+  });
   
   // Get data from route params
   const imageUri = params.imageUri as string;
@@ -168,7 +167,7 @@ export default function PostcardPreviewScreen() {
     try {
       setSending(true);
       setSendResult(null);
-      setIsCapturing(true);  // Set capturing mode before taking snapshots
+      setIsCapturing(true);
 
       // Get API key
       const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
@@ -208,7 +207,7 @@ export default function PostcardPreviewScreen() {
       const formData = new FormData();
       
       // Add test mode flag and size
-      formData.append('test', 'false');
+      formData.append('test', 'true');  // This sets whether the postcard is sent or not
       formData.append('size', '4x6');
       
       // Add scaled front and back images
@@ -281,30 +280,40 @@ export default function PostcardPreviewScreen() {
       // Extract PDF preview URL
       const pdfUrl = data.data.pdf || data.data.pdf_url;
       
-      setSendResult({
-        success: true,
-        message: `Test postcard created successfully! A print-ready PDF has been generated.`,
-        pdfUrl: pdfUrl
-      });
-      
-      // Clean up temporary scaled image files
-      try {
-        await FileSystem.deleteAsync(frontUri, { idempotent: true });
-        await FileSystem.deleteAsync(backUri, { idempotent: true });
-      } catch (cleanupError) {
-        console.warn('Error cleaning up scaled images:', cleanupError);
-      }
+      // Success case - update all states in one batch
+      const updates = async () => {
+        setStannpAttempts(0);
+        setSendResult({
+          success: true,
+          message: `Test postcard created successfully! A print-ready PDF has been generated.`,
+          pdfUrl: pdfUrl
+        });
+        setShowSuccessModal(true);
+        setSending(false);
+        setIsCapturing(false);
+      };
+      await updates();
       
     } catch (error) {
       console.error('ERROR in sending process:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setSendResult({
-        success: false,
-        message: `Failed to generate postcard preview: ${errorMessage}`
-      });
-    } finally {
-      console.log("==== SEND PROCESS COMPLETED ====");
-      setSending(false);
+      
+      // Error case - update all states in one batch
+      const updates = async () => {
+        setSendResult({
+          success: false,
+          message: `Failed to generate postcard preview: ${errorMessage}`
+        });
+        setStannpAttempts(prev => prev + 1);
+        setShowErrorModal(true);
+        setRefundData(prev => ({
+          ...prev,
+          stannpError: errorMessage
+        }));
+        setSending(false);
+        setIsCapturing(false);
+      };
+      await updates();
     }
   };
   
@@ -386,6 +395,169 @@ export default function PostcardPreviewScreen() {
   const screenWidth = Dimensions.get('window').width - 16; // Account for padding
   const scaleFactor = screenWidth / POSTCARD_WIDTH;
   const scaledHeight = POSTCARD_HEIGHT * scaleFactor;
+
+  // Purchase Modal Component
+  const PurchaseModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showPurchaseModal}
+      onRequestClose={() => setShowPurchaseModal(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Purchase Postcard</ThemedText>
+          <ThemedText style={styles.modalText}>Ready to send your Nanagram?</ThemedText>
+          <TouchableOpacity 
+            style={styles.modalButton}
+            onPress={() => {
+              setShowPurchaseModal(false);
+              sendPostcard();
+            }}
+          >
+            <ThemedText style={styles.modalButtonText}>Purchase</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Success Modal Component
+  const SuccessModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showSuccessModal}
+      onRequestClose={() => {
+        setShowSuccessModal(false);
+        router.replace('/');
+      }}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Success!</ThemedText>
+          <ThemedText style={styles.modalText}>
+            We've received your Nanagram, your recipient will receive their Postcard within a week.
+          </ThemedText>
+          <TouchableOpacity 
+            style={styles.modalButton}
+            onPress={() => {
+              setShowSuccessModal(false);
+              router.replace('/');
+            }}
+          >
+            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Error Modal Component
+  const ErrorModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showErrorModal}
+      onRequestClose={() => setShowErrorModal(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
+          <ThemedText style={styles.modalText}>
+            {stannpAttempts === 1 
+              ? "Oops, something went wrong with your Nanagram. Please Try Again."
+              : "Oops, something went wrong with your Nanagram. Let's request your Refund."}
+          </ThemedText>
+          {stannpAttempts === 1 ? (
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={() => {
+                setShowErrorModal(false);
+                sendPostcard();
+              }}
+            >
+              <ThemedText style={styles.modalButtonText}>Try Again</ThemedText>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={() => {
+                setShowErrorModal(false);
+                setShowRefundModal(true);
+              }}
+            >
+              <ThemedText style={styles.modalButtonText}>Request Refund</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Refund Modal Component
+  const RefundModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showRefundModal}
+      onRequestClose={() => setShowRefundModal(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Request Refund</ThemedText>
+          <ThemedText style={styles.modalText}>
+            Please provide your information for the refund request:
+          </ThemedText>
+          <AIDisclaimer 
+            contentToReport={JSON.stringify({
+              platform: Platform.OS,
+              stannpError: sendResult?.message || 'Unknown error',
+              recipientInfo: recipientInfo,
+              postcardMessage: message,
+              imageUri: imageUri
+            })}
+            onSubmitSuccess={() => {
+              setShowRefundModal(false);
+              setShowRefundSuccessModal(true);
+            }}
+            defaultComments={`Transaction ID: ${refundData.transactionId || 'Not available'}`}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Refund Success Modal Component
+  const RefundSuccessModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showRefundSuccessModal}
+      onRequestClose={() => {
+        setShowRefundSuccessModal(false);
+        router.replace('/');
+      }}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Refund Request Received</ThemedText>
+          <ThemedText style={styles.modalText}>
+            We've received your request for a refund, please give us 2 business days to investigate and complete the transaction.
+          </ThemedText>
+          <TouchableOpacity 
+            style={styles.modalButton}
+            onPress={() => {
+              setShowRefundSuccessModal(false);
+              router.replace('/');
+            }}
+          >
+            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -500,13 +672,7 @@ export default function PostcardPreviewScreen() {
                     styles.submitButton,
                     sending && { opacity: 0.5 }
                   ]} 
-                  onPress={() => {
-                    setSendResult({
-                      success: true,
-                      message: "Starting send process..."
-                    });
-                    sendPostcard();
-                  }}
+                  onPress={() => setShowPurchaseModal(true)}
                   disabled={sending}
                 >
                   <ThemedText style={styles.buttonText}>Continue</ThemedText>
@@ -542,6 +708,13 @@ export default function PostcardPreviewScreen() {
           <ThemedText style={styles.statusText}>{sendResult.message}</ThemedText>
         </View>
       )}
+      
+      {/* Add the new modals */}
+      <PurchaseModal />
+      <SuccessModal />
+      <ErrorModal />
+      <RefundModal />
+      <RefundSuccessModal />
     </ThemedView>
   );
 }
@@ -742,5 +915,57 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: 'white',
     flexShrink: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#1D3D47',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+  },
+  modalText: {
+    fontSize: 16,
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#0a7ea4',
+    padding: 15,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  footer: {
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  privacyLink: {
+    color: '#0a7ea4',
+    textDecorationLine: 'underline',
   },
 }); 
