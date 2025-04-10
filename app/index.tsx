@@ -220,6 +220,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 4,
   },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
 });
 
 export default function HomeScreen() {

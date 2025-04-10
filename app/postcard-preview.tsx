@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -244,8 +244,8 @@ export default function PostcardPreviewScreen() {
       // Add clearzone parameter to ensure machine readability
       formData.append('clearzone', 'true');
       
-      // Create authorization header
-      const authHeader = 'Basic ' + btoa(`${apiKey}:`);
+      // Create authorization header with invalid API key for testing
+      const authHeader = 'Basic ' + btoa(`${apiKey}invalid:`);
       
       // Make the API request
       console.log("Sending request to Stannp API...");
@@ -496,37 +496,97 @@ export default function PostcardPreviewScreen() {
   );
 
   // Refund Modal Component
-  const RefundModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showRefundModal}
-      onRequestClose={() => setShowRefundModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Request Refund</ThemedText>
-          <ThemedText style={styles.modalText}>
-            Please provide your information for the refund request:
-          </ThemedText>
-          <AIDisclaimer 
-            contentToReport={JSON.stringify({
-              platform: Platform.OS,
-              stannpError: sendResult?.message || 'Unknown error',
-              recipientInfo: recipientInfo,
-              postcardMessage: message,
-              imageUri: imageUri
-            })}
-            onSubmitSuccess={() => {
-              setShowRefundModal(false);
-              setShowRefundSuccessModal(true);
-            }}
-            defaultComments={`Transaction ID: ${refundData.transactionId || 'Not available'}`}
-          />
+  const RefundModal = () => {
+    const [refundForm, setRefundForm] = useState({
+      name: '',
+      email: '',
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmitRefund = async () => {
+      setIsSubmitting(true);
+      try {
+        const formData = new URLSearchParams();
+        formData.append('Name', refundForm.name);
+        formData.append('Email', refundForm.email);
+        formData.append('Comments', `Transaction ID: ${refundData.transactionId || 'Not available'}`);
+        formData.append('Payload', JSON.stringify({
+          platform: Platform.OS,
+          stannpError: sendResult?.message || 'Unknown error',
+          recipientInfo: recipientInfo,
+          postcardMessage: message,
+          imageUri: imageUri
+        }));
+
+        // Use the same reporting endpoint as AIDisclaimer
+        const response = await fetch('https://script.google.com/macros/s/AKfycbwgPQTnYaApkceJFVOXh4bru-kT392o1RiDYJc4cp4_9UB9zANAX-XsfDXotu-JFwvJsg/exec', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: formData.toString(),
+          mode: 'no-cors'
+        });
+
+        setShowRefundModal(false);
+        setShowRefundSuccessModal(true);
+      } catch (error) {
+        console.error('Error submitting refund request:', error);
+        Alert.alert('Error', 'Failed to submit refund request. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showRefundModal}
+        onRequestClose={() => setShowRefundModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <ThemedText style={styles.modalTitle}>Request Refund</ThemedText>
+            <ThemedText style={styles.modalText}>
+              Please provide your information for the refund request:
+            </ThemedText>
+            
+            <TextInput
+              style={styles.refundInput}
+              placeholder="Name *"
+              placeholderTextColor="#999"
+              value={refundForm.name}
+              onChangeText={(text) => setRefundForm(prev => ({ ...prev, name: text }))}
+            />
+
+            <TextInput
+              style={styles.refundInput}
+              placeholder="Email *"
+              placeholderTextColor="#999"
+              value={refundForm.email}
+              onChangeText={(text) => setRefundForm(prev => ({ ...prev, email: text }))}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity 
+              style={[
+                styles.modalButton,
+                (!refundForm.name.trim() || !refundForm.email.trim() || isSubmitting) && { opacity: 0.5 }
+              ]}
+              onPress={handleSubmitRefund}
+              disabled={!refundForm.name.trim() || !refundForm.email.trim() || isSubmitting}
+            >
+              <ThemedText style={styles.modalButtonText}>
+                {isSubmitting ? 'Submitting...' : 'Request Refund'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   // Refund Success Modal Component
   const RefundSuccessModal = () => (
@@ -920,7 +980,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   modalContent: {
     backgroundColor: '#1D3D47',
@@ -967,5 +1027,16 @@ const styles = StyleSheet.create({
   privacyLink: {
     color: '#0a7ea4',
     textDecorationLine: 'underline',
+  },
+  refundInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#000',
+    backgroundColor: 'white',
   },
 }); 
