@@ -115,6 +115,7 @@ module.exports = {
         isAccessMediaLocationEnabled: true,
       },
     ],
+    "react-native-iap"
   ],
   experiments: {
     tsconfigPaths: true,

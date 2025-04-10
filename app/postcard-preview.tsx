@@ -13,6 +13,8 @@ import Constants from 'expo-constants';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from './components/AIDisclaimer';
+import { iapManager, PostcardPurchase } from '@/utils/iapManager';
+import { postcardService } from '@/utils/postcardService';
 
 // Postcard dimensions at 300 DPI
 const POSTCARD_WIDTH = 1871;
@@ -161,14 +163,34 @@ export default function PostcardPreviewScreen() {
   
   // Function to send the postcard via Stannp API
   const sendPostcard = async () => {
-    console.log("==== SENDING POSTCARD ====");
-    console.log("Starting send process...");
-    
     try {
       setSending(true);
       setSendResult(null);
       setIsCapturing(true);
 
+      // Initialize IAP if needed
+      await iapManager.initialize();
+
+      // Start the purchase flow
+      const postcardPurchase: PostcardPurchase = await iapManager.purchasePostcard();
+      
+      // Ensure we have a transaction ID
+      if (!postcardPurchase.transactionId) {
+        throw new Error('No transaction ID received from purchase');
+      }
+      
+      // Check if this transaction has already been processed
+      const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
+      if (existingStatus === 'completed') {
+        throw new Error('This postcard has already been sent');
+      }
+      if (existingStatus === 'pending') {
+        throw new Error('This postcard is currently being processed');
+      }
+
+      // Create a new transaction record
+      const idempotencyKey = await postcardService.createTransaction(postcardPurchase.transactionId);
+      
       // Get API key
       const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
       
@@ -244,7 +266,7 @@ export default function PostcardPreviewScreen() {
       // Add clearzone parameter to ensure machine readability
       formData.append('clearzone', 'true');
       
-      // Create authorization header with invalid API key for testing
+      // Create authorization header
       const authHeader = 'Basic ' + btoa(`${apiKey}:`);
       
       // Make the API request
@@ -264,6 +286,7 @@ export default function PostcardPreviewScreen() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("ERROR: Bad response from API:", errorText);
+        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
         throw new Error(`API returned status ${response.status}: ${errorText}`);
       }
       
@@ -274,8 +297,12 @@ export default function PostcardPreviewScreen() {
       console.log("Parsed API Response:", JSON.stringify(data, null, 2));
       
       if (!data.success) {
+        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
         throw new Error(data.error || 'Failed to send postcard');
       }
+      
+      // Mark transaction as completed
+      await postcardService.markTransactionComplete(postcardPurchase.transactionId);
       
       // Extract PDF preview URL
       const pdfUrl = data.data.pdf || data.data.pdf_url;
@@ -300,7 +327,6 @@ export default function PostcardPreviewScreen() {
       
       // Error case - update all states in one batch
       const updates = async () => {
-        // Don't set sendResult for errors anymore, only handle via modal
         setStannpAttempts(prev => prev + 1);
         setShowErrorModal(true);
         setRefundData(prev => ({
@@ -393,32 +419,6 @@ export default function PostcardPreviewScreen() {
   const screenWidth = Dimensions.get('window').width - 16; // Account for padding
   const scaleFactor = screenWidth / POSTCARD_WIDTH;
   const scaledHeight = POSTCARD_HEIGHT * scaleFactor;
-
-  // Purchase Modal Component
-  const PurchaseModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showPurchaseModal}
-      onRequestClose={() => setShowPurchaseModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Purchase Postcard</ThemedText>
-          <ThemedText style={styles.modalText}>Ready to send your Nanagram?</ThemedText>
-          <TouchableOpacity 
-            style={styles.modalButton}
-            onPress={() => {
-              setShowPurchaseModal(false);
-              sendPostcard();
-            }}
-          >
-            <ThemedText style={styles.modalButtonText}>Purchase</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
 
   // Success Modal Component
   const SuccessModal = () => (
@@ -751,7 +751,7 @@ export default function PostcardPreviewScreen() {
                     styles.submitButton,
                     sending && { opacity: 0.5 }
                   ]} 
-                  onPress={() => setShowPurchaseModal(true)}
+                  onPress={sendPostcard}
                   disabled={sending}
                 >
                   <ThemedText style={styles.buttonText}>Continue</ThemedText>
@@ -771,7 +771,6 @@ export default function PostcardPreviewScreen() {
       )}
       
       {/* Add the new modals */}
-      <PurchaseModal />
       <SuccessModal />
       <ErrorModal />
       <RefundModal />

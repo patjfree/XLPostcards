@@ -1,0 +1,137 @@
+import {
+  initConnection,
+  endConnection,
+  getProducts,
+  getPurchaseHistory,
+  finishTransaction,
+  purchaseErrorListener,
+  purchaseUpdatedListener,
+  ProductPurchase,
+  PurchaseError,
+  requestPurchase,
+} from 'react-native-iap';
+import { Platform } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
+
+// Define product IDs
+const PRODUCT_SKUS = {
+  ios: ['Nana_Postcard'],
+  android: ['nana_postcard'],
+};
+
+// Extend ProductPurchase to include our idempotency key
+export interface PostcardPurchase extends ProductPurchase {
+  idempotencyKey: string;
+}
+
+class IAPManager {
+  private static instance: IAPManager;
+  private isInitialized: boolean = false;
+  private purchaseUpdateSubscription: any;
+  private purchaseErrorSubscription: any;
+
+  private constructor() {}
+
+  public static getInstance(): IAPManager {
+    if (!IAPManager.instance) {
+      IAPManager.instance = new IAPManager();
+    }
+    return IAPManager.instance;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      await initConnection();
+      this.setupListeners();
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Error initializing IAP:', error);
+      throw error;
+    }
+  }
+
+  private setupListeners(): void {
+    this.purchaseUpdateSubscription = purchaseUpdatedListener(
+      async (purchase: ProductPurchase) => {
+        try {
+          // Generate a unique idempotency key for this transaction
+          const idempotencyKey = uuidv4();
+          
+          // Store the idempotency key with the purchase
+          const purchaseWithIdempotency: PostcardPurchase = {
+            ...purchase,
+            idempotencyKey,
+          };
+
+          // For Android, consume the purchase after successful transaction
+          if (Platform.OS === 'android') {
+            await finishTransaction({ purchase, isConsumable: true });
+          } else {
+            // For iOS, just finish the transaction
+            await finishTransaction({ purchase });
+          }
+
+          // Return the purchase with idempotency key for the caller to handle
+          return purchaseWithIdempotency;
+        } catch (error) {
+          console.error('Error handling purchase update:', error);
+          throw error;
+        }
+      }
+    );
+
+    this.purchaseErrorSubscription = purchaseErrorListener(
+      (error: PurchaseError) => {
+        console.error('Purchase error:', error);
+      }
+    );
+  }
+
+  public async purchasePostcard(): Promise<PostcardPurchase> {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      const sku = Platform.select({
+        ios: PRODUCT_SKUS.ios[0],
+        android: PRODUCT_SKUS.android[0],
+      });
+
+      if (!sku) {
+        throw new Error('No product SKU available for this platform');
+      }
+
+      // First fetch the products to get their details
+      const products = await getProducts({ skus: [sku] });
+      
+      if (!products || products.length === 0) {
+        throw new Error(`Product ${sku} not found in store`);
+      }
+
+      // Initiate the purchase
+      const purchase = await requestPurchase({ sku }) as PostcardPurchase;
+      return purchase;
+    } catch (error) {
+      console.error('Error purchasing postcard:', error);
+      throw error;
+    }
+  }
+
+  public async cleanup(): Promise<void> {
+    if (this.purchaseUpdateSubscription) {
+      this.purchaseUpdateSubscription.remove();
+    }
+    if (this.purchaseErrorSubscription) {
+      this.purchaseErrorSubscription.remove();
+    }
+    if (this.isInitialized) {
+      await endConnection();
+      this.isInitialized = false;
+    }
+  }
+}
+
+export const iapManager = IAPManager.getInstance(); 
