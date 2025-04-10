@@ -45,7 +45,10 @@ const getBundleIdentifier = () => {
 module.exports = {
   name: getAppName(),
   slug: "NanaGram",
-  version: "1.0.0",
+  version: process.env.APP_VERSION || "1.0.0",
+  runtimeVersion: {
+    policy: "appVersion"
+  },
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "myapp",
@@ -61,6 +64,7 @@ module.exports = {
     bundleIdentifier: getBundleIdentifier(),
     supportsTablet: true,
     deploymentTarget: "13.0",
+    buildNumber: process.env.IOS_BUILD_NUMBER || "1",
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         "This app needs access to your location to attach it to photos you take.",
@@ -69,6 +73,7 @@ module.exports = {
   },
   android: {
     package: getPackageName(),
+    versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#ffffff",
