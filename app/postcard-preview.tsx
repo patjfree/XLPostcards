@@ -696,7 +696,7 @@ export default function PostcardPreviewScreen() {
       {sending && (
         <View style={styles.statusContainer}>
           <ActivityIndicator size="large" color="#A1CEDC" />
-          <ThemedText style={styles.statusText}>Sending postcard...</ThemedText>
+          <ThemedText style={styles.statusText}>Sending Nanagram...</ThemedText>
         </View>
       )}
       

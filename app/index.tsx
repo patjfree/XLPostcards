@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -204,6 +204,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  messageInputContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
   },
 });
 
@@ -713,21 +728,33 @@ export default function HomeScreen() {
       {image && (
         <ThemedView style={styles.imagePreviewContainer}>
           <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-          {loading && <ActivityIndicator size="large" color="#A1CEDC" style={styles.spinner} />}
         </ThemedView>
       )}
 
       <ThemedView style={styles.messageSection}>
         <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
-        <TextInput
-          style={[styles.input, styles.messageInput, { color: 'black' }]}
-          value={postcardMessage}
-          onChangeText={handlePostcardMessageChange}
-          multiline={true}
-          numberOfLines={6}
-          placeholder="Write your message to Nana... or a friend or family member!"
-          placeholderTextColor="rgba(0, 0, 0, 0.5)"
-        />
+        <View style={styles.messageInputContainer}>
+          <TextInput
+            style={[
+              styles.input, 
+              styles.messageInput, 
+              { color: 'black' },
+              loading && styles.inputDisabled
+            ]}
+            value={postcardMessage}
+            onChangeText={handlePostcardMessageChange}
+            multiline={true}
+            numberOfLines={6}
+            placeholder="Write your message to Nana... or a friend or family member!"
+            placeholderTextColor="rgba(0, 0, 0, 0.5)"
+            editable={!loading}
+          />
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#A1CEDC" />
+            </View>
+          )}
+        </View>
         
         <ThemedView style={styles.analyzeButtonsContainer}>
           <TouchableOpacity 
