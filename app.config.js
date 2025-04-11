@@ -50,7 +50,7 @@ module.exports = {
     policy: "appVersion"
   },
   orientation: "portrait",
-  icon: "./assets/images/icon.png",
+  icon: "./assets/images/NanaGramIcon1024.png",
   scheme: "myapp",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
@@ -74,14 +74,12 @@ module.exports = {
   android: {
     package: getPackageName(),
     versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,
-    adaptiveIcon: {
-      foregroundImage: "./assets/images/adaptive-icon.png",
-      backgroundColor: "#ffffff",
-    },
+    icon: "./assets/images/NanaGramIcon1024.png",
     permissions: [
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
       "android.permission.ACCESS_MEDIA_LOCATION",
+      "com.android.vending.BILLING"
     ],
   },
   web: {

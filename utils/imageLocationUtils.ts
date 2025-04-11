@@ -5,6 +5,19 @@ import { Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as ExifReader from 'expo-image-manipulator';
 
+// Extended types to include EXIF support
+interface ExtendedSaveOptions extends ImageManipulator.SaveOptions {
+  exif?: boolean;
+}
+
+interface ExtendedImageResult extends ImageManipulator.ImageResult {
+  exif?: {
+    GPSLatitude?: number | string;
+    GPSLongitude?: number | string;
+    [key: string]: any;
+  };
+}
+
 // Type for location data
 export interface ImageLocationData {
   latitude?: number;
@@ -19,19 +32,19 @@ export interface ImageLocationData {
  */
 function parseDMS(dmsStr: string): number | null {
   try {
-    console.log('DEBUG: Attempting to parse DMS string:', dmsStr);
+    console.log('[NANAGRAM][LOCATION] Attempting to parse DMS string:', dmsStr);
     
     // Handle format like "62°37'51.52""
     const degreeMatch = dmsStr.match(/(\d+)°(\d+)'(\d+\.\d+)"/);
     if (degreeMatch) {
-      console.log('DEBUG: Matched degree format with symbols');
+      console.log('[NANAGRAM][LOCATION] Matched degree format with symbols');
       const degrees = parseFloat(degreeMatch[1]);
       const minutes = parseFloat(degreeMatch[2]);
       const seconds = parseFloat(degreeMatch[3]);
       
       if (!isNaN(degrees) && !isNaN(minutes) && !isNaN(seconds)) {
         const decimal = degrees + (minutes / 60) + (seconds / 3600);
-        console.log(`DEBUG: Parsed DMS ${degrees}° ${minutes}' ${seconds}" to decimal: ${decimal}`);
+        console.log(`[NANAGRAM][LOCATION] Parsed DMS ${degrees}° ${minutes}' ${seconds}" to decimal: ${decimal}`);
         return decimal;
       }
     }
@@ -47,15 +60,15 @@ function parseDMS(dmsStr: string): number | null {
       
       if (!isNaN(degrees) && !isNaN(minutes) && !isNaN(seconds)) {
         const decimal = degrees + (minutes / 60) + (seconds / 3600);
-        console.log(`DEBUG: Parsed DMS ${degrees} ${minutes} ${seconds} to decimal: ${decimal}`);
+        console.log(`[NANAGRAM][LOCATION] Parsed DMS ${degrees} ${minutes} ${seconds} to decimal: ${decimal}`);
         return decimal;
       }
     }
     
-    console.log('DEBUG: Failed to parse DMS string');
+    console.log('[NANAGRAM][LOCATION] Failed to parse DMS string');
     return null;
   } catch (e) {
-    console.error('DEBUG: Error parsing DMS format:', e);
+    console.error('[NANAGRAM][LOCATION] Error parsing DMS format:', e);
     return null;
   }
 }
@@ -67,11 +80,11 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
   try {
     // Check if the image has EXIF data
     if (!image.exif) {
-      console.log('DEBUG: No EXIF data available in the image');
+      console.log('[NANAGRAM][LOCATION] No EXIF data available in the image');
       return { hasLocation: false };
     }
 
-    console.log('DEBUG: Full EXIF data:', JSON.stringify(image.exif, null, 2));
+    console.log('[NANAGRAM][LOCATION] Full EXIF data:', JSON.stringify(image.exif, null, 2));
     
     // Different devices might store GPS data in different formats/properties
     // Try multiple possible GPS data formats
@@ -89,7 +102,7 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
         ? image.exif.GPSLongitude 
         : parseFloat(image.exif.GPSLongitude);
       
-      console.log('DEBUG: Format 1 - GPS coordinates found:', latitude, longitude);
+      console.log('[NANAGRAM][LOCATION] Format 1 - GPS coordinates found:', latitude, longitude);
       sourceFormat = 'format1';
     }
     
@@ -103,14 +116,14 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
         ? image.exif.longitude 
         : parseFloat(image.exif.longitude);
       
-      console.log('DEBUG: Format 2 - GPS coordinates found:', latitude, longitude);
+      console.log('[NANAGRAM][LOCATION] Format 2 - GPS coordinates found:', latitude, longitude);
       sourceFormat = 'format2';
     }
     
     // Format 3: Some devices use a GPS object
     else if (image.exif.GPS && typeof image.exif.GPS === 'object') {
       const gps = image.exif.GPS;
-      console.log('DEBUG: Format 3 - GPS object found:', JSON.stringify(gps, null, 2));
+      console.log('[NANAGRAM][LOCATION] Format 3 - GPS object found:', JSON.stringify(gps, null, 2));
       
       if (gps.Latitude !== undefined && gps.Longitude !== undefined) {
         latitude = typeof gps.Latitude === 'number' ? gps.Latitude : parseFloat(String(gps.Latitude));
@@ -120,7 +133,7 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
         if (gps.LatitudeRef === 'S') latitude = -Math.abs(latitude || 0);
         if (gps.LongitudeRef === 'W') longitude = -Math.abs(longitude || 0);
         
-        console.log('DEBUG: Format 3 - Parsed coordinates:', latitude, longitude);
+        console.log('[NANAGRAM][LOCATION] Format 3 - Parsed coordinates:', latitude, longitude);
         sourceFormat = 'format3';
       }
     }
@@ -128,28 +141,28 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
     // Format 4: Some iPhones store location this way
     else if (image.exif['GPS'] && typeof image.exif['GPS'] === 'string') {
       try {
-        console.log('DEBUG: Format 4 - GPS string found:', image.exif['GPS']);
+        console.log('[NANAGRAM][LOCATION] Format 4 - GPS string found:', image.exif['GPS']);
         const gpsData = JSON.parse(image.exif['GPS']);
         if (gpsData.Latitude !== undefined && gpsData.Longitude !== undefined) {
           latitude = gpsData.Latitude;
           longitude = gpsData.Longitude;
-          console.log('DEBUG: Format 4 - Parsed coordinates:', latitude, longitude);
+          console.log('[NANAGRAM][LOCATION] Format 4 - Parsed coordinates:', latitude, longitude);
           sourceFormat = 'format4';
         }
       } catch (e) {
-        console.log('DEBUG: Error parsing GPS JSON string:', e);
+        console.log('[NANAGRAM][LOCATION] Error parsing GPS JSON string:', e);
       }
     }
     
     // Format 5: Check for DMS (Degrees, Minutes, Seconds) format strings
     else {
-      console.log('DEBUG: Checking Format 5 - DMS format');
+      console.log('[NANAGRAM][LOCATION] Checking Format 5 - DMS format');
       // Look for latitude and longitude in various possible fields
       for (const key in image.exif) {
         const lowerKey = key.toLowerCase();
         
         if (lowerKey.includes('latitude') && typeof image.exif[key] === 'string') {
-          console.log(`DEBUG: Found latitude field '${key}' with value:`, image.exif[key]);
+          console.log(`[NANAGRAM][LOCATION] Found latitude field '${key}' with value:`, image.exif[key]);
           const parsedValue = parseDMS(image.exif[key] as string);
           if (parsedValue !== null) {
             latitude = parsedValue;
@@ -158,17 +171,17 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
               if (refKey.toLowerCase().includes('latituderef') && 
                   image.exif[refKey] === 'S') {
                 latitude = -Math.abs(latitude);
-                console.log('DEBUG: Applied South reference to latitude');
+                console.log('[NANAGRAM][LOCATION] Applied South reference to latitude');
                 break;
               }
             }
-            console.log('DEBUG: Parsed latitude from DMS format:', latitude);
+            console.log('[NANAGRAM][LOCATION] Parsed latitude from DMS format:', latitude);
             sourceFormat = 'format5-lat';
           }
         }
         
         if (lowerKey.includes('longitude') && typeof image.exif[key] === 'string') {
-          console.log(`DEBUG: Found longitude field '${key}' with value:`, image.exif[key]);
+          console.log(`[NANAGRAM][LOCATION] Found longitude field '${key}' with value:`, image.exif[key]);
           const parsedValue = parseDMS(image.exif[key] as string);
           if (parsedValue !== null) {
             longitude = parsedValue;
@@ -177,11 +190,11 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
               if (refKey.toLowerCase().includes('longituderef') && 
                   image.exif[refKey] === 'W') {
                 longitude = -Math.abs(longitude);
-                console.log('DEBUG: Applied West reference to longitude');
+                console.log('[NANAGRAM][LOCATION] Applied West reference to longitude');
                 break;
               }
             }
-            console.log('DEBUG: Parsed longitude from DMS format:', longitude);
+            console.log('[NANAGRAM][LOCATION] Parsed longitude from DMS format:', longitude);
             sourceFormat = sourceFormat === 'format5-lat' ? 'format5' : 'format5-long';
           }
         }
@@ -193,23 +206,23 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
         !isNaN(latitude) && !isNaN(longitude) && 
         Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
       
-      console.log(`DEBUG: Valid coordinates extracted using ${sourceFormat}:`, latitude, longitude);
+      console.log(`[NANAGRAM][LOCATION] Valid coordinates extracted using ${sourceFormat}:`, latitude, longitude);
       
       // Try to get a readable address from coordinates
       try {
-        console.log('DEBUG: Attempting reverse geocoding...');
+        console.log('[NANAGRAM][LOCATION] Attempting reverse geocoding...');
         const location = await Location.reverseGeocodeAsync({
           latitude,
           longitude
         });
         
-        console.log('DEBUG: Reverse geocoding result:', JSON.stringify(location, null, 2));
+        console.log('[NANAGRAM][LOCATION] Reverse geocoding result:', JSON.stringify(location, null, 2));
         
         if (location && location.length > 0) {
           const address = location[0];
           const locationName = buildLocationName(address);
           
-          console.log('DEBUG: Final location data with name:', {
+          console.log('[NANAGRAM][LOCATION] Final location data with name:', {
             latitude,
             longitude,
             locationName,
@@ -224,11 +237,11 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
           };
         }
       } catch (error) {
-        console.error('DEBUG: Error reverse geocoding:', error);
+        console.error('[NANAGRAM][LOCATION] Error reverse geocoding:', error);
       }
       
       // Return coordinates even if we couldn't get a name
-      console.log('DEBUG: Final location data without name:', {
+      console.log('[NANAGRAM][LOCATION] Final location data without name:', {
         latitude,
         longitude,
         hasLocation: true
@@ -241,10 +254,10 @@ export async function getImageLocationData(image: ImagePicker.ImagePickerAsset):
       };
     }
     
-    console.log('DEBUG: No valid GPS coordinates found in EXIF data');
+    console.log('[NANAGRAM][LOCATION] No valid GPS coordinates found in EXIF data');
     return { hasLocation: false };
   } catch (error) {
-    console.error('DEBUG: Error extracting location data:', error);
+    console.error('[NANAGRAM][LOCATION] Error extracting location data:', error);
     return { hasLocation: false };
   }
 }
@@ -289,7 +302,7 @@ export async function getCurrentLocation(): Promise<ImageLocationData> {
       hasLocation: true
     };
   } catch (error) {
-    console.error('Error getting current location:', error);
+    console.error('[NANAGRAM][LOCATION] Error getting current location:', error);
     return { hasLocation: false };
   }
 }
@@ -312,7 +325,7 @@ function buildLocationName(address: Location.LocationGeocodedAddress): string {
  */
 export async function extractLocationFromImageFile(uri: string): Promise<ImageLocationData> {
   try {
-    console.log('DEBUG: Attempting to extract location directly from file:', uri);
+    console.log('[NANAGRAM][LOCATION] Attempting to extract location directly from file:', uri);
     
     // For photos from gallery that have stripped EXIF but visible in properties
     // This could happen because the image picker's EXIF parsing is incomplete
@@ -320,7 +333,7 @@ export async function extractLocationFromImageFile(uri: string): Promise<ImageLo
     
     // Read the file info
     const fileInfo = await FileSystem.getInfoAsync(uri);
-    console.log('DEBUG: File info:', fileInfo);
+    console.log('[NANAGRAM][LOCATION] File info:', fileInfo);
     
     // If we have the original path, we can try to use more direct methods to read raw EXIF
     if (uri.startsWith('file://') || uri.startsWith('/')) {
@@ -334,10 +347,10 @@ export async function extractLocationFromImageFile(uri: string): Promise<ImageLo
             format: ImageManipulator.SaveFormat.JPEG,
             base64: false,
             exif: true // explicitly request EXIF
-          }
-        );
+          } as ExtendedSaveOptions
+        ) as ExtendedImageResult;
         
-        console.log('DEBUG: Image manipulator metadata:', manipResult.exif);
+        console.log('[NANAGRAM][LOCATION] Image manipulator metadata:', manipResult.exif);
         
         if (manipResult.exif) {
           // Now try to extract GPS data from this alternate EXIF data
@@ -360,14 +373,14 @@ export async function extractLocationFromImageFile(uri: string): Promise<ImageLo
           }
         }
       } catch (err) {
-        console.log('DEBUG: Error in image manipulator:', err);
+        console.log('[NANAGRAM][LOCATION] Error in image manipulator:', err);
       }
     }
     
     // If we couldn't extract EXIF data directly, return no location
     return { hasLocation: false };
   } catch (error) {
-    console.error('DEBUG: Error in extractLocationFromImageFile:', error);
+    console.error('[NANAGRAM][LOCATION] Error in extractLocationFromImageFile:', error);
     return { hasLocation: false };
   }
 } 

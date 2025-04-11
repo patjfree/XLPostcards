@@ -25,10 +25,10 @@ interface ViewShotMethods {
   capture: () => Promise<string>;
 }
 
-console.log("App started. Environment check:");
-console.log("- stannpApiKey available:", !!Constants.expoConfig?.extra?.stannpApiKey);
+console.log("[NANAGRAM][PREVIEW] App started. Environment check:");
+console.log("[NANAGRAM][PREVIEW] - stannpApiKey available:", !!Constants.expoConfig?.extra?.stannpApiKey);
 if (!Constants.expoConfig?.extra?.stannpApiKey) {
-  console.warn("WARNING: Stannp API key is missing!");
+  console.warn("[NANAGRAM][PREVIEW] WARNING: Stannp API key is missing!");
 }
 
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (

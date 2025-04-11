@@ -66,7 +66,7 @@ class PostcardService {
       const jsonValue = await AsyncStorage.getItem(this.STORAGE_KEY);
       return jsonValue ? JSON.parse(jsonValue) : [];
     } catch (error) {
-      console.error('Error reading transactions:', error);
+      console.error('[NANAGRAM][POSTCARD] Error reading transactions:', error);
       return [];
     }
   }
@@ -81,7 +81,7 @@ class PostcardService {
     try {
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(transactions));
     } catch (error) {
-      console.error('Error storing transactions:', error);
+      console.error('[NANAGRAM][POSTCARD] Error storing transactions:', error);
     }
   }
 

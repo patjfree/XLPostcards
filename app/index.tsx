@@ -318,7 +318,7 @@ export default function HomeScreen() {
       const apiKey = Constants.expoConfig?.extra?.openaiApiKey;
       
       if (!apiKey) {
-        console.log('Config:', Constants.expoConfig?.extra);  // Add debug logging
+        console.log('[NANAGRAM][HOME] Config:', Constants.expoConfig?.extra);  // Add debug logging
         throw new Error('OpenAI API key not found');
       }
 
@@ -366,7 +366,7 @@ export default function HomeScreen() {
       setIsAIGenerated(true);
       
     } catch (error: unknown) {
-      console.error('Error analyzing image:', error);
+      console.error('[NANAGRAM][HOME] Error analyzing image:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Alert.alert('Error', `Failed to analyze image: ${errorMessage}`);
       setLocationClues(['Failed to analyze image. Please try again.']);
@@ -675,7 +675,7 @@ export default function HomeScreen() {
         to: newUri
       });
 
-      console.log('Image copied to:', newUri);
+      console.log('[NANAGRAM][HOME] Image copied to:', newUri);
       
       router.push({
         pathname: '/postcard-preview',
@@ -686,7 +686,7 @@ export default function HomeScreen() {
         }
       });
     } catch (error) {
-      console.error('Error preparing postcard:', error);
+      console.error('[NANAGRAM][HOME] Error preparing postcard:', error);
       Alert.alert('Error', 'Failed to prepare postcard. Please try again.');
     }
   };

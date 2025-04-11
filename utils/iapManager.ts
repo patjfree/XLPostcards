@@ -47,7 +47,7 @@ class IAPManager {
       this.setupListeners();
       this.isInitialized = true;
     } catch (error) {
-      console.error('Error initializing IAP:', error);
+      console.error('[NANAGRAM][IAP] Error initializing IAP:', error);
       throw error;
     }
   }
@@ -65,6 +65,8 @@ class IAPManager {
             idempotencyKey,
           };
 
+          console.log('[NANAGRAM][IAP] Processing purchase update:', JSON.stringify(purchase));
+
           // For Android, consume the purchase after successful transaction
           if (Platform.OS === 'android') {
             await finishTransaction({ purchase, isConsumable: true });
@@ -73,10 +75,11 @@ class IAPManager {
             await finishTransaction({ purchase });
           }
 
+          console.log('[NANAGRAM][IAP] Purchase transaction finished');
           // Return the purchase with idempotency key for the caller to handle
           return purchaseWithIdempotency;
         } catch (error) {
-          console.error('Error handling purchase update:', error);
+          console.error('[NANAGRAM][IAP] Error handling purchase update:', error);
           throw error;
         }
       }
@@ -84,14 +87,16 @@ class IAPManager {
 
     this.purchaseErrorSubscription = purchaseErrorListener(
       (error: PurchaseError) => {
-        console.error('Purchase error:', error);
+        console.error('[NANAGRAM][IAP] Purchase error:', error);
       }
     );
   }
 
   public async purchasePostcard(): Promise<PostcardPurchase> {
     try {
+      console.log("[NANAGRAM][IAP] Starting postcard purchase flow");
       if (!this.isInitialized) {
+        console.log("[NANAGRAM][IAP] Initializing IAP manager");
         await this.initialize();
       }
 
@@ -104,18 +109,22 @@ class IAPManager {
         throw new Error('No product SKU available for this platform');
       }
 
+      console.log("[NANAGRAM][IAP] Fetching products for SKU:", sku);
       // First fetch the products to get their details
       const products = await getProducts({ skus: [sku] });
+      console.log("[NANAGRAM][IAP] Available products:", JSON.stringify(products));
       
       if (!products || products.length === 0) {
         throw new Error(`Product ${sku} not found in store`);
       }
 
+      console.log("[NANAGRAM][IAP] Initiating purchase for SKU:", sku);
       // Initiate the purchase
       const purchase = await requestPurchase({ sku }) as PostcardPurchase;
+      console.log("[NANAGRAM][IAP] Purchase completed:", JSON.stringify(purchase));
       return purchase;
     } catch (error) {
-      console.error('Error purchasing postcard:', error);
+      console.error('[NANAGRAM][IAP] Error purchasing postcard:', error);
       throw error;
     }
   }
