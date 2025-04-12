@@ -168,9 +168,6 @@ export default function PostcardPreviewScreen() {
       setSendResult(null);
       setIsCapturing(true);
 
-      // Initialize IAP if needed
-      await iapManager.initialize();
-
       // Start the purchase flow
       const postcardPurchase: PostcardPurchase = await iapManager.purchasePostcard();
       

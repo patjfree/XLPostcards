@@ -50,12 +50,12 @@ module.exports = {
     policy: "appVersion"
   },
   orientation: "portrait",
-  icon: "./assets/images/NanaGramIcon1024.png",
+  icon: "./assets/images/icon1024.png",
   scheme: "myapp",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
   splash: {
-    image: "./assets/images/splash-icon.png",
+    image: "./assets/images/icon1024.png",
     resizeMode: "contain",
     backgroundColor: "#ffffff",
   },
@@ -74,7 +74,7 @@ module.exports = {
   android: {
     package: getPackageName(),
     versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,
-    icon: "./assets/images/NanaGramIcon1024.png",
+    icon: "./assets/images/icon1024.png",
     permissions: [
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
@@ -97,7 +97,7 @@ module.exports = {
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon.png",
+        image: "./assets/images/icon1024.png",
         imageWidth: 200,
         resizeMode: "contain",
         backgroundColor: "#ffffff",

@@ -67,15 +67,6 @@ class IAPManager {
 
           console.log('[NANAGRAM][IAP] Processing purchase update:', JSON.stringify(purchase));
 
-          // For Android, consume the purchase after successful transaction
-          if (Platform.OS === 'android') {
-            await finishTransaction({ purchase, isConsumable: true });
-          } else {
-            // For iOS, just finish the transaction
-            await finishTransaction({ purchase });
-          }
-
-          console.log('[NANAGRAM][IAP] Purchase transaction finished');
           // Return the purchase with idempotency key for the caller to handle
           return purchaseWithIdempotency;
         } catch (error) {
@@ -119,10 +110,24 @@ class IAPManager {
       }
 
       console.log("[NANAGRAM][IAP] Initiating purchase for SKU:", sku);
-      // Initiate the purchase
-      const purchase = await requestPurchase({ sku }) as PostcardPurchase;
-      console.log("[NANAGRAM][IAP] Purchase completed:", JSON.stringify(purchase));
-      return purchase;
+      // Handle iOS and Android differently
+      if (Platform.OS === 'ios') {
+        // iOS requires a single sku string
+        const purchase = await requestPurchase({ sku }) as PostcardPurchase;
+        console.log("[NANAGRAM][IAP] iOS Purchase completed:", JSON.stringify(purchase));
+        
+        // For iOS, finish the transaction after successful purchase
+        await finishTransaction({ purchase });
+        return purchase;
+      } else {
+        // Android can take an array of skus
+        const purchase = await requestPurchase({ skus: [sku] }) as PostcardPurchase;
+        console.log("[NANAGRAM][IAP] Android Purchase completed:", JSON.stringify(purchase));
+        
+        // For Android, consume the purchase after successful transaction
+        await finishTransaction({ purchase, isConsumable: true });
+        return purchase;
+      }
     } catch (error) {
       console.error('[NANAGRAM][IAP] Error purchasing postcard:', error);
       throw error;
