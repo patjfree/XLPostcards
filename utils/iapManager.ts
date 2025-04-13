@@ -56,8 +56,14 @@ class IAPManager {
     this.purchaseUpdateSubscription = purchaseUpdatedListener(
       async (purchase: ProductPurchase) => {
         try {
-          // Generate a unique idempotency key for this transaction
-          const idempotencyKey = uuidv4();
+          let idempotencyKey = '';
+          try {
+            // Try to generate a unique idempotency key
+            idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          } catch (error) {
+            console.warn('[NANAGRAM][IAP] Warning: Failed to generate idempotency key:', error);
+            // Continue without idempotency key
+          }
           
           // Store the idempotency key with the purchase
           const purchaseWithIdempotency: PostcardPurchase = {
@@ -71,7 +77,8 @@ class IAPManager {
           return purchaseWithIdempotency;
         } catch (error) {
           console.error('[NANAGRAM][IAP] Error handling purchase update:', error);
-          throw error;
+          // Return the original purchase even if there's an error
+          return purchase;
         }
       }
     );

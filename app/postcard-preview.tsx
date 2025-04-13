@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -90,6 +90,7 @@ export default function PostcardPreviewScreen() {
     transactionId: '',
     stannpError: ''
   });
+  const [lastPurchase, setLastPurchase] = useState<PostcardPurchase | null>(null);
   
   // Get data from route params
   const imageUri = params.imageUri as string;
@@ -161,182 +162,221 @@ export default function PostcardPreviewScreen() {
     }
   };
   
-  // Function to send the postcard via Stannp API
-  const sendPostcard = async () => {
+  // Function to handle the Stannp API call
+  const sendToStannp = async (postcardPurchase: PostcardPurchase) => {
+    // Ensure we have a transaction ID
+    if (!postcardPurchase.transactionId) {
+      throw new Error('No transaction ID received from purchase');
+    }
+
+    // Get API key
+    const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
+    
+    if (!apiKey) {
+      console.error("API key is missing!");
+      throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
+    }
+
+    // Check if this transaction has already been processed
+    const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
+    if (existingStatus === 'completed') {
+      throw new Error('This postcard has already been sent');
+    }
+    if (existingStatus === 'pending') {
+      throw new Error('This postcard is currently being processed');
+    }
+
+    // Create a new transaction record
+    await postcardService.createTransaction(postcardPurchase.transactionId);
+
+    // Step 1: Capture images at full resolution
+    console.log("Capturing front and back images at full resolution...");
+    
+    if (!viewShotFrontRef.current || !viewShotBackRef.current) {
+      throw new Error('ViewShot refs not initialized');
+    }
+
+    const frontOriginalUri = await viewShotFrontRef.current.capture();
+    const backOriginalUri = await viewShotBackRef.current.capture();
+    
+    setIsCapturing(false);  // Reset capturing mode after snapshots
+    
+    console.log("Captured original image URIs:");
+    console.log("- Front URI:", frontOriginalUri);
+    console.log("- Back URI:", backOriginalUri);
+
+    // Step 2: Scale images to required dimensions
+    console.log("Scaling images to required dimensions...");
+    const frontUri = await scaleImage(frontOriginalUri);
+    const backUri = await scaleImage(backOriginalUri);
+    
+    console.log("Scaled image URIs:");
+    console.log("- Scaled Front URI:", frontUri);
+    console.log("- Scaled Back URI:", backUri);
+
+    // Step 3: Create FormData and send to Stannp
+    console.log("Creating FormData for Stannp API...");
+    const formData = new FormData();
+    
+    // Add test mode flag and size
+    formData.append('test', 'true');  // This sets whether the postcard is sent or not
+    formData.append('size', '4x6');
+    
+    // Add scaled front and back images
+    // @ts-ignore - React Native's FormData accepts this format
+    formData.append('front', {
+      uri: frontUri,
+      type: 'image/jpeg',
+      name: 'front.jpg'
+    });
+
+    // @ts-ignore - React Native's FormData accepts this format
+    formData.append('back', {
+      uri: backUri,
+      type: 'image/jpeg',
+      name: 'back.jpg'
+    });
+    
+    // Format recipient data
+    const nameParts = recipientInfo.to.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    
+    formData.append('recipient[firstname]', firstName);
+    formData.append('recipient[lastname]', lastName);
+    formData.append('recipient[address1]', recipientInfo.addressLine1);
+    if (recipientInfo.addressLine2) {
+      formData.append('recipient[address2]', recipientInfo.addressLine2);
+    }
+    formData.append('recipient[city]', recipientInfo.city);
+    formData.append('recipient[state]', recipientInfo.state);
+    formData.append('recipient[postcode]', recipientInfo.zipcode);
+    formData.append('recipient[country]', 'US');
+    
+    // Add clearzone parameter to ensure machine readability
+    formData.append('clearzone', 'true');
+    
+    // Create authorization header
+    const authHeader = 'Basic ' + btoa(`${apiKey}:`);
+    
+    // Make the API request
+    console.log("Sending request to Stannp API...");
+    const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Accept': 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+    
+    console.log("Response received. Status:", response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("ERROR: Bad response from API:", errorText);
+      await postcardService.markTransactionFailed(postcardPurchase.transactionId);
+      throw new Error(`API returned status ${response.status}: ${errorText}`);
+    }
+    
+    const responseText = await response.text();
+    console.log("Raw API Response:", responseText);
+    
+    const data = JSON.parse(responseText);
+    console.log("Parsed API Response:", JSON.stringify(data, null, 2));
+    
+    if (!data.success) {
+      await postcardService.markTransactionFailed(postcardPurchase.transactionId);
+      throw new Error(data.error || 'Failed to send postcard');
+    }
+    
+    // Mark transaction as completed
+    await postcardService.markTransactionComplete(postcardPurchase.transactionId);
+    
+    // Extract PDF preview URL
+    const pdfUrl = data.data.pdf || data.data.pdf_url;
+    
+    // Success case - update all states in one batch
+    const updates = async () => {
+      setStannpAttempts(0);
+      setSendResult({
+        success: true,
+        message: `Test postcard created successfully! A print-ready PDF has been generated.`,
+        pdfUrl: pdfUrl
+      });
+      setShowSuccessModal(true);
+      setSending(false);
+      setIsCapturing(false);
+    };
+    await updates();
+    
+  };
+
+  // Function to start a new purchase flow
+  const startNewPurchaseFlow = async () => {
     try {
       setSending(true);
       setSendResult(null);
       setIsCapturing(true);
 
       // Start the purchase flow
-      const postcardPurchase: PostcardPurchase = await iapManager.purchasePostcard();
+      const purchase = await iapManager.purchasePostcard();
+      setLastPurchase(purchase);
       
-      // Ensure we have a transaction ID
-      if (!postcardPurchase.transactionId) {
-        throw new Error('No transaction ID received from purchase');
-      }
-      
-      // Check if this transaction has already been processed
-      const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
-      if (existingStatus === 'completed') {
-        throw new Error('This postcard has already been sent');
-      }
-      if (existingStatus === 'pending') {
-        throw new Error('This postcard is currently being processed');
-      }
-
-      // Create a new transaction record
-      const idempotencyKey = await postcardService.createTransaction(postcardPurchase.transactionId);
-      
-      // Get API key
-      const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-      
-      if (!apiKey) {
-        console.error("API key is missing!");
-        throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
-      }
-
-      // Step 1: Capture images at full resolution
-      console.log("Capturing front and back images at full resolution...");
-      
-      if (!viewShotFrontRef.current || !viewShotBackRef.current) {
-        throw new Error('ViewShot refs not initialized');
-      }
-
-      const frontOriginalUri = await viewShotFrontRef.current.capture();
-      const backOriginalUri = await viewShotBackRef.current.capture();
-      
-      setIsCapturing(false);  // Reset capturing mode after snapshots
-      
-      console.log("Captured original image URIs:");
-      console.log("- Front URI:", frontOriginalUri);
-      console.log("- Back URI:", backOriginalUri);
-
-      // Step 2: Scale images to required dimensions
-      console.log("Scaling images to required dimensions...");
-      const frontUri = await scaleImage(frontOriginalUri);
-      const backUri = await scaleImage(backOriginalUri);
-      
-      console.log("Scaled image URIs:");
-      console.log("- Scaled Front URI:", frontUri);
-      console.log("- Scaled Back URI:", backUri);
-
-      // Step 3: Create FormData and send to Stannp
-      console.log("Creating FormData for Stannp API...");
-      const formData = new FormData();
-      
-      // Add test mode flag and size
-      formData.append('test', 'true');  // This sets whether the postcard is sent or not
-      formData.append('size', '4x6');
-      
-      // Add scaled front and back images
-      // @ts-ignore - React Native's FormData accepts this format
-      formData.append('front', {
-        uri: frontUri,
-        type: 'image/jpeg',
-        name: 'front.jpg'
-      });
-
-      // @ts-ignore - React Native's FormData accepts this format
-      formData.append('back', {
-        uri: backUri,
-        type: 'image/jpeg',
-        name: 'back.jpg'
-      });
-      
-      // Format recipient data
-      const nameParts = recipientInfo.to.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-      
-      formData.append('recipient[firstname]', firstName);
-      formData.append('recipient[lastname]', lastName);
-      formData.append('recipient[address1]', recipientInfo.addressLine1);
-      if (recipientInfo.addressLine2) {
-        formData.append('recipient[address2]', recipientInfo.addressLine2);
-      }
-      formData.append('recipient[city]', recipientInfo.city);
-      formData.append('recipient[state]', recipientInfo.state);
-      formData.append('recipient[postcode]', recipientInfo.zipcode);
-      formData.append('recipient[country]', 'US');
-      
-      // Add clearzone parameter to ensure machine readability
-      formData.append('clearzone', 'true');
-      
-      // Create authorization header
-      const authHeader = 'Basic ' + btoa(`${apiKey}:`);
-      
-      // Make the API request
-      console.log("Sending request to Stannp API...");
-      const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
-      
-      console.log("Response received. Status:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("ERROR: Bad response from API:", errorText);
-        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-        throw new Error(`API returned status ${response.status}: ${errorText}`);
-      }
-      
-      const responseText = await response.text();
-      console.log("Raw API Response:", responseText);
-      
-      const data = JSON.parse(responseText);
-      console.log("Parsed API Response:", JSON.stringify(data, null, 2));
-      
-      if (!data.success) {
-        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-        throw new Error(data.error || 'Failed to send postcard');
-      }
-      
-      // Mark transaction as completed
-      await postcardService.markTransactionComplete(postcardPurchase.transactionId);
-      
-      // Extract PDF preview URL
-      const pdfUrl = data.data.pdf || data.data.pdf_url;
-      
-      // Success case - update all states in one batch
-      const updates = async () => {
-        setStannpAttempts(0);
-        setSendResult({
-          success: true,
-          message: `Test postcard created successfully! A print-ready PDF has been generated.`,
-          pdfUrl: pdfUrl
-        });
-        setShowSuccessModal(true);
-        setSending(false);
-        setIsCapturing(false);
-      };
-      await updates();
+      // Send to Stannp
+      await sendToStannp(purchase);
       
     } catch (error) {
-      console.error('ERROR in sending process:', error);
+      console.error('ERROR in purchase flow:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Error case - update all states in one batch
-      const updates = async () => {
+      // Only show error modal for Stannp API related errors
+      if (errorMessage.includes('API key') || errorMessage.includes('Stannp')) {
         setStannpAttempts(prev => prev + 1);
         setShowErrorModal(true);
         setRefundData(prev => ({
           ...prev,
           stannpError: errorMessage
         }));
-        setSending(false);
-        setIsCapturing(false);
-      };
-      await updates();
+      } else {
+        // For other errors (like purchase errors), just reset the state
+        console.log('Purchase-related error, resetting state:', errorMessage);
+        setLastPurchase(null);
+        setSendResult(null);
+      }
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
     }
   };
-  
+
+  // Function to retry with existing purchase
+  const retryWithExistingPurchase = async (purchase: PostcardPurchase) => {
+    try {
+      setSending(true);
+      setSendResult(null);
+      setIsCapturing(true);
+
+      // Send to Stannp using existing purchase
+      await sendToStannp(purchase);
+      
+    } catch (error) {
+      console.error('ERROR in retry:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      setStannpAttempts(prev => prev + 1);
+      setShowErrorModal(true);
+      setRefundData(prev => ({
+        ...prev,
+        stannpError: errorMessage
+      }));
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
+    }
+  };
+
   // Function to check status of a sent postcard
   const fetchPostcardStatus = async (postcardId: number | string) => {
     // Don't try to check status if we're in test mode with ID 0
@@ -459,46 +499,53 @@ export default function PostcardPreviewScreen() {
   );
 
   // Error Modal Component
-  const ErrorModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showErrorModal}
-      onRequestClose={() => setShowErrorModal(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
-          <ThemedText style={styles.modalText}>
-            {stannpAttempts === 1 
-              ? "Oops, something went wrong with your Nanagram. Please Try Again."
-              : "Oops, something went wrong with your Nanagram. Let's request your Refund."}
-          </ThemedText>
-          {stannpAttempts === 1 ? (
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={() => {
-                setShowErrorModal(false);
-                sendPostcard();
-              }}
-            >
-              <ThemedText style={styles.modalButtonText}>Try Again</ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={() => {
-                setShowErrorModal(false);
-                setShowRefundModal(true);
-              }}
-            >
-              <ThemedText style={styles.modalButtonText}>Request Refund</ThemedText>
-            </TouchableOpacity>
-          )}
+  const ErrorModal = () => {
+    const handleTryAgain = () => {
+      setShowErrorModal(false);
+      // We only show retry for Stannp API errors, so we know we have a lastPurchase
+      if (lastPurchase) {
+        void retryWithExistingPurchase(lastPurchase);
+      }
+    };
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showErrorModal}
+        onRequestClose={() => setShowErrorModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
+            <ThemedText style={styles.modalText}>
+              {stannpAttempts === 1 
+                ? "Oops, something went wrong sending your Nanagram. Please Try Again."
+                : "Oops, something went wrong sending your Nanagram. Let's request your Refund."}
+            </ThemedText>
+            {stannpAttempts === 1 ? (
+              <TouchableOpacity 
+                style={styles.modalButton}
+                onPress={handleTryAgain}
+              >
+                <ThemedText style={styles.modalButtonText}>Try Again</ThemedText>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowErrorModal(false);
+                  setShowRefundModal(true);
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Request Refund</ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   // Refund Modal Component
   const RefundModal = () => {
@@ -748,7 +795,7 @@ export default function PostcardPreviewScreen() {
                     styles.submitButton,
                     sending && { opacity: 0.5 }
                   ]} 
-                  onPress={sendPostcard}
+                  onPress={() => void startNewPurchaseFlow()}
                   disabled={sending}
                 >
                   <ThemedText style={styles.buttonText}>Continue</ThemedText>
