@@ -136,8 +136,19 @@ class IAPManager {
         // Log purchase state for debugging
         console.log("[NANAGRAM][IAP] Purchase state:", purchase.purchaseStateAndroid);
         
-        // Handle purchase state
-        if (purchase.purchaseStateAndroid === 0) {
+        // Handle purchase state - more robust handling
+        if (purchase.purchaseStateAndroid === undefined) {
+          // If purchase state is undefined but we have a valid purchase token and transaction ID,
+          // assume the purchase is complete
+          if (purchase.purchaseToken && purchase.transactionId) {
+            console.log("[NANAGRAM][IAP] Purchase state undefined but has valid purchase token, proceeding with completion");
+            await finishTransaction({ purchase, isConsumable: true });
+            return purchase;
+          } else {
+            console.error("[NANAGRAM][IAP] Invalid purchase: missing required fields");
+            throw new Error('Invalid purchase: missing required fields');
+          }
+        } else if (purchase.purchaseStateAndroid === 0) {
           // Purchase is complete, finish the transaction
           console.log("[NANAGRAM][IAP] Purchase is complete, finishing transaction");
           await finishTransaction({ purchase, isConsumable: true });
