@@ -45,7 +45,8 @@ const getBundleIdentifier = () => {
 module.exports = {
   name: getAppName(),
   slug: "NanaGram",
-  version: process.env.APP_VERSION || "1.0.0",
+  // version: process.env.APP_VERSION || "1.0.0", //Auto-incremented by EAS for singl
+  version: "1.0.6", // must be manually updated if sharing between 
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -73,7 +74,9 @@ module.exports = {
   },
   android: {
     package: getPackageName(),
-    versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,
+    // versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,  // for single dev
+    versionCode: 6, // must be manually updated if sharing between devs
+
     icon: "./assets/images/icon1024.png",
     permissions: [
       "ACCESS_COARSE_LOCATION",
