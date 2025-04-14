@@ -131,8 +131,20 @@ class IAPManager {
         const purchase = await requestPurchase({ skus: [sku] }) as PostcardPurchase;
         console.log("[NANAGRAM][IAP] Android Purchase completed:", JSON.stringify(purchase));
         
-        // For Android, consume the purchase after successful transaction
-        await finishTransaction({ purchase, isConsumable: true });
+        // Check purchase state for Android
+        if (purchase.purchaseStateAndroid === 1) {
+          console.log("[NANAGRAM][IAP] Purchase is pending, waiting for completion...");
+          // Wait for the purchase to be completed
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Try to finish the transaction
+          await finishTransaction({ purchase, isConsumable: true });
+        } else if (purchase.purchaseStateAndroid === 0) {
+          // Purchase is completed, finish the transaction
+          await finishTransaction({ purchase, isConsumable: true });
+        } else {
+          throw new Error('Purchase is not in a valid state');
+        }
+        
         return purchase;
       }
     } catch (error) {

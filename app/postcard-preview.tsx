@@ -322,6 +322,12 @@ export default function PostcardPreviewScreen() {
 
       // Start the purchase flow
       const purchase = await iapManager.purchasePostcard();
+      
+      // Check if purchase is valid
+      if (!purchase || !purchase.transactionId) {
+        throw new Error('Invalid purchase received');
+      }
+      
       setLastPurchase(purchase);
       
       // Send to Stannp
@@ -331,20 +337,18 @@ export default function PostcardPreviewScreen() {
       console.error('ERROR in purchase flow:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Only show error modal for Stannp API related errors
-      if (errorMessage.includes('API key') || errorMessage.includes('Stannp')) {
-        setStannpAttempts(prev => prev + 1);
-        setShowErrorModal(true);
-        setRefundData(prev => ({
-          ...prev,
-          stannpError: errorMessage
-        }));
-      } else {
-        // For other errors (like purchase errors), just reset the state
-        console.log('Purchase-related error, resetting state:', errorMessage);
-        setLastPurchase(null);
-        setSendResult(null);
-      }
+      // Show error modal for all errors
+      setStannpAttempts(prev => prev + 1);
+      setShowErrorModal(true);
+      setRefundData(prev => ({
+        ...prev,
+        stannpError: errorMessage,
+        transactionId: lastPurchase?.transactionId || ''
+      }));
+      
+      // Reset state
+      setLastPurchase(null);
+      setSendResult(null);
     } finally {
       setSending(false);
       setIsCapturing(false);
