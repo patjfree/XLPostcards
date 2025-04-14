@@ -133,21 +133,47 @@ class IAPManager {
         const purchase = await requestPurchase({ skus: [sku] }) as PostcardPurchase;
         console.log("[NANAGRAM][IAP] Android Purchase completed:", JSON.stringify(purchase));
         
-        // Check purchase state for Android
-        if (purchase.purchaseStateAndroid === 1) {
+        // Parse the receipt to get the purchase state
+        let receiptPurchaseState = 0;
+        try {
+          const receipt = JSON.parse(purchase.transactionReceipt || '{}');
+          receiptPurchaseState = receipt.purchaseState || 0;
+          console.log("[NANAGRAM][IAP] Receipt purchase state:", receiptPurchaseState);
+        } catch (error) {
+          console.error("[NANAGRAM][IAP] Error parsing receipt:", error);
+        }
+        
+        // Log the states for debugging
+        console.log("[NANAGRAM][IAP] Purchase states - Android:", purchase.purchaseStateAndroid, "Receipt:", receiptPurchaseState);
+        
+        // If either state indicates the purchase is complete (0), proceed
+        if (purchase.purchaseStateAndroid === 0 || receiptPurchaseState === 0) {
+          console.log("[NANAGRAM][IAP] Purchase is complete, finishing transaction");
+          await finishTransaction({ purchase, isConsumable: true });
+          return purchase;
+        }
+        
+        // If purchase is pending (1), wait and retry
+        if (purchase.purchaseStateAndroid === 1 || receiptPurchaseState === 1) {
           console.log("[NANAGRAM][IAP] Purchase is pending, waiting for completion...");
           // Wait for the purchase to be completed
           await new Promise(resolve => setTimeout(resolve, 2000));
+          
           // Try to finish the transaction
-          await finishTransaction({ purchase, isConsumable: true });
-        } else if (purchase.purchaseStateAndroid === 0) {
-          // Purchase is completed, finish the transaction
-          await finishTransaction({ purchase, isConsumable: true });
-        } else {
-          throw new Error('Purchase is not in a valid state');
+          try {
+            await finishTransaction({ purchase, isConsumable: true });
+            return purchase;
+          } catch (error) {
+            console.error("[NANAGRAM][IAP] Error finishing pending transaction:", error);
+            // If we can't finish the transaction, still return the purchase
+            // The purchase update listener will handle the final state
+            return purchase;
+          }
         }
         
-        return purchase;
+        // If we get here, the purchase state is invalid
+        console.error("[NANAGRAM][IAP] Invalid purchase state - Android:", purchase.purchaseStateAndroid, "Receipt:", receiptPurchaseState);
+        throw new Error('Purchase is not in a valid state');
       }
     } catch (error) {
       console.error('[NANAGRAM][IAP] Error purchasing postcard:', error);
