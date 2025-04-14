@@ -75,7 +75,10 @@ module.exports = {
   android: {
     package: getPackageName(),
     // versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,  // for single dev
-    versionCode: 6, // must be manually updated if sharing between devs
+    //versionCode: 6, // must be manually updated if sharing between devs
+    versionCode: process.env.ANDROID_VERSION_CODE
+  ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
+  : 6,
 
     icon: "./assets/images/icon1024.png",
     permissions: [
