@@ -22,6 +22,8 @@ const PRODUCT_SKUS = {
 // Extend ProductPurchase to include our idempotency key
 export interface PostcardPurchase extends ProductPurchase {
   idempotencyKey: string;
+  transactionId?: string;
+  purchaseStateAndroid?: number;
 }
 
 class IAPManager {
