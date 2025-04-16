@@ -110,7 +110,6 @@ class IAPManager {
       }
 
       console.log("[NANAGRAM][IAP] Fetching products for SKU:", sku);
-      // First fetch the products to get their details
       const products = await getProducts({ skus: [sku] });
       console.log("[NANAGRAM][IAP] Available products:", JSON.stringify(products));
       
@@ -119,61 +118,31 @@ class IAPManager {
       }
 
       console.log("[NANAGRAM][IAP] Initiating purchase for SKU:", sku);
-      // Handle iOS and Android differently
-      if (Platform.OS === 'ios') {
-        // iOS requires a single sku string
-        const purchase = await requestPurchase({ sku }) as PostcardPurchase;
-        console.log("[NANAGRAM][IAP] iOS Purchase completed:", JSON.stringify(purchase));
-        
-        // For iOS, finish the transaction after successful purchase
-        await finishTransaction({ purchase });
+      
+      // Request purchase - handle both platforms with minimal branching
+      const purchase = await requestPurchase(Platform.OS === 'ios' 
+        ? { sku } 
+        : { skus: [sku] }
+      ) as PostcardPurchase;
+      
+      console.log("[NANAGRAM][IAP] Purchase completed:", JSON.stringify(purchase));
+
+      // Only proceed if we have a valid purchase token
+      if (!purchase.purchaseToken) {
+        throw new Error('Invalid purchase: missing purchase token');
+      }
+
+      // Try to finish the transaction
+      try {
+        console.log("[NANAGRAM][IAP] Finishing transaction");
+        await finishTransaction({ purchase, isConsumable: true });
+        console.log("[NANAGRAM][IAP] Transaction finished successfully");
         return purchase;
-      } else {
-        // Android can take an array of skus
-        const purchase = await requestPurchase({ skus: [sku] }) as PostcardPurchase;
-        console.log("[NANAGRAM][IAP] Android Purchase completed:", JSON.stringify(purchase));
-        
-        // Log purchase state for debugging
-        console.log("[NANAGRAM][IAP] Purchase state:", purchase.purchaseStateAndroid);
-        
-        // Handle purchase state - more robust handling
-        if (purchase.purchaseStateAndroid === undefined) {
-          // If purchase state is undefined but we have a valid purchase token and transaction ID,
-          // assume the purchase is complete
-          if (purchase.purchaseToken && purchase.transactionId) {
-            console.log("[NANAGRAM][IAP] Purchase state undefined but has valid purchase token, proceeding with completion");
-            await finishTransaction({ purchase, isConsumable: true });
-            return purchase;
-          } else {
-            console.error("[NANAGRAM][IAP] Invalid purchase: missing required fields");
-            throw new Error('Invalid purchase: missing required fields');
-          }
-        } else if (purchase.purchaseStateAndroid === 0) {
-          // Purchase is complete, finish the transaction
-          console.log("[NANAGRAM][IAP] Purchase is complete, finishing transaction");
-          await finishTransaction({ purchase, isConsumable: true });
-          return purchase;
-        } else if (purchase.purchaseStateAndroid === 1) {
-          // Purchase is pending, wait and retry
-          console.log("[NANAGRAM][IAP] Purchase is pending, waiting...");
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          try {
-            console.log("[NANAGRAM][IAP] Retrying to finish transaction...");
-            await finishTransaction({ purchase, isConsumable: true });
-            console.log("[NANAGRAM][IAP] Transaction finished successfully");
-            return purchase;
-          } catch (error) {
-            console.error("[NANAGRAM][IAP] Error finishing transaction:", error);
-            // If we can't finish the transaction, still return the purchase
-            // The purchase update listener will handle the final state
-            return purchase;
-          }
-        } else {
-          // Invalid purchase state
-          console.error("[NANAGRAM][IAP] Invalid purchase state:", purchase.purchaseStateAndroid);
-          throw new Error('Purchase is not in a valid state');
-        }
+      } catch (error) {
+        console.error("[NANAGRAM][IAP] Error finishing transaction:", error);
+        // Even if we can't finish the transaction, return the purchase
+        // The purchase update listener will handle the final state
+        return purchase;
       }
     } catch (error) {
       console.error('[NANAGRAM][IAP] Error purchasing postcard:', error);
