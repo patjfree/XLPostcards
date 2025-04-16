@@ -324,7 +324,7 @@ export default function PostcardPreviewScreen() {
       const purchase = await iapManager.purchasePostcard();
       
       // Check if purchase is valid
-      if (!purchase || !purchase.transactionId) {
+      if (!purchase) {
         throw new Error('Invalid purchase received');
       }
       
@@ -337,14 +337,16 @@ export default function PostcardPreviewScreen() {
       console.error('ERROR in purchase flow:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Show error modal for all errors
-      setStannpAttempts(prev => prev + 1);
-      setShowErrorModal(true);
-      setRefundData(prev => ({
-        ...prev,
-        stannpError: errorMessage,
-        transactionId: lastPurchase?.transactionId || ''
-      }));
+      // Only show error modal if it's not a successful purchase
+      if (errorMessage !== 'Invalid purchase: missing purchase token') {
+        setStannpAttempts(prev => prev + 1);
+        setShowErrorModal(true);
+        setRefundData(prev => ({
+          ...prev,
+          stannpError: errorMessage,
+          transactionId: lastPurchase?.transactionId || ''
+        }));
+      }
       
       // Reset state
       setLastPurchase(null);
