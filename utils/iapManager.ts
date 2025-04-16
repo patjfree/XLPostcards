@@ -120,10 +120,13 @@ class IAPManager {
       console.log("[NANAGRAM][IAP] Initiating purchase for SKU:", sku);
       
       // Request purchase - handle both platforms with minimal branching
-      const purchase = await requestPurchase(Platform.OS === 'ios' 
+      const purchaseResponse = await requestPurchase(Platform.OS === 'ios' 
         ? { sku } 
         : { skus: [sku] }
-      ) as PostcardPurchase;
+      );
+      
+      // Handle array response from Android
+      const purchase = (Array.isArray(purchaseResponse) ? purchaseResponse[0] : purchaseResponse) as PostcardPurchase;
       
       console.log("[NANAGRAM][IAP] Purchase completed:", JSON.stringify(purchase));
 
