@@ -490,7 +490,7 @@ export default function PostcardPreviewScreen() {
         <View style={styles.modalContent}>
           <ThemedText style={styles.modalTitle}>Success!</ThemedText>
           <ThemedText style={styles.modalText}>
-            We've received your Nanagram, your recipient will receive their Postcard within a week.
+            We've received your Nanagram, your recipient will receive their Postcard within 2 weeks.
           </ThemedText>
           {__DEV__ && sendResult?.pdfUrl && (
             <TouchableOpacity 
