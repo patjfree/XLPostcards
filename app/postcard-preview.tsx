@@ -224,7 +224,7 @@ export default function PostcardPreviewScreen() {
       const formData = new FormData();
       
       // Add test mode flag and size
-      formData.append('test', 'true');
+      formData.append('test', 'false');
       formData.append('size', '4x6');
       formData.append('padding', '0');  // Remove default white border for edge-to-edge printing
       
