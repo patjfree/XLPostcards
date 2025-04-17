@@ -322,7 +322,7 @@ export default function HomeScreen() {
         throw new Error('OpenAI API key not found');
       }
 
-      const promptText = "I am uploading a photo, and I want you to write a short (maximum 60 words), engaging postcard message based on it. Write it in a casual, friendly tone like a real postcard, starting with 'Dear [recipient]' and ending with 'Love, [sender]' or 'Wish you were here!' Include interesting details about the location, sights, sounds, and atmosphere. If you can identify the place, mention it naturally in the message. Keep it personal and conversational, like a real postcard to a friend or family member.";
+      const promptText = "I am uploading a photo, and I want you to write a short (maximum 60 words), engaging postcard message based on it. Write it in a casual, friendly tone like a real postcard. Include interesting details about the location, sights, sounds, and atmosphere. If you can identify the place, mention it naturally in the message. Keep it personal and conversational, like a real postcard to a friend or family member. Start with two empty lines.";
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -415,144 +415,44 @@ export default function HomeScreen() {
 
   // Add address parser function
   const parseAddress = (fullAddress: string) => {
-    // Common street suffixes
-    const streetSuffixes = [
-      'ALY', 'ALLEE', 'ALLEY', 'ALLY', 'ALY',
-      'ANX', 'ANNEX', 'ANNX', 'ANX',
-      'ARC', 'ARCADE',
-      'AVE', 'AV', 'AVEN', 'AVENU', 'AVENUE', 'AVN', 'AVNUE',
-      'BLVD', 'BOUL', 'BOULEVARD', 'BOULV',
-      'BYP', 'BYPA', 'BYPAS', 'BYPASS',
-      'CIR', 'CIRC', 'CIRCL', 'CIRCLE', 'CRCL', 'CRCLE',
-      'CT', 'COURT',
-      'DR', 'DRIV', 'DRIVE', 'DRV',
-      'EXPY', 'EXP', 'EXPR', 'EXPRESS', 'EXPRESSWAY',
-      'HWY', 'HIGHWAY', 'HIGHWY', 'HIWAY', 'HIWY', 'HWAY',
-      'LN', 'LANE',
-      'PKWY', 'PARKWAY', 'PKY', 'PARKWY',
-      'PL', 'PLACE',
-      'RD', 'ROAD',
-      'ST', 'STR', 'STREET',
-      'TER', 'TERR', 'TERRACE',
-      'TR', 'TRAIL', 'TRL',
-      'WAY'
-    ].map(suffix => suffix.toUpperCase());
-
-    // Common unit/apartment identifiers
-    const unitIdentifiers = [
-      'APT', 'APARTMENT',
-      'UNIT', 'UNIT#', '#',
-      'STE', 'SUITE',
-      'BLDG', 'BUILDING',
-      'FL', 'FLOOR',
-      'LOT',
-      'RM', 'ROOM',
-      'SPACE'
-    ].map(id => id.toUpperCase());
-
-    // Helper function to extract unit info
-    const extractUnitInfo = (str: string) => {
-      // Check for unit patterns like "Apt 123", "Unit 4B", "#12", etc.
-      const unitRegex = new RegExp(`\\b(${unitIdentifiers.join('|')})\\.?\\s*[#]?\\s*([\\w-]+)\\b`, 'i');
-      const hashRegex = /\s#\s*([\\w-]+)\b/i;
-      const match = str.match(unitRegex) || str.match(hashRegex);
-
-      if (match) {
-        // Remove the unit info from the original string and return both parts
-        const unitInfo = match[0];
-        const remainingStr = str.replace(unitInfo, '').trim();
-        return {
-          addressLine2: unitInfo.trim(),
-          remaining: remainingStr
-        };
-      }
-      return null;
-    };
-
     // Remove "United States" if present
     fullAddress = fullAddress.replace(/United States$/i, '').trim();
     
     // Match for zipcode at the end
-    const zipcodeMatch = fullAddress.match(/\s+(\d{5})$/);
+    const zipcodeMatch = fullAddress.match(/\s+(\d{5}(?:-\d{4})?)\s*$/);
     const zipcode = zipcodeMatch ? zipcodeMatch[1] : '';
     
     // Remove zipcode from address
-    let remaining = fullAddress.replace(/\s+\d{5}$/, '').trim();
+    let remaining = fullAddress.replace(/\s+\d{5}(?:-\d{4})?\s*$/, '').trim();
     
     // Match for state abbreviation before zipcode
-    const stateMatch = remaining.match(/\s+([A-Z]{2})$/);
-    const state = stateMatch ? stateMatch[1] : '';
+    const stateMatch = remaining.match(/\s+([A-Z]{2})\s*$/i);
+    const state = stateMatch ? stateMatch[1].toUpperCase() : '';
     
     // Remove state from remaining
-    remaining = remaining.replace(/\s+[A-Z]{2}$/, '').trim();
-
-    // Extract unit information if present
-    let addressLine2 = '';
-    const unitInfo = extractUnitInfo(remaining);
-    if (unitInfo) {
-      addressLine2 = unitInfo.addressLine2;
-      remaining = unitInfo.remaining;
-    }
+    remaining = remaining.replace(/\s+[A-Z]{2}\s*$/i, '').trim();
 
     // If there's a comma, use that to split city
-    if (remaining.includes(',')) {
-      const parts = remaining.split(',').map(part => part.trim());
-      const city = parts.length > 1 ? parts.pop() || '' : '';
-      const streetAddress = parts.join(',').trim();
-      return { addressLine1: streetAddress, addressLine2, city, state, zipcode };
-    }
-    
-    // No comma - try to find city by looking for common directionals that often precede city names
-    const directionalMatch = remaining.match(/^(.*?)\s+(?:NW|NE|SW|SE)\s+([A-Za-z\s]+)$/);
-    if (directionalMatch) {
-      const [_, streetPart, cityPart] = directionalMatch;
-      return {
-        addressLine1: streetPart.trim(),
-        addressLine2,
-        city: cityPart.trim(),
-        state,
-        zipcode
-      };
-    }
-
-    // Try to find a street suffix followed by a city name
-    const words = remaining.split(/\s+/);
-    for (let i = 0; i < words.length - 1; i++) {
-      const word = words[i].toUpperCase().replace(/\./g, ''); // Remove periods
-      if (streetSuffixes.includes(word)) {
-        // Found a street suffix - everything before and including this word is the street,
-        // everything after is potentially the city
-        const streetPart = words.slice(0, i + 1).join(' ');
-        const cityPart = words.slice(i + 1).join(' ');
-        if (cityPart) {
-          return {
-            addressLine1: streetPart.trim(),
-            addressLine2,
-            city: cityPart.trim(),
-            state,
-            zipcode
-          };
-        }
+    const lastCommaIndex = remaining.lastIndexOf(',');
+    if (lastCommaIndex !== -1) {
+      const city = remaining.substring(lastCommaIndex + 1).trim();
+      const streetAddress = remaining.substring(0, lastCommaIndex).trim();
+      
+      // Check for apartment/unit in street address
+      const aptMatch = streetAddress.match(/(.*?)\s*(?:(?:Apt|Unit|#)\s*[\w-]+)$/i);
+      if (aptMatch) {
+        const addressLine1 = aptMatch[1].trim();
+        const addressLine2 = streetAddress.substring(addressLine1.length).trim();
+        return { addressLine1, addressLine2, city, state, zipcode };
       }
-    }
-
-    // If no street suffix found, try to split on the last word group
-    if (words.length > 2) {
-      const cityPart = words.pop() || '';
-      const streetPart = words.join(' ');
-      return {
-        addressLine1: streetPart.trim(),
-        addressLine2,
-        city: cityPart.trim(),
-        state,
-        zipcode
-      };
+      
+      return { addressLine1: streetAddress, addressLine2: '', city, state, zipcode };
     }
 
     // Fallback - just use the whole thing as street address
     return {
       addressLine1: remaining,
-      addressLine2,
+      addressLine2: '',
       city: '',
       state,
       zipcode
@@ -561,14 +461,16 @@ export default function HomeScreen() {
 
   // Add handler for address autofill
   const handleAddressAutofill = (text: string) => {
-    if (text.includes(',') || text.match(/[A-Z]{2}\s+\d{5}/)) {
+    if (text.includes(',') || text.match(/[A-Z]{2}\s+\d{5}/i)) {
       // This looks like a full address - parse it
       const parsed = parseAddress(text);
-      handleRecipientChange('addressLine1', parsed.addressLine1);
-      handleRecipientChange('addressLine2', parsed.addressLine2);
-      handleRecipientChange('city', parsed.city);
-      handleRecipientChange('state', parsed.state);
-      handleRecipientChange('zipcode', parsed.zipcode);
+      
+      // Only update fields that have values
+      if (parsed.addressLine1) handleRecipientChange('addressLine1', parsed.addressLine1);
+      if (parsed.addressLine2) handleRecipientChange('addressLine2', parsed.addressLine2);
+      if (parsed.city) handleRecipientChange('city', parsed.city);
+      if (parsed.state) handleRecipientChange('state', parsed.state);
+      if (parsed.zipcode) handleRecipientChange('zipcode', parsed.zipcode);
     } else {
       // Just update address line 1
       handleRecipientChange('addressLine1', text);

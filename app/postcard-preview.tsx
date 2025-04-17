@@ -226,6 +226,7 @@ export default function PostcardPreviewScreen() {
       // Add test mode flag and size
       formData.append('test', 'true');
       formData.append('size', '4x6');
+      formData.append('padding', '0');  // Remove default white border for edge-to-edge printing
       
       // Add scaled front and back images
       // @ts-ignore - React Native's FormData accepts this format
