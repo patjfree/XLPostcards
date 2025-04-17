@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
+
+// Simple UUID generator that doesn't require crypto
+function generateSimpleUUID(): string {
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${randomStr}`;
+}
 
 interface PostcardTransaction {
   idempotencyKey: string;
@@ -22,7 +28,7 @@ class PostcardService {
   }
 
   public async createTransaction(transactionId: string): Promise<string> {
-    const idempotencyKey = uuidv4();
+    const idempotencyKey = generateSimpleUUID();
     const transaction: PostcardTransaction = {
       idempotencyKey,
       transactionId,
