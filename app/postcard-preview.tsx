@@ -164,153 +164,164 @@ export default function PostcardPreviewScreen() {
   
   // Function to handle the Stannp API call
   const sendToStannp = async (postcardPurchase: PostcardPurchase) => {
-    // Ensure we have a transaction ID
-    if (!postcardPurchase.transactionId) {
-      throw new Error('No transaction ID received from purchase');
-    }
+    try {
+      console.log("[NANAGRAM][STANNP] Starting Stannp API flow");
+      
+      // Ensure we have a transaction ID
+      if (!postcardPurchase.transactionId) {
+        console.error("[NANAGRAM][STANNP] No transaction ID received");
+        throw new Error('No transaction ID received from purchase');
+      }
 
-    // Get API key
-    const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-    
-    if (!apiKey) {
-      console.error("API key is missing!");
-      throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
-    }
+      // Get API key
+      const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
+      
+      if (!apiKey) {
+        console.error("[NANAGRAM][STANNP] API key is missing!");
+        throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
+      }
 
-    // Check if this transaction has already been processed
-    const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
-    if (existingStatus === 'completed') {
-      throw new Error('This postcard has already been sent');
-    }
-    if (existingStatus === 'pending') {
-      throw new Error('This postcard is currently being processed');
-    }
+      // Check if this transaction has already been processed
+      console.log("[NANAGRAM][STANNP] Checking transaction status:", postcardPurchase.transactionId);
+      const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
+      console.log("[NANAGRAM][STANNP] Transaction status:", existingStatus);
+      
+      if (existingStatus === 'completed') {
+        throw new Error('This postcard has already been sent');
+      }
+      if (existingStatus === 'pending') {
+        throw new Error('This postcard is currently being processed');
+      }
 
-    // Create a new transaction record
-    await postcardService.createTransaction(postcardPurchase.transactionId);
+      // Create a new transaction record
+      console.log("[NANAGRAM][STANNP] Creating transaction record");
+      await postcardService.createTransaction(postcardPurchase.transactionId);
 
-    // Step 1: Capture images at full resolution
-    console.log("Capturing front and back images at full resolution...");
-    
-    if (!viewShotFrontRef.current || !viewShotBackRef.current) {
-      throw new Error('ViewShot refs not initialized');
-    }
+      // Step 1: Capture images at full resolution
+      console.log("[NANAGRAM][STANNP] Capturing front and back images");
+      
+      if (!viewShotFrontRef.current || !viewShotBackRef.current) {
+        console.error("[NANAGRAM][STANNP] ViewShot refs not initialized");
+        throw new Error('ViewShot refs not initialized');
+      }
 
-    const frontOriginalUri = await viewShotFrontRef.current.capture();
-    const backOriginalUri = await viewShotBackRef.current.capture();
-    
-    setIsCapturing(false);  // Reset capturing mode after snapshots
-    
-    console.log("Captured original image URIs:");
-    console.log("- Front URI:", frontOriginalUri);
-    console.log("- Back URI:", backOriginalUri);
+      const frontOriginalUri = await viewShotFrontRef.current.capture();
+      const backOriginalUri = await viewShotBackRef.current.capture();
+      
+      setIsCapturing(false);  // Reset capturing mode after snapshots
+      
+      console.log("[NANAGRAM][STANNP] Images captured successfully");
 
-    // Step 2: Scale images to required dimensions
-    console.log("Scaling images to required dimensions...");
-    const frontUri = await scaleImage(frontOriginalUri);
-    const backUri = await scaleImage(backOriginalUri);
-    
-    console.log("Scaled image URIs:");
-    console.log("- Scaled Front URI:", frontUri);
-    console.log("- Scaled Back URI:", backUri);
+      // Step 2: Scale images to required dimensions
+      console.log("[NANAGRAM][STANNP] Scaling images");
+      const frontUri = await scaleImage(frontOriginalUri);
+      const backUri = await scaleImage(backOriginalUri);
+      
+      console.log("[NANAGRAM][STANNP] Images scaled successfully");
 
-    // Step 3: Create FormData and send to Stannp
-    console.log("Creating FormData for Stannp API...");
-    const formData = new FormData();
-    
-    // Add test mode flag and size
-    formData.append('test', 'true');  // This sets whether the postcard is sent or not
-    formData.append('size', '4x6');
-    
-    // Add scaled front and back images
-    // @ts-ignore - React Native's FormData accepts this format
-    formData.append('front', {
-      uri: frontUri,
-      type: 'image/jpeg',
-      name: 'front.jpg'
-    });
-
-    // @ts-ignore - React Native's FormData accepts this format
-    formData.append('back', {
-      uri: backUri,
-      type: 'image/jpeg',
-      name: 'back.jpg'
-    });
-    
-    // Format recipient data
-    const nameParts = recipientInfo.to.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-    
-    formData.append('recipient[firstname]', firstName);
-    formData.append('recipient[lastname]', lastName);
-    formData.append('recipient[address1]', recipientInfo.addressLine1);
-    if (recipientInfo.addressLine2) {
-      formData.append('recipient[address2]', recipientInfo.addressLine2);
-    }
-    formData.append('recipient[city]', recipientInfo.city);
-    formData.append('recipient[state]', recipientInfo.state);
-    formData.append('recipient[postcode]', recipientInfo.zipcode);
-    formData.append('recipient[country]', 'US');
-    
-    // Add clearzone parameter to ensure machine readability
-    formData.append('clearzone', 'true');
-    
-    // Create authorization header
-    const authHeader = 'Basic ' + btoa(`${apiKey}:`);
-    
-    // Make the API request
-    console.log("Sending request to Stannp API...");
-    const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-    
-    console.log("Response received. Status:", response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ERROR: Bad response from API:", errorText);
-      await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-      throw new Error(`API returned status ${response.status}: ${errorText}`);
-    }
-    
-    const responseText = await response.text();
-    console.log("Raw API Response:", responseText);
-    
-    const data = JSON.parse(responseText);
-    console.log("Parsed API Response:", JSON.stringify(data, null, 2));
-    
-    if (!data.success) {
-      await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-      throw new Error(data.error || 'Failed to send postcard');
-    }
-    
-    // Mark transaction as completed
-    await postcardService.markTransactionComplete(postcardPurchase.transactionId);
-    
-    // Extract PDF preview URL
-    const pdfUrl = data.data.pdf || data.data.pdf_url;
-    
-    // Success case - update all states in one batch
-    const updates = async () => {
-      setStannpAttempts(0);
-      setSendResult({
-        success: true,
-        message: `Test postcard created successfully! A print-ready PDF has been generated.`,
-        pdfUrl: pdfUrl
+      // Step 3: Create FormData and send to Stannp
+      console.log("[NANAGRAM][STANNP] Preparing FormData");
+      const formData = new FormData();
+      
+      // Add test mode flag and size
+      formData.append('test', 'true');
+      formData.append('size', '4x6');
+      
+      // Add scaled front and back images
+      // @ts-ignore - React Native's FormData accepts this format
+      formData.append('front', {
+        uri: frontUri,
+        type: 'image/jpeg',
+        name: 'front.jpg'
       });
-      setShowSuccessModal(true);
-      setSending(false);
-      setIsCapturing(false);
-    };
-    await updates();
-    
+
+      // @ts-ignore - React Native's FormData accepts this format
+      formData.append('back', {
+        uri: backUri,
+        type: 'image/jpeg',
+        name: 'back.jpg'
+      });
+      
+      // Format recipient data
+      const nameParts = recipientInfo.to.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      
+      formData.append('recipient[firstname]', firstName);
+      formData.append('recipient[lastname]', lastName);
+      formData.append('recipient[address1]', recipientInfo.addressLine1);
+      if (recipientInfo.addressLine2) {
+        formData.append('recipient[address2]', recipientInfo.addressLine2);
+      }
+      formData.append('recipient[city]', recipientInfo.city);
+      formData.append('recipient[state]', recipientInfo.state);
+      formData.append('recipient[postcode]', recipientInfo.zipcode);
+      formData.append('recipient[country]', 'US');
+      
+      formData.append('clearzone', 'true');
+      
+      // Create authorization header
+      const authHeader = 'Basic ' + btoa(`${apiKey}:`);
+      
+      // Make the API request
+      console.log("[NANAGRAM][STANNP] Sending request to Stannp API");
+      const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+      
+      console.log("[NANAGRAM][STANNP] Response received. Status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[NANAGRAM][STANNP] Bad response from API:", errorText);
+        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
+        throw new Error(`API returned status ${response.status}: ${errorText}`);
+      }
+      
+      const responseText = await response.text();
+      console.log("[NANAGRAM][STANNP] Raw API Response:", responseText);
+      
+      const data = JSON.parse(responseText);
+      console.log("[NANAGRAM][STANNP] Parsed API Response:", JSON.stringify(data, null, 2));
+      
+      if (!data.success) {
+        console.error("[NANAGRAM][STANNP] API reported failure:", data.error);
+        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
+        throw new Error(data.error || 'Failed to send postcard');
+      }
+      
+      // Mark transaction as completed
+      console.log("[NANAGRAM][STANNP] Marking transaction as complete");
+      await postcardService.markTransactionComplete(postcardPurchase.transactionId);
+      
+      // Extract PDF preview URL
+      const pdfUrl = data.data.pdf || data.data.pdf_url;
+      
+      // Success case - update all states in one batch
+      console.log("[NANAGRAM][STANNP] Updating UI states for success");
+      const updates = async () => {
+        setStannpAttempts(0);
+        setSendResult({
+          success: true,
+          message: `Test postcard created successfully! A print-ready PDF has been generated.`,
+          pdfUrl: pdfUrl
+        });
+        setShowSuccessModal(true);
+        setSending(false);
+        setIsCapturing(false);
+      };
+      await updates();
+      
+    } catch (error) {
+      console.error("[NANAGRAM][STANNP] Error in sendToStannp:", error);
+      throw error;  // Re-throw to be handled by the calling function
+    }
   };
 
   // Function to start a new purchase flow
