@@ -50,7 +50,11 @@ const scaleImage = async (imageUri: string): Promise<string> => {
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [{ resize: { width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT } }],
-      { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      { 
+        compress: 1, 
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: false
+      }
     );
     return result.uri;
   } catch (error) {
@@ -713,8 +717,7 @@ export default function PostcardPreviewScreen() {
           ref={viewShotFrontRef} 
           style={[styles.postcardPreviewContainer, {
             width: screenWidth,
-            height: scaledHeight,
-            paddingTop: 20  // Add padding to the container
+            height: scaledHeight
           }]}
           options={{
             width: POSTCARD_WIDTH,
@@ -725,11 +728,15 @@ export default function PostcardPreviewScreen() {
         >
           <View style={[styles.postcardContainer, {
             transform: [{ scale: scaleFactor }],
-            transformOrigin: 'top left'
+            transformOrigin: 'top left',
+            overflow: 'hidden'
           }]}>
             <Image 
               source={{ uri: imageUri }}
-              style={styles.postcardFront}
+              style={[styles.postcardFront, {
+                width: POSTCARD_WIDTH,
+                height: POSTCARD_HEIGHT
+              }]}
               onError={(error: ImageErrorEvent) => {
                 console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
                 setImageLoadError(true);
@@ -855,12 +862,13 @@ const styles = StyleSheet.create({
   postcardPreviewContainer: {
     alignSelf: 'center',
     overflow: 'hidden',
+    backgroundColor: 'transparent'
   },
   postcardContainer: {
     width: POSTCARD_WIDTH,
     height: POSTCARD_HEIGHT,
-    backgroundColor: 'white',
-    position: 'relative',
+    backgroundColor: 'transparent',
+    position: 'relative'
   },
   marginTop: {
     marginTop: 20,
@@ -868,8 +876,7 @@ const styles = StyleSheet.create({
   postcardFront: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
-    backgroundColor: '#f0f0f0',
+    resizeMode: 'cover'
   },
   postcardBack: {
     position: 'absolute',
