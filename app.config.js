@@ -1,17 +1,7 @@
 require("dotenv").config();
 
 const getAppName = () => {
-  // Get the build profile from environment variable or default to 'development'
-  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
-  
-  switch (buildProfile) {
-    case 'preview':
-      return 'NanaGramPreview';
-    case 'production':
-      return 'NanaGram';
-    default:
-      return 'NanaGramDev';
-  }
+  return 'NanaGram';
 };
 
 const getPackageName = () => {
