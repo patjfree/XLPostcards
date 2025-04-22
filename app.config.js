@@ -6,11 +6,11 @@ const getAppName = () => {
   
   switch (buildProfile) {
     case 'preview':
-      return 'P:NanaGram';
+      return 'NanaGramPreview';
     case 'production':
       return 'NanaGram';
     default:
-      return 'D:NanaGram';
+      return 'NanaGramDev';
   }
 };
 
@@ -46,7 +46,7 @@ module.exports = {
   name: getAppName(),
   slug: "NanaGram",
   // version: process.env.APP_VERSION || "1.0.0", //Auto-incremented by EAS for singl
-  version: "1.0.6", // must be manually updated if sharing between 
+  version: "1.0.7", // must be manually updated if sharing between 
   runtimeVersion: {
     policy: "appVersion"
   },
