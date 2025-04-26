@@ -1,35 +1,46 @@
 require("dotenv").config();
 
+const IS_DEV = process.env.APP_VARIANT === 'development';
+const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
+
 const getAppName = () => {
-  return 'NanaGram';
+  if (IS_DEV) {
+    return 'D:NanaGram';
+  }
+
+  if (IS_PREVIEW) {
+    return 'P:NanaGram';
+  }
+
+  return 'NanaGram';  // Production is default
 };
 
 const getPackageName = () => {
-  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
   const basePackage = 'com.patjfree.nanagram';
   
-  switch (buildProfile) {
-    case 'preview':
-      return `${basePackage}.preview`;
-    case 'production':
-      return basePackage;
-    default:
-      return `${basePackage}.dev`;
+  if (IS_DEV) {
+    return `${basePackage}.dev`;
   }
+  
+  if (IS_PREVIEW) {
+    return `${basePackage}.preview`;
+  }
+  
+  return basePackage;  // Production is default
 };
 
 const getBundleIdentifier = () => {
-  const buildProfile = process.env.EAS_BUILD_PROFILE || 'development';
   const baseIdentifier = 'com.patjfree.nanagram';
   
-  switch (buildProfile) {
-    case 'preview':
-      return `${baseIdentifier}.preview`;
-    case 'production':
-      return baseIdentifier;
-    default:
-      return `${baseIdentifier}.dev`;
+  if (IS_DEV) {
+    return `${baseIdentifier}.dev`;
   }
+  
+  if (IS_PREVIEW) {
+    return `${baseIdentifier}.preview`;
+  }
+  
+  return baseIdentifier;  // Production is default
 };
 
 module.exports = {
@@ -124,6 +135,7 @@ module.exports = {
     // Add your environment variables here
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
+    APP_VARIANT: process.env.APP_VARIANT || 'production',  // Set production as default
     eas: {
       projectId: "d93ea347-63a8-409b-a797-1fc8d35ac10b"  //Patrick Expo
       //projectId: "a452b579-b559-43cc-a7bf-81a002fd4dae" //Charles Expo
