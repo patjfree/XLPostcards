@@ -70,8 +70,14 @@ module.exports = {
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         "This app needs access to your location to attach it to photos you take.",
+      NSCameraUsageDescription:
+        "NanaGram uses the camera to let you take a photo to send on your postcard.",
+      NSPhotoLibraryUsageDescription:
+        "NanaGram uses your photo library so you can select an existing photo to add to your postcard.",
+      NSContactsUsageDescription:
+        "NanaGram uses your contacts to let you quickly select a recipient’s address when sending a postcard.",
       ITSAppUsesNonExemptEncryption: false
-    },
+    }
   },
   android: {
     package: getPackageName(),
