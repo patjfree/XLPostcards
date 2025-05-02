@@ -72,7 +72,8 @@ module.exports = {
         //"This app needs access to your location to help NanaBot describe where you are.",
       //NSCameraUsageDescription:
         //"NanaGram uses the camera to let you take a photo to send on your postcard.",
-      NSPhotoLibraryUsageDescription:
+      NSPhotoLibraryUsageDescription:  //IOS is not using this - it's using the expo-media-library plugin
+
         "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
       //NSContactsUsageDescription:
          //"NanaGram uses your contacts to let you quickly select a recipient’s address when sending a postcard.",
@@ -126,7 +127,7 @@ module.exports = {
     [
         "expo-media-library",
         {
-          photosPermission: "NanaGram uses your photo library so you can select an existing photo to add to your postcard.",
+          photosPermission: "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
           savePhotosPermission: "Allow NanaGram to save photos you create.",
           isAccessMediaLocationEnabled: true,
         },
