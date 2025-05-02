@@ -169,8 +169,7 @@ export default function PostcardPreviewScreen() {
   // Function to handle the Stannp API call
   const sendToStannp = async (postcardPurchase: PostcardPurchase) => {
     try {
-      console.log("[NANAGRAM][STANNP] Starting Stannp API flow");
-      
+      console.log("[NANAGRAM][STANNP] sendToStannp called with purchase:", JSON.stringify(postcardPurchase));
       // Ensure we have a transaction ID
       if (!postcardPurchase.transactionId) {
         console.error("[NANAGRAM][STANNP] No transaction ID received");
@@ -179,6 +178,7 @@ export default function PostcardPreviewScreen() {
 
       // Get API key
       const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
+      console.log("[NANAGRAM][STANNP] Using API key:", !!apiKey);
       
       if (!apiKey) {
         console.error("[NANAGRAM][STANNP] API key is missing!");
@@ -191,9 +191,11 @@ export default function PostcardPreviewScreen() {
       console.log("[NANAGRAM][STANNP] Transaction status:", existingStatus);
       
       if (existingStatus === 'completed') {
+        console.error("[NANAGRAM][STANNP] Transaction already completed");
         throw new Error('This postcard has already been sent');
       }
       if (existingStatus === 'pending') {
+        console.error("[NANAGRAM][STANNP] Transaction is pending");
         throw new Error('This postcard is currently being processed');
       }
 
@@ -211,17 +213,14 @@ export default function PostcardPreviewScreen() {
 
       const frontOriginalUri = await viewShotFrontRef.current.capture();
       const backOriginalUri = await viewShotBackRef.current.capture();
-      
+      console.log("[NANAGRAM][STANNP] Images captured:", frontOriginalUri, backOriginalUri);
       setIsCapturing(false);  // Reset capturing mode after snapshots
       
-      console.log("[NANAGRAM][STANNP] Images captured successfully");
-
       // Step 2: Scale images to required dimensions
       console.log("[NANAGRAM][STANNP] Scaling images");
       const frontUri = await scaleImage(frontOriginalUri);
       const backUri = await scaleImage(backOriginalUri);
-      
-      console.log("[NANAGRAM][STANNP] Images scaled successfully");
+      console.log("[NANAGRAM][STANNP] Images scaled:", frontUri, backUri);
 
       // Step 3: Create FormData and send to Stannp
       console.log("[NANAGRAM][STANNP] Preparing FormData");
@@ -322,7 +321,7 @@ export default function PostcardPreviewScreen() {
         setIsCapturing(false);
       };
       await updates();
-      
+      console.log("[NANAGRAM][STANNP] sendToStannp completed successfully");
     } catch (error) {
       console.error("[NANAGRAM][STANNP] Error in sendToStannp:", error);
       throw error;  // Re-throw to be handled by the calling function
@@ -332,25 +331,30 @@ export default function PostcardPreviewScreen() {
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
     try {
+      console.log('[NANAGRAM][CONTINUE] Continue button pressed');
       setSending(true);
       setSendResult(null);
       setIsCapturing(true);
 
       // Start the purchase flow
+      console.log('[NANAGRAM][CONTINUE] Starting purchase flow');
       const purchase = await iapManager.purchasePostcard();
+      console.log('[NANAGRAM][CONTINUE] Purchase result:', purchase);
       
       // Check if purchase is valid
       if (!purchase) {
+        console.error('[NANAGRAM][CONTINUE] Invalid purchase received');
         throw new Error('Invalid purchase received');
       }
       
       setLastPurchase(purchase);
       
       // Send to Stannp
+      console.log('[NANAGRAM][CONTINUE] Sending to Stannp');
       await sendToStannp(purchase);
-      
+      console.log('[NANAGRAM][CONTINUE] sendToStannp finished');
     } catch (error) {
-      console.error('ERROR in purchase flow:', error);
+      console.error('[NANAGRAM][CONTINUE] ERROR in purchase flow:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // Only show error modal if it's not a successful purchase
@@ -370,6 +374,7 @@ export default function PostcardPreviewScreen() {
     } finally {
       setSending(false);
       setIsCapturing(false);
+      console.log('[NANAGRAM][CONTINUE] Purchase flow finished');
     }
   };
 
