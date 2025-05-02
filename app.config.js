@@ -124,14 +124,12 @@ module.exports = {
       },
     ],
     [
-      [
         "expo-media-library",
         {
           photosPermission: "NanaGram uses your photo library so you can select an existing photo to add to your postcard.",
           savePhotosPermission: "Allow NanaGram to save photos you create.",
           isAccessMediaLocationEnabled: true,
         },
-      ],
     ],
     "react-native-iap"
   ],

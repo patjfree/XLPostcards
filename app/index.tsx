@@ -254,11 +254,10 @@ export default function HomeScreen() {
   // Request permissions on component mount
   useEffect(() => {
     (async () => {
-      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
       const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
-      if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
-        Alert.alert('Permissions needed', 'Camera and photo library permissions are required to use this app.');
+      if (libraryStatus !== 'granted') {
+        Alert.alert('Permissions needed', 'Photo library permission is required to use this app.');
       }
     })();
   }, []);
