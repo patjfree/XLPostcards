@@ -328,6 +328,19 @@ export default function PostcardPreviewScreen() {
     }
   };
 
+  // Helper to reset all purchase-related state
+  const resetPurchaseState = () => {
+    setLastPurchase(null);
+    setSendResult(null);
+    setStannpAttempts(0);
+    setShowSuccessModal(false);
+    setShowErrorModal(false);
+    setShowRefundModal(false);
+    setShowRefundSuccessModal(false);
+    setSending(false);
+    setIsCapturing(false);
+  };
+
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
     try {
@@ -491,7 +504,7 @@ export default function PostcardPreviewScreen() {
       transparent={true}
       visible={showSuccessModal}
       onRequestClose={() => {
-        setShowSuccessModal(false);
+        resetPurchaseState();
         router.replace('/');
       }}
     >
@@ -514,7 +527,7 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
-              setShowSuccessModal(false);
+              resetPurchaseState();
               router.replace('/');
             }}
           >
