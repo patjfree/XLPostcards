@@ -283,7 +283,7 @@ export default function HomeScreen() {
 
   // Function to take a photo with the camera
   const takePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [3, 2], // 6:4 ratio for postcard
       quality: 0.7,

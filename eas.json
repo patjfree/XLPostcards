@@ -17,11 +17,14 @@
         "buildType": "apk"
       }
     },
-    "production": {
-      "autoIncrement": true,
-      "ios": {
-        "resourceClass": "m-medium"
-      },
+"production": {
+  "autoIncrement": true,
+  "env": {
+    "APP_VARIANT": "production"
+  },
+  "ios": {
+    "resourceClass": "m-medium"
+  },
       "android": {
         "buildType": "app-bundle"
       }

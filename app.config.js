@@ -68,14 +68,14 @@ module.exports = {
     deploymentTarget: "13.0",
     buildNumber: process.env.IOS_BUILD_NUMBER || "1",
     infoPlist: {
-      NSLocationWhenInUseUsageDescription:
-        "This app needs access to your location to attach it to photos you take.",
-      NSCameraUsageDescription:
-        "NanaGram uses the camera to let you take a photo to send on your postcard.",
+      //NSLocationWhenInUseUsageDescription:
+        //"This app needs access to your location to help NanaBot describe where you are.",
+      //NSCameraUsageDescription:
+        //"NanaGram uses the camera to let you take a photo to send on your postcard.",
       NSPhotoLibraryUsageDescription:
-        "NanaGram uses your photo library so you can select an existing photo to add to your postcard.",
-      NSContactsUsageDescription:
-        "NanaGram uses your contacts to let you quickly select a recipient’s address when sending a postcard.",
+        "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
+      //NSContactsUsageDescription:
+         //"NanaGram uses your contacts to let you quickly select a recipient’s address when sending a postcard.",
       ITSAppUsesNonExemptEncryption: false
     }
   },
@@ -124,12 +124,14 @@ module.exports = {
       },
     ],
     [
-      "expo-media-library",
-      {
-        photosPermission: "Allow $(PRODUCT_NAME) to access your photos.",
-        savePhotosPermission: "Allow $(PRODUCT_NAME) to save photos.",
-        isAccessMediaLocationEnabled: true,
-      },
+      [
+        "expo-media-library",
+        {
+          photosPermission: "NanaGram uses your photo library so you can select an existing photo to add to your postcard.",
+          savePhotosPermission: "Allow NanaGram to save photos you create.",
+          isAccessMediaLocationEnabled: true,
+        },
+      ],
     ],
     "react-native-iap"
   ],
