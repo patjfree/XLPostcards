@@ -330,6 +330,7 @@ export default function PostcardPreviewScreen() {
 
   // Helper to reset all purchase-related state
   const resetPurchaseState = () => {
+    console.log('[NANAGRAM][RESET] Resetting purchase state');
     setLastPurchase(null);
     setSendResult(null);
     setStannpAttempts(0);
@@ -340,6 +341,14 @@ export default function PostcardPreviewScreen() {
     setSending(false);
     setIsCapturing(false);
   };
+
+  // Fallback: If the success modal is dismissed but we're still on the preview screen, force navigation
+  useEffect(() => {
+    if (!showSuccessModal && sendResult?.success) {
+      console.log('[NANAGRAM][FALLBACK_NAV] Success modal closed, forcing navigation to index');
+      router.replace('/');
+    }
+  }, [showSuccessModal, sendResult?.success]);
 
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
@@ -504,6 +513,7 @@ export default function PostcardPreviewScreen() {
       transparent={true}
       visible={showSuccessModal}
       onRequestClose={() => {
+        console.log('[NANAGRAM][SUCCESS_MODAL] onRequestClose called');
         resetPurchaseState();
         router.replace('/');
       }}
@@ -527,6 +537,7 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
+              console.log('[NANAGRAM][SUCCESS_MODAL] OK pressed');
               resetPurchaseState();
               router.replace('/');
             }}
