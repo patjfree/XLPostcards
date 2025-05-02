@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { iapManager } from '@/utils/iapManager';
+import { iapManager, clearStalePurchases } from '@/utils/iapManager';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -17,9 +17,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Initialize IAP manager when fonts are loaded
-      iapManager.initialize().catch(error => {
-        console.error('[NANAGRAM][IAP] Error initializing IAP manager:', error);
+      // Clear any stale IAP transactions before initializing IAP manager
+      clearStalePurchases().then(() => {
+        // Initialize IAP manager when fonts are loaded
+        iapManager.initialize().catch(error => {
+          console.error('[NANAGRAM][IAP] Error initializing IAP manager:', error);
+        });
       });
     }
   }, [loaded]);

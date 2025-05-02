@@ -3,6 +3,7 @@ import {
   endConnection,
   getProducts,
   getPurchaseHistory,
+  getAvailablePurchases,
   finishTransaction,
   purchaseErrorListener,
   purchaseUpdatedListener,
@@ -135,7 +136,7 @@ class IAPManager {
         throw new Error('Invalid purchase: missing purchase token');
       }
 
-      // Try to finish the transaction
+      // Always call finishTransaction after a successful purchase
       try {
         console.log("[NANAGRAM][IAP] Finishing transaction");
         await finishTransaction({ purchase, isConsumable: true });
@@ -167,4 +168,20 @@ class IAPManager {
   }
 }
 
-export const iapManager = IAPManager.getInstance(); 
+export const iapManager = IAPManager.getInstance();
+
+// Call this on app start to clear any unfinished transactions
+export async function clearStalePurchases() {
+  try {
+    const purchases = await getAvailablePurchases();
+    for (const purchase of purchases) {
+      if (purchase && purchase.transactionId) {
+        await finishTransaction({ purchase, isConsumable: true });
+        console.log('[NANAGRAM][IAP] Finished stale transaction:', purchase.transactionId);
+      }
+    }
+    console.log('[NANAGRAM][IAP] Cleared stale purchases');
+  } catch (error) {
+    console.error('[NANAGRAM][IAP] Error clearing stale purchases:', error);
+  }
+} 
