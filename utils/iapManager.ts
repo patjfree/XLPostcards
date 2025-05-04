@@ -87,7 +87,9 @@ class IAPManager {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: postcardPriceCents, transactionId }),
       });
-      const { clientSecret } = await response.json();
+      const text = await response.text();
+      console.log('Stripe webhook response:', text);
+      const { clientSecret } = JSON.parse(text);
       if (!clientSecret) throw new Error('Payment initialization failed.');
       const initResult = await stripe.initPaymentSheet({
         paymentIntentClientSecret: clientSecret,
