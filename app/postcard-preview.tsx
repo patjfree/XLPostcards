@@ -9,12 +9,14 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import ViewShot from 'react-native-view-shot';
 import { useRef } from 'react';
 import Constants from 'expo-constants';
+import { useStripe } from '@stripe/stripe-react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from './components/AIDisclaimer';
-import { iapManager, PostcardPurchase } from '@/utils/iapManager';
+import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
+import { stripeManager } from '@/utils/stripeManager';
 
 // Postcard dimensions at 300 DPI
 const POSTCARD_WIDTH = 1871;
@@ -68,6 +70,7 @@ export default function PostcardPreviewScreen() {
   const params = useLocalSearchParams();
   const viewShotFrontRef = useRef<ViewShot & ViewShotMethods>(null);
   const viewShotBackRef = useRef<ViewShot & ViewShotMethods>(null);
+  const stripe = useStripe();
   const [currentSide, setCurrentSide] = useState<'front' | 'back'>('back');
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -94,7 +97,8 @@ export default function PostcardPreviewScreen() {
     transactionId: '',
     stannpError: ''
   });
-  const [lastPurchase, setLastPurchase] = useState<PostcardPurchase | null>(null);
+  const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
+  const postcardPriceDollars = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
   
   // Get data from route params
   const imageUri = params.imageUri as string;
@@ -167,7 +171,7 @@ export default function PostcardPreviewScreen() {
   };
   
   // Function to handle the Stannp API call
-  const sendToStannp = async (postcardPurchase: PostcardPurchase) => {
+  const sendToStannp = async (postcardPurchase: Purchase) => {
     try {
       console.log("[NANAGRAM][STANNP] ====== STARTING STANNP API CALL ======");
       console.log("[NANAGRAM][STANNP] Platform:", Platform.OS);
@@ -452,7 +456,13 @@ export default function PostcardPreviewScreen() {
 
       // Start the purchase flow
       console.log('[NANAGRAM][CONTINUE] Starting purchase flow');
-      const purchase = await iapManager.purchasePostcard();
+      let purchase;
+      if (Platform.OS === 'ios') {
+        // Use Stripe Payment Sheet
+        purchase = await iapManager.purchasePostcard(stripe);
+      } else {
+        purchase = await iapManager.purchasePostcard();
+      }
       console.log('[NANAGRAM][CONTINUE] Purchase result:', purchase);
       
       // Check if purchase is valid
@@ -493,7 +503,7 @@ export default function PostcardPreviewScreen() {
   };
 
   // Function to retry with existing purchase
-  const retryWithExistingPurchase = async (purchase: PostcardPurchase) => {
+  const retryWithExistingPurchase = async (purchase: Purchase) => {
     try {
       setSending(true);
       setSendResult(null);
@@ -894,14 +904,11 @@ export default function PostcardPreviewScreen() {
             <View style={styles.buttonRow}>
               {!sendResult?.success ? (
                 <TouchableOpacity 
-                  style={[
-                    styles.submitButton,
-                    sending && { opacity: 0.5 }
-                  ]} 
+                  style={styles.submitButton}
                   onPress={() => void startNewPurchaseFlow()}
                   disabled={sending}
                 >
-                  <ThemedText style={styles.buttonText}>Continue</ThemedText>
+                  <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
                 </TouchableOpacity>
               ) : null}
             </View>

@@ -1,10 +1,11 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { StripeProvider } from '@stripe/stripe-react-native';
+import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { iapManager, clearStalePurchases } from '@/utils/iapManager';
+import { iapManager, clearStalePurchases } from '../utils/iapManager';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -20,7 +21,7 @@ export default function RootLayout() {
       // Clear any stale IAP transactions before initializing IAP manager
       clearStalePurchases().then(() => {
         // Initialize IAP manager when fonts are loaded
-        iapManager.initialize().catch(error => {
+        iapManager.initialize().catch((error: any) => {
           console.error('[NANAGRAM][IAP] Error initializing IAP manager:', error);
         });
       });
@@ -31,14 +32,16 @@ export default function RootLayout() {
     return null;
   }
 
+  const stripePublishableKey = Constants.expoConfig?.extra?.stripePublishableKey || '';
+
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <StripeProvider publishableKey={stripePublishableKey}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="postcard-preview" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />
-    </ThemeProvider>
+    </StripeProvider>
   );
 }

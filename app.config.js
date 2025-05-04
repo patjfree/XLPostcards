@@ -76,7 +76,8 @@ module.exports = {
 
         "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
       //NSContactsUsageDescription:
-         //"NanaGram uses your contacts to let you quickly select a recipient’s address when sending a postcard.",
+         //"NanaGram uses your contacts to let you quickly select a recipient's address when sending a postcard.",
+
       ITSAppUsesNonExemptEncryption: false
     }
   },
@@ -102,6 +103,7 @@ module.exports = {
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
+      "expo-font",
     [
       "expo-router",
       {
@@ -132,6 +134,7 @@ module.exports = {
           isAccessMediaLocationEnabled: true,
         },
     ],
+    
     "react-native-iap"
   ],
   experiments: {
@@ -142,6 +145,10 @@ module.exports = {
     // Add your environment variables here
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    n8nWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent',
+    postcardPriceCents: 199,
+    postcardPriceDollars: 1.99,
     APP_VARIANT: process.env.APP_VARIANT || 'production',  // Set production as default
     eas: {
       projectId: "d93ea347-63a8-409b-a797-1fc8d35ac10b"  //Patrick Expo
