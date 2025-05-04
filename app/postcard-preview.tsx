@@ -169,7 +169,10 @@ export default function PostcardPreviewScreen() {
   // Function to handle the Stannp API call
   const sendToStannp = async (postcardPurchase: PostcardPurchase) => {
     try {
-      console.log("[NANAGRAM][STANNP] sendToStannp called with purchase:", JSON.stringify(postcardPurchase));
+      console.log("[NANAGRAM][STANNP] ====== STARTING STANNP API CALL ======");
+      console.log("[NANAGRAM][STANNP] Platform:", Platform.OS);
+      console.log("[NANAGRAM][STANNP] Purchase details:", JSON.stringify(postcardPurchase, null, 2));
+      
       // Ensure we have a transaction ID
       if (!postcardPurchase.transactionId) {
         console.error("[NANAGRAM][STANNP] No transaction ID received");
@@ -178,7 +181,7 @@ export default function PostcardPreviewScreen() {
 
       // Get API key
       const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-      console.log("[NANAGRAM][STANNP] Using API key:", !!apiKey);
+      console.log("[NANAGRAM][STANNP] API key available:", !!apiKey);
       
       if (!apiKey) {
         console.error("[NANAGRAM][STANNP] API key is missing!");
@@ -213,25 +216,33 @@ export default function PostcardPreviewScreen() {
 
       const frontOriginalUri = await viewShotFrontRef.current.capture();
       const backOriginalUri = await viewShotBackRef.current.capture();
-      console.log("[NANAGRAM][STANNP] Images captured:", frontOriginalUri, backOriginalUri);
+      console.log("[NANAGRAM][STANNP] Images captured successfully");
+      console.log("[NANAGRAM][STANNP] Front image URI:", frontOriginalUri);
+      console.log("[NANAGRAM][STANNP] Back image URI:", backOriginalUri);
+      
       setIsCapturing(false);  // Reset capturing mode after snapshots
       
       // Step 2: Scale images to required dimensions
       console.log("[NANAGRAM][STANNP] Scaling images");
       const frontUri = await scaleImage(frontOriginalUri);
       const backUri = await scaleImage(backOriginalUri);
-      console.log("[NANAGRAM][STANNP] Images scaled:", frontUri, backUri);
+      console.log("[NANAGRAM][STANNP] Images scaled successfully");
+      console.log("[NANAGRAM][STANNP] Scaled front URI:", frontUri);
+      console.log("[NANAGRAM][STANNP] Scaled back URI:", backUri);
 
       // Step 3: Create FormData and send to Stannp
       console.log("[NANAGRAM][STANNP] Preparing FormData");
       const formData = new FormData();
       
       // Add test mode flag and size
-      formData.append('test', 'false');
+      const isTestMode = __DEV__ || process.env.APP_VARIANT === 'development';
+      console.log("[NANAGRAM][STANNP] Using test mode:", isTestMode);
+      formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', '4x6');
-      formData.append('padding', '0');  // Remove default white border for edge-to-edge printing
+      formData.append('padding', '0');
       
       // Add scaled front and back images
+      console.log("[NANAGRAM][STANNP] Adding images to FormData");
       // @ts-ignore - React Native's FormData accepts this format
       formData.append('front', {
         uri: frontUri,
@@ -247,6 +258,7 @@ export default function PostcardPreviewScreen() {
       });
       
       // Format recipient data
+      console.log("[NANAGRAM][STANNP] Adding recipient data to FormData");
       const nameParts = recipientInfo.to.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
@@ -266,6 +278,24 @@ export default function PostcardPreviewScreen() {
       
       // Create authorization header
       const authHeader = 'Basic ' + btoa(`${apiKey}:`);
+      
+      // Log the complete FormData for debugging
+      console.log("[NANAGRAM][STANNP] FormData contents:", {
+        test: isTestMode ? 'true' : 'false',
+        size: '4x6',
+        recipient: {
+          firstname: firstName,
+          lastname: lastName,
+          address1: recipientInfo.addressLine1,
+          address2: recipientInfo.addressLine2,
+          city: recipientInfo.city,
+          state: recipientInfo.state,
+          postcode: recipientInfo.zipcode,
+          country: 'US'
+        },
+        frontImage: frontUri,
+        backImage: backUri
+      });
       
       // Make the API request
       console.log("[NANAGRAM][STANNP] Sending request to Stannp API");
@@ -306,6 +336,7 @@ export default function PostcardPreviewScreen() {
       
       // Extract PDF preview URL
       const pdfUrl = data.data.pdf || data.data.pdf_url;
+      console.log("[NANAGRAM][STANNP] PDF URL received:", pdfUrl);
       
       // Success case - update all states in one batch
       console.log("[NANAGRAM][STANNP] Updating UI states for success");
@@ -313,24 +344,26 @@ export default function PostcardPreviewScreen() {
         setStannpAttempts(0);
         setSendResult({
           success: true,
-          message: `Test postcard created successfully! A print-ready PDF has been generated.`,
+          message: `Your postcard will arrive in two weeks.`,
           pdfUrl: pdfUrl
         });
+        console.log("[NANAGRAM][STANNP] Showing success modal now");
         setShowSuccessModal(true);
         setSending(false);
         setIsCapturing(false);
       };
       await updates();
-      console.log("[NANAGRAM][STANNP] sendToStannp completed successfully");
+      console.log("[NANAGRAM][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======");
     } catch (error) {
-      console.error("[NANAGRAM][STANNP] Error in sendToStannp:", error);
+      console.error("[NANAGRAM][STANNP] ====== ERROR IN STANNP API CALL ======");
+      console.error("[NANAGRAM][STANNP] Error details:", error);
       throw error;  // Re-throw to be handled by the calling function
     }
   };
 
   // Helper to reset all purchase-related state
   const resetPurchaseState = () => {
-    console.log('[NANAGRAM][RESET] Resetting purchase state');
+    console.log('[NANAGRAM][RESET] Starting state reset');
     setLastPurchase(null);
     setSendResult(null);
     setStannpAttempts(0);
@@ -340,13 +373,72 @@ export default function PostcardPreviewScreen() {
     setShowRefundSuccessModal(false);
     setSending(false);
     setIsCapturing(false);
+    console.log('[NANAGRAM][RESET] State reset complete');
   };
 
-  // Fallback: If the success modal is dismissed but we're still on the preview screen, force navigation
+  const handleNavigation = () => {
+    console.log('[NANAGRAM][NAV] Attempting navigation to index');
+    try {
+      router.replace('/');
+      console.log('[NANAGRAM][NAV] Navigation command executed');
+    } catch (error) {
+      console.error('[NANAGRAM][NAV] Navigation failed:', error);
+    }
+  };
+
+  // Success Modal Component
+  const SuccessModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showSuccessModal}
+      onRequestClose={() => {
+        console.log('[NANAGRAM][SUCCESS_MODAL] onRequestClose called');
+        resetPurchaseState();
+        handleNavigation();
+      }}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ThemedText style={styles.modalTitle}>Success!</ThemedText>
+          <ThemedText style={styles.modalText}>
+            Your postcard will arrive in two weeks.
+          </ThemedText>
+          {__DEV__ && sendResult?.pdfUrl && (
+            <TouchableOpacity 
+              style={[styles.modalButton, { marginBottom: 12 }]}
+              onPress={() => {
+                Linking.openURL(sendResult.pdfUrl as string);
+              }}
+            >
+              <ThemedText style={styles.modalButtonText}>View PDF Preview</ThemedText>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={styles.modalButton}
+            onPress={() => {
+              console.log('[NANAGRAM][SUCCESS_MODAL] OK button pressed');
+              resetPurchaseState();
+              handleNavigation();
+            }}
+          >
+            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Update the fallback navigation effect
   useEffect(() => {
+    console.log('[NANAGRAM][NAV_DEBUG] Navigation effect triggered:', {
+      showSuccessModal,
+      hasSuccessResult: !!sendResult?.success
+    });
+    
     if (!showSuccessModal && sendResult?.success) {
       console.log('[NANAGRAM][FALLBACK_NAV] Success modal closed, forcing navigation to index');
-      router.replace('/');
+      handleNavigation();
     }
   }, [showSuccessModal, sendResult?.success]);
 
@@ -505,49 +597,6 @@ export default function PostcardPreviewScreen() {
   const screenWidth = Dimensions.get('window').width - 16; // Account for padding
   const scaleFactor = screenWidth / POSTCARD_WIDTH;
   const scaledHeight = POSTCARD_HEIGHT * scaleFactor;
-
-  // Success Modal Component
-  const SuccessModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showSuccessModal}
-      onRequestClose={() => {
-        console.log('[NANAGRAM][SUCCESS_MODAL] onRequestClose called');
-        resetPurchaseState();
-        router.replace('/');
-      }}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Success!</ThemedText>
-          <ThemedText style={styles.modalText}>
-            We've received your Nanagram, your recipient will receive their Postcard within 2 weeks.
-          </ThemedText>
-          {__DEV__ && sendResult?.pdfUrl && (
-            <TouchableOpacity 
-              style={[styles.modalButton, { marginBottom: 12 }]}
-              onPress={() => {
-                Linking.openURL(sendResult.pdfUrl as string);
-              }}
-            >
-              <ThemedText style={styles.modalButtonText}>View PDF Preview</ThemedText>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity 
-            style={styles.modalButton}
-            onPress={() => {
-              console.log('[NANAGRAM][SUCCESS_MODAL] OK pressed');
-              resetPurchaseState();
-              router.replace('/');
-            }}
-          >
-            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
 
   // Error Modal Component
   const ErrorModal = () => {

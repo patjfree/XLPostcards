@@ -136,9 +136,9 @@ class IAPManager {
       
       console.log("Nanagram-Log [NANAGRAM][IAP] Purchase completed:", JSON.stringify(purchase));
 
-      // Only proceed if we have a valid purchase token
-      if (!purchase.purchaseToken) {
-        throw new Error('Invalid purchase: missing purchase token');
+      // Only proceed if we have a valid purchase token or transactionId
+      if (!purchase.purchaseToken && !purchase.transactionId) {
+        throw new Error('Invalid purchase: missing purchase token or transactionId');
       }
 
       // Always call finishTransaction after a successful purchase
