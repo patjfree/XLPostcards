@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 // ✅ Use APP_VARIANT directly (not EAS_BUILD_PROFILE)
-const APP_VARIANT = process.env.APP_VARIANT || 'production';
+const APP_VARIANT = process.env.APP_VARIANT || process.env.EAS_BUILD_PROFILE || 'production';
 
 const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';

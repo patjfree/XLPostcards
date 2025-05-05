@@ -239,7 +239,7 @@ export default function PostcardPreviewScreen() {
       const formData = new FormData();
       
       // Add test mode flag and size
-      const isTestMode = __DEV__ || process.env.APP_VARIANT === 'development';
+      const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
       console.log("[NANAGRAM][STANNP] Using test mode:", isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', '4x6');
