@@ -1,0 +1,166 @@
+require("dotenv").config();
+
+// Set APP_VARIANT based on EAS_BUILD_PROFILE
+const APP_VARIANT = process.env.EAS_BUILD_PROFILE || 'production';
+
+const IS_DEV = APP_VARIANT === 'development';
+const IS_PREVIEW = APP_VARIANT === 'preview';
+
+const getAppName = () => {
+  if (IS_DEV) {
+    return 'D:NanaGram';
+  }
+
+  if (IS_PREVIEW) {
+    return 'P:NanaGram';
+  }
+
+  return 'NanaGram';  // Production is default
+};
+
+// Debug log for build-time profile and app name
+console.log('EAS_BUILD_PROFILE:', process.env.EAS_BUILD_PROFILE, 'APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
+
+const getPackageName = () => {
+  const basePackage = 'com.patjfree.nanagram';
+  
+  if (IS_DEV) {
+    return `${basePackage}.dev`;
+  }
+  
+  if (IS_PREVIEW) {
+    return `${basePackage}.preview`;
+  }
+  
+  return basePackage;  // Production is default
+};
+
+const getBundleIdentifier = () => {
+  const baseIdentifier = 'com.patjfree.nanagram';
+  
+  if (IS_DEV) {
+    return `${baseIdentifier}.dev`;
+  }
+  
+  if (IS_PREVIEW) {
+    return `${baseIdentifier}.preview`;
+  }
+  
+  return baseIdentifier;  // Production is default
+};
+
+module.exports = {
+  //name: getAppName(),
+  name: "NanaGram",
+  slug: "NanaGram",
+  // version: process.env.APP_VERSION || "1.0.0", //Auto-incremented by EAS for singl
+  version: "1.0.7", // must be manually updated if sharing between 
+  runtimeVersion: {
+    policy: "appVersion"
+  },
+  orientation: "portrait",
+  icon: "./assets/images/icon1024.png",
+  scheme: "myapp",
+  userInterfaceStyle: "automatic",
+  newArchEnabled: true,
+  splash: {
+    image: "./assets/images/icon1024.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff",
+  },
+  assetBundlePatterns: ["**/*"],
+  ios: {
+    bundleIdentifier: getBundleIdentifier(),
+    supportsTablet: true,
+    deploymentTarget: "13.0",
+    buildNumber: process.env.IOS_BUILD_NUMBER || "1",
+    infoPlist: {
+      //NSLocationWhenInUseUsageDescription:
+        //"This app needs access to your location to help NanaBot describe where you are.",
+      //NSCameraUsageDescription:
+        //"NanaGram uses the camera to let you take a photo to send on your postcard.",
+      NSPhotoLibraryUsageDescription:  //IOS is not using this - it's using the expo-media-library plugin
+
+        "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
+      //NSContactsUsageDescription:
+         //"NanaGram uses your contacts to let you quickly select a recipient's address when sending a postcard.",
+
+      ITSAppUsesNonExemptEncryption: false
+    }
+  },
+  android: {
+    package: getPackageName(),
+    // versionCode: process.env.ANDROID_VERSION_CODE ? parseInt(process.env.ANDROID_VERSION_CODE, 10) : 1,  // for single dev
+    //versionCode: 6, // must be manually updated if sharing between devs
+    versionCode: process.env.ANDROID_VERSION_CODE
+  ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
+  : 6,
+
+    icon: "./assets/images/icon1024.png",
+    permissions: [
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_MEDIA_LOCATION",
+      "com.android.vending.BILLING"
+    ],
+  },
+  web: {
+    bundler: "metro",
+    output: "static",
+    favicon: "./assets/images/favicon.png",
+  },
+  plugins: [
+      "expo-font",
+    [
+      "expo-router",
+      {
+        "origin": "https://nanagram.app"
+      }
+    ],
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/images/icon1024.png",
+        imageWidth: 200,
+        resizeMode: "contain",
+        backgroundColor: "#ffffff",
+      },
+    ],
+    [
+      "expo-location",
+      {
+        locationAlwaysAndWhenInUsePermission:
+          "Allow $(PRODUCT_NAME) to use your location to attach it to your photos.",
+      },
+    ],
+    [
+        "expo-media-library",
+        {
+          photosPermission: "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
+          savePhotosPermission: "Allow NanaGram to save photos you create.",
+          isAccessMediaLocationEnabled: true,
+        },
+    ],
+    
+    "react-native-iap"
+  ],
+  experiments: {
+    tsconfigPaths: true,
+    newArchEnabled: true
+  },
+  extra: {
+    // Add your environment variables here
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    stannpApiKey: process.env.STANNP_API_KEY,
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
+    n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
+    postcardPriceCents: 199,
+    postcardPriceDollars: 1.99,
+    APP_VARIANT: APP_VARIANT,  // Use the value from EAS_BUILD_PROFILE
+    eas: {
+      projectId: "d93ea347-63a8-409b-a797-1fc8d35ac10b"  //Patrick Expo
+      //projectId: "a452b579-b559-43cc-a7bf-81a002fd4dae" //Charles Expo
+    },
+  },
+};

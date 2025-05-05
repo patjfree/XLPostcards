@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import Constants from 'expo-constants';
 import * as RNIap from 'react-native-iap';
 
+console.log(APP_VARIANT, getAppName()) //to check if the app is in dev or prod
+
+
 // Define product IDs
 const PRODUCT_SKUS = {
   android: ['nana_postcard'],
@@ -72,10 +75,33 @@ class IAPManager {
   public async purchasePostcard(stripe?: any): Promise<Purchase> {
     if (Platform.OS === 'ios') {
       // Stripe Payment Sheet logic
-      const webhookUrl = Constants.expoConfig?.extra?.n8nWebhookUrl;
+      // Get the appropriate webhook URL based on environment
+      const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+      const webhookUrl = isDev 
+        ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev 
+        : Constants.expoConfig?.extra?.n8nWebhookUrl_prod;
+      
+      if (!webhookUrl) {
+        console.error('[NANAGRAM][STRIPE] Webhook URL is undefined!', {
+          isDev,
+          APP_VARIANT: Constants.expoConfig?.extra?.APP_VARIANT,
+          availableUrls: {
+            dev: Constants.expoConfig?.extra?.n8nWebhookUrl_dev,
+            prod: Constants.expoConfig?.extra?.n8nWebhookUrl_prod
+          }
+        });
+        throw new Error('Webhook URL is not configured');
+      }
+      
+      console.log('[NANAGRAM][STRIPE] Using webhook URL:', webhookUrl);
+      
       const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
-      const environment = Constants.expoConfig?.extra?.environment || 'production';
-      console.log('[NANAGRAM][STRIPE] Environment from config:', environment);
+      const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
+      console.log('[NANAGRAM][STRIPE] Config values:', {
+        APP_VARIANT,
+        isDev,
+        webhookUrl
+      });
       const transactionId = uuidv4();
       const idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const purchase: StripePurchase = {
@@ -89,7 +115,7 @@ class IAPManager {
       const requestBody = {
         amount: postcardPriceCents,
         transactionId,
-        environment
+        APP_VARIANT
       };
       console.log('[NANAGRAM][STRIPE] Request body:', JSON.stringify(requestBody, null, 2));
 
