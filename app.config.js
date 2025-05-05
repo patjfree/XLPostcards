@@ -150,6 +150,7 @@ module.exports = {
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: process.env.APP_VARIANT || 'production',  // Set production as default
+    environment: IS_DEV ? 'development' : 'production',    // Add environment variable
     eas: {
       projectId: "d93ea347-63a8-409b-a797-1fc8d35ac10b"  //Patrick Expo
       //projectId: "a452b579-b559-43cc-a7bf-81a002fd4dae" //Charles Expo

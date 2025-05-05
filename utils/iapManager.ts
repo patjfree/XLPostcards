@@ -74,6 +74,8 @@ class IAPManager {
       // Stripe Payment Sheet logic
       const webhookUrl = Constants.expoConfig?.extra?.n8nWebhookUrl;
       const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
+      const environment = Constants.expoConfig?.extra?.environment || 'production';
+      console.log('[NANAGRAM][STRIPE] Environment from config:', environment);
       const transactionId = uuidv4();
       const idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const purchase: StripePurchase = {
@@ -82,10 +84,19 @@ class IAPManager {
         amount: postcardPriceCents,
         currency: 'usd',
       };
+
+      // Create the request body
+      const requestBody = {
+        amount: postcardPriceCents,
+        transactionId,
+        environment
+      };
+      console.log('[NANAGRAM][STRIPE] Request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: postcardPriceCents, transactionId }),
+        body: JSON.stringify(requestBody),
       });
       const text = await response.text();
       console.log('Stripe webhook response:', text);
