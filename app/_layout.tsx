@@ -1,5 +1,5 @@
 import 'react-native-get-random-values'; // <-- trying to force the polyfill import to fix crypto error with UUID
-import '../config'; // <-- This will run the polyfill import
+import '../config'; // <-- Import config to ensure it's loaded
 import { StripeProvider } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';

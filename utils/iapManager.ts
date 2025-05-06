@@ -3,9 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import Constants from 'expo-constants';
 import * as RNIap from 'react-native-iap';
 
-console.log(APP_VARIANT, getAppName()) //to check if the app is in dev or prod
-
-
 // Define product IDs
 const PRODUCT_SKUS = {
   android: ['nana_postcard'],

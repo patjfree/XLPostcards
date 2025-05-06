@@ -10,6 +10,7 @@ import ViewShot from 'react-native-view-shot';
 import { useRef } from 'react';
 import Constants from 'expo-constants';
 import { useStripe } from '@stripe/stripe-react-native';
+import '../config'; // <-- Import config to ensure it's loaded
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
