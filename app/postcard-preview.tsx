@@ -28,10 +28,10 @@ interface ViewShotMethods {
   capture: () => Promise<string>;
 }
 
-console.log("[NANAGRAM][PREVIEW] App started. Environment check:");
-console.log("[NANAGRAM][PREVIEW] - stannpApiKey available:", !!Constants.expoConfig?.extra?.stannpApiKey);
+console.log('[XLPOSTCARDS][PREVIEW] App started. Environment check:');
+console.log('[XLPOSTCARDS][PREVIEW] - stannpApiKey available:', !!Constants.expoConfig?.extra?.stannpApiKey);
 if (!Constants.expoConfig?.extra?.stannpApiKey) {
-  console.warn("[NANAGRAM][PREVIEW] WARNING: Stannp API key is missing!");
+  console.warn('[XLPOSTCARDS][PREVIEW] WARNING: Stannp API key is missing!');
 }
 
 const CheckboxIcon = ({ checked }: { checked: boolean }) => (
@@ -174,80 +174,80 @@ export default function PostcardPreviewScreen() {
   // Function to handle the Stannp API call
   const sendToStannp = async (postcardPurchase: Purchase) => {
     try {
-      console.log("[NANAGRAM][STANNP] ====== STARTING STANNP API CALL ======");
-      console.log("[NANAGRAM][STANNP] Platform:", Platform.OS);
-      console.log("[NANAGRAM][STANNP] Purchase details:", JSON.stringify(postcardPurchase, null, 2));
+      console.log('[XLPOSTCARDS][STANNP] ====== STARTING STANNP API CALL ======');
+      console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS);
+      console.log('[XLPOSTCARDS][STANNP] Purchase details:', JSON.stringify(postcardPurchase, null, 2));
       
       // Ensure we have a transaction ID
       if (!postcardPurchase.transactionId) {
-        console.error("[NANAGRAM][STANNP] No transaction ID received");
+        console.error('[XLPOSTCARDS][STANNP] No transaction ID received');
         throw new Error('No transaction ID received from purchase');
       }
 
       // Get API key
       const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-      console.log("[NANAGRAM][STANNP] API key available:", !!apiKey);
+      console.log('[XLPOSTCARDS][STANNP] API key available:', !!apiKey);
       
       if (!apiKey) {
-        console.error("[NANAGRAM][STANNP] API key is missing!");
+        console.error('[XLPOSTCARDS][STANNP] API key is missing!');
         throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
       }
 
       // Check if this transaction has already been processed
-      console.log("[NANAGRAM][STANNP] Checking transaction status:", postcardPurchase.transactionId);
+      console.log('[XLPOSTCARDS][STANNP] Checking transaction status:', postcardPurchase.transactionId);
       const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
-      console.log("[NANAGRAM][STANNP] Transaction status:", existingStatus);
+      console.log('[XLPOSTCARDS][STANNP] Transaction status:', existingStatus);
       
       if (existingStatus === 'completed') {
-        console.error("[NANAGRAM][STANNP] Transaction already completed");
+        console.error('[XLPOSTCARDS][STANNP] Transaction already completed');
         throw new Error('This postcard has already been sent');
       }
       if (existingStatus === 'pending') {
-        console.error("[NANAGRAM][STANNP] Transaction is pending");
+        console.error('[XLPOSTCARDS][STANNP] Transaction is pending');
         throw new Error('This postcard is currently being processed');
       }
 
       // Create a new transaction record
-      console.log("[NANAGRAM][STANNP] Creating transaction record");
+      console.log('[XLPOSTCARDS][STANNP] Creating transaction record');
       await postcardService.createTransaction(postcardPurchase.transactionId);
 
       // Step 1: Capture images at full resolution
-      console.log("[NANAGRAM][STANNP] Capturing front and back images");
+      console.log('[XLPOSTCARDS][STANNP] Capturing front and back images');
       
       if (!viewShotFrontRef.current || !viewShotBackRef.current) {
-        console.error("[NANAGRAM][STANNP] ViewShot refs not initialized");
+        console.error('[XLPOSTCARDS][STANNP] ViewShot refs not initialized');
         throw new Error('ViewShot refs not initialized');
       }
 
       const frontOriginalUri = await viewShotFrontRef.current.capture();
       const backOriginalUri = await viewShotBackRef.current.capture();
-      console.log("[NANAGRAM][STANNP] Images captured successfully");
-      console.log("[NANAGRAM][STANNP] Front image URI:", frontOriginalUri);
-      console.log("[NANAGRAM][STANNP] Back image URI:", backOriginalUri);
+      console.log('[XLPOSTCARDS][STANNP] Images captured successfully');
+      console.log('[XLPOSTCARDS][STANNP] Front image URI:', frontOriginalUri);
+      console.log('[XLPOSTCARDS][STANNP] Back image URI:', backOriginalUri);
       
       setIsCapturing(false);  // Reset capturing mode after snapshots
       
       // Step 2: Scale images to required dimensions
-      console.log("[NANAGRAM][STANNP] Scaling images");
+      console.log('[XLPOSTCARDS][STANNP] Scaling images');
       const frontUri = await scaleImage(frontOriginalUri);
       const backUri = await scaleImage(backOriginalUri);
-      console.log("[NANAGRAM][STANNP] Images scaled successfully");
-      console.log("[NANAGRAM][STANNP] Scaled front URI:", frontUri);
-      console.log("[NANAGRAM][STANNP] Scaled back URI:", backUri);
+      console.log('[XLPOSTCARDS][STANNP] Images scaled successfully');
+      console.log('[XLPOSTCARDS][STANNP] Scaled front URI:', frontUri);
+      console.log('[XLPOSTCARDS][STANNP] Scaled back URI:', backUri);
 
       // Step 3: Create FormData and send to Stannp
-      console.log("[NANAGRAM][STANNP] Preparing FormData");
+      console.log('[XLPOSTCARDS][STANNP] Preparing FormData');
       const formData = new FormData();
       
       // Add test mode flag and size
       const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-      console.log("[NANAGRAM][STANNP] Using test mode:", isTestMode);
+      console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', '4x6');
       formData.append('padding', '0');
       
       // Add scaled front and back images
-      console.log("[NANAGRAM][STANNP] Adding images to FormData");
+      console.log('[XLPOSTCARDS][STANNP] Adding images to FormData');
       // @ts-ignore - React Native's FormData accepts this format
       formData.append('front', {
         uri: frontUri,
@@ -263,7 +263,7 @@ export default function PostcardPreviewScreen() {
       });
       
       // Format recipient data
-      console.log("[NANAGRAM][STANNP] Adding recipient data to FormData");
+      console.log('[XLPOSTCARDS][STANNP] Adding recipient data to FormData');
       const nameParts = recipientInfo.to.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
@@ -285,7 +285,7 @@ export default function PostcardPreviewScreen() {
       const authHeader = 'Basic ' + btoa(`${apiKey}:`);
       
       // Log the complete FormData for debugging
-      console.log("[NANAGRAM][STANNP] FormData contents:", {
+      console.log('[XLPOSTCARDS][STANNP] FormData contents:', {
         test: isTestMode ? 'true' : 'false',
         size: '4x6',
         recipient: {
@@ -303,7 +303,7 @@ export default function PostcardPreviewScreen() {
       });
       
       // Make the API request
-      console.log("[NANAGRAM][STANNP] Sending request to Stannp API");
+      console.log('[XLPOSTCARDS][STANNP] Sending request to Stannp API');
       const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
         method: 'POST',
         headers: {
@@ -314,37 +314,37 @@ export default function PostcardPreviewScreen() {
         body: formData,
       });
       
-      console.log("[NANAGRAM][STANNP] Response received. Status:", response.status);
+      console.log('[XLPOSTCARDS][STANNP] Response received. Status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[NANAGRAM][STANNP] Bad response from API:", errorText);
+        console.error('[XLPOSTCARDS][STANNP] Bad response from API:', errorText);
         await postcardService.markTransactionFailed(postcardPurchase.transactionId);
         throw new Error(`API returned status ${response.status}: ${errorText}`);
       }
       
       const responseText = await response.text();
-      console.log("[NANAGRAM][STANNP] Raw API Response:", responseText);
+      console.log('[XLPOSTCARDS][STANNP] Raw API Response:', responseText);
       
       const data = JSON.parse(responseText);
-      console.log("[NANAGRAM][STANNP] Parsed API Response:", JSON.stringify(data, null, 2));
+      console.log('[XLPOSTCARDS][STANNP] Parsed API Response:', JSON.stringify(data, null, 2));
       
       if (!data.success) {
-        console.error("[NANAGRAM][STANNP] API reported failure:", data.error);
+        console.error('[XLPOSTCARDS][STANNP] API reported failure:', data.error);
         await postcardService.markTransactionFailed(postcardPurchase.transactionId);
         throw new Error(data.error || 'Failed to send postcard');
       }
       
       // Mark transaction as completed
-      console.log("[NANAGRAM][STANNP] Marking transaction as complete");
+      console.log('[XLPOSTCARDS][STANNP] Marking transaction as complete');
       await postcardService.markTransactionComplete(postcardPurchase.transactionId);
       
       // Extract PDF preview URL
       const pdfUrl = data.data.pdf || data.data.pdf_url;
-      console.log("[NANAGRAM][STANNP] PDF URL received:", pdfUrl);
+      console.log('[XLPOSTCARDS][STANNP] PDF URL received:', pdfUrl);
       
       // Success case - update all states in one batch
-      console.log("[NANAGRAM][STANNP] Updating UI states for success");
+      console.log('[XLPOSTCARDS][STANNP] Updating UI states for success');
       const updates = async () => {
         setStannpAttempts(0);
         setSendResult({
@@ -352,23 +352,23 @@ export default function PostcardPreviewScreen() {
           message: `Your postcard will arrive in two weeks.`,
           pdfUrl: pdfUrl
         });
-        console.log("[NANAGRAM][STANNP] Showing success modal now");
+        console.log('[XLPOSTCARDS][STANNP] Showing success modal now');
         setShowSuccessModal(true);
         setSending(false);
         setIsCapturing(false);
       };
       await updates();
-      console.log("[NANAGRAM][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======");
+      console.log('[XLPOSTCARDS][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======');
     } catch (error) {
-      console.error("[NANAGRAM][STANNP] ====== ERROR IN STANNP API CALL ======");
-      console.error("[NANAGRAM][STANNP] Error details:", error);
+      console.error('[XLPOSTCARDS][STANNP] ====== ERROR IN STANNP API CALL ======');
+      console.error('[XLPOSTCARDS][STANNP] Error details:', error);
       throw error;  // Re-throw to be handled by the calling function
     }
   };
 
   // Helper to reset all purchase-related state
   const resetPurchaseState = () => {
-    console.log('[NANAGRAM][RESET] Starting state reset');
+    console.log('[XLPOSTCARDS][RESET] Starting state reset');
     setLastPurchase(null);
     setSendResult(null);
     setStannpAttempts(0);
@@ -378,16 +378,16 @@ export default function PostcardPreviewScreen() {
     setShowRefundSuccessModal(false);
     setSending(false);
     setIsCapturing(false);
-    console.log('[NANAGRAM][RESET] State reset complete');
+    console.log('[XLPOSTCARDS][RESET] State reset complete');
   };
 
   const handleNavigation = () => {
-    console.log('[NANAGRAM][NAV] Attempting navigation to index');
+    console.log('[XLPOSTCARDS][NAV] Attempting navigation to index');
     try {
       router.replace('/');
-      console.log('[NANAGRAM][NAV] Navigation command executed');
+      console.log('[XLPOSTCARDS][NAV] Navigation command executed');
     } catch (error) {
-      console.error('[NANAGRAM][NAV] Navigation failed:', error);
+      console.error('[XLPOSTCARDS][NAV] Navigation failed:', error);
     }
   };
 
@@ -398,7 +398,7 @@ export default function PostcardPreviewScreen() {
       transparent={true}
       visible={showSuccessModal}
       onRequestClose={() => {
-        console.log('[NANAGRAM][SUCCESS_MODAL] onRequestClose called');
+        console.log('[XLPOSTCARDS][SUCCESS_MODAL] onRequestClose called');
         resetPurchaseState();
         handleNavigation();
       }}
@@ -422,7 +422,7 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
-              console.log('[NANAGRAM][SUCCESS_MODAL] OK button pressed');
+              console.log('[XLPOSTCARDS][SUCCESS_MODAL] OK button pressed');
               resetPurchaseState();
               handleNavigation();
             }}
@@ -436,13 +436,13 @@ export default function PostcardPreviewScreen() {
 
   // Update the fallback navigation effect
   useEffect(() => {
-    console.log('[NANAGRAM][NAV_DEBUG] Navigation effect triggered:', {
+    console.log('[XLPOSTCARDS][NAV_DEBUG] Navigation effect triggered:', {
       showSuccessModal,
       hasSuccessResult: !!sendResult?.success
     });
     
     if (!showSuccessModal && sendResult?.success) {
-      console.log('[NANAGRAM][FALLBACK_NAV] Success modal closed, forcing navigation to index');
+      console.log('[XLPOSTCARDS][FALLBACK_NAV] Success modal closed, forcing navigation to index');
       handleNavigation();
     }
   }, [showSuccessModal, sendResult?.success]);
@@ -450,13 +450,13 @@ export default function PostcardPreviewScreen() {
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
     try {
-      console.log('[NANAGRAM][CONTINUE] Continue button pressed');
+      console.log('[XLPOSTCARDS][CONTINUE] Continue button pressed');
       setSending(true);
       setSendResult(null);
       setIsCapturing(true);
 
       // Start the purchase flow
-      console.log('[NANAGRAM][CONTINUE] Starting purchase flow');
+      console.log('[XLPOSTCARDS][CONTINUE] Starting purchase flow');
       let purchase;
       if (Platform.OS === 'ios') {
         // Use Stripe Payment Sheet
@@ -464,22 +464,22 @@ export default function PostcardPreviewScreen() {
       } else {
         purchase = await iapManager.purchasePostcard();
       }
-      console.log('[NANAGRAM][CONTINUE] Purchase result:', purchase);
+      console.log('[XLPOSTCARDS][CONTINUE] Purchase result:', purchase);
       
       // Check if purchase is valid
       if (!purchase) {
-        console.error('[NANAGRAM][CONTINUE] Invalid purchase received');
+        console.error('[XLPOSTCARDS][CONTINUE] Invalid purchase received');
         throw new Error('Invalid purchase received');
       }
       
       setLastPurchase(purchase);
       
       // Send to Stannp
-      console.log('[NANAGRAM][CONTINUE] Sending to Stannp');
+      console.log('[XLPOSTCARDS][CONTINUE] Sending to Stannp');
       await sendToStannp(purchase);
-      console.log('[NANAGRAM][CONTINUE] sendToStannp finished');
+      console.log('[XLPOSTCARDS][CONTINUE] sendToStannp finished');
     } catch (error) {
-      console.error('[NANAGRAM][CONTINUE] ERROR in purchase flow:', error);
+      console.error('[XLPOSTCARDS][CONTINUE] ERROR in purchase flow:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // Only show error modal if it's not a successful purchase
@@ -499,7 +499,7 @@ export default function PostcardPreviewScreen() {
     } finally {
       setSending(false);
       setIsCapturing(false);
-      console.log('[NANAGRAM][CONTINUE] Purchase flow finished');
+      console.log('[XLPOSTCARDS][CONTINUE] Purchase flow finished');
     }
   };
 
@@ -631,8 +631,8 @@ export default function PostcardPreviewScreen() {
             <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
             <ThemedText style={styles.modalText}>
               {stannpAttempts === 1 
-                ? "Oops, something went wrong sending your Nanagram. Please Try Again."
-                : "Oops, something went wrong sending your Nanagram. Let's request your Refund."}
+                ? "Oops, something went wrong sending your XLPostcards. Please Try Again."
+                : "Oops, something went wrong sending your XLPostcards. Let's request your Refund."}
             </ThemedText>
             {stannpAttempts === 1 ? (
               <TouchableOpacity 
@@ -921,7 +921,7 @@ export default function PostcardPreviewScreen() {
       {sending && (
         <View style={styles.statusContainer}>
           <ActivityIndicator size="large" color="#A1CEDC" />
-          <ThemedText style={styles.statusText}>Sending Nanagram...</ThemedText>
+          <ThemedText style={styles.statusText}>Sending XLPostcards...</ThemedText>
         </View>
       )}
       

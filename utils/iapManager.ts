@@ -51,7 +51,7 @@ class IAPManager {
     if (Platform.OS !== 'android') return;
     this.purchaseUpdateSubscription = RNIap.purchaseUpdatedListener(
       async (purchase: RNIap.ProductPurchase) => {
-        let idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        let idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const purchaseWithIdempotency: PostcardPurchase = {
           ...purchase,
           idempotencyKey,
@@ -64,7 +64,7 @@ class IAPManager {
     );
     this.purchaseErrorSubscription = RNIap.purchaseErrorListener(
       (error: RNIap.PurchaseError) => {
-        console.error('[NANAGRAM][IAP] Purchase error:', error);
+        console.error('[XLPOSTCARDS][IAP] Purchase error:', error);
       }
     );
   }
@@ -100,7 +100,7 @@ class IAPManager {
         webhookUrl
       });
       const transactionId = uuidv4();
-      const idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const purchase: StripePurchase = {
         idempotencyKey,
         transactionId,

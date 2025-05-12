@@ -22,7 +22,7 @@ const getAppName = () => {
 console.log('EAS_BUILD_PROFILE:', process.env.EAS_BUILD_PROFILE, 'APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
 
 const getPackageName = () => {
-  const basePackage = 'com.patjfree.nanagram';
+  const basePackage = 'com.patjfree.xlpostcards';
   
   if (IS_DEV) {
     return `${basePackage}.dev`;
@@ -36,7 +36,7 @@ const getPackageName = () => {
 };
 
 const getBundleIdentifier = () => {
-  const baseIdentifier = 'com.patjfree.nanagram';
+  const baseIdentifier = 'com.patjfree.xlpostcards';
   
   if (IS_DEV) {
     return `${baseIdentifier}.dev`;

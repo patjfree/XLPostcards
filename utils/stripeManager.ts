@@ -37,9 +37,9 @@ class StripeManager {
       throw new Error('Stripe payments are only available on iOS');
     }
     try {
-      console.log('[NANAGRAM][STRIPE] Starting Stripe payment flow');
+      console.log('[XLPOSTCARDS][STRIPE] Starting Stripe payment flow');
       const transactionId = uuidv4();
-      const idempotencyKey = `nanagram-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const purchase: StripePurchase = {
         idempotencyKey,
         transactionId,
@@ -57,7 +57,7 @@ class StripeManager {
       // 2. Init and present Payment Sheet
       const initResult = await stripe.initPaymentSheet({
         paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'NanaGram',
+        merchantDisplayName: 'XLPostcards',
       });
       if (initResult.error) throw new Error(initResult.error.message);
       const paymentResult = await stripe.presentPaymentSheet();
@@ -65,7 +65,7 @@ class StripeManager {
       // 3. Only return purchase if payment is successful
       return purchase;
     } catch (error) {
-      console.error('[NANAGRAM][STRIPE] Error in Stripe payment flow:', error);
+      console.error('[XLPOSTCARDS][STRIPE] Error in Stripe payment flow:', error);
       throw error;
     }
   }

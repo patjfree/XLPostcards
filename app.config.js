@@ -15,14 +15,14 @@ const getAppName = () => {
 console.log('APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
 
 const getPackageName = () => {
-  const basePackage = 'com.patjfree.nanagram';
+  const basePackage = 'com.patjfree.xlpostcards';
   if (IS_DEV) return `${basePackage}.dev`;
   if (IS_PREVIEW) return `${basePackage}.preview`;
   return basePackage;
 };
 
 const getBundleIdentifier = () => {
-  const baseIdentifier = 'com.patjfree.nanagram';
+  const baseIdentifier = 'com.patjfree.xlpostcards';
   if (IS_DEV) return `${baseIdentifier}.dev`;
   if (IS_PREVIEW) return `${baseIdentifier}.preview`;
   return baseIdentifier;

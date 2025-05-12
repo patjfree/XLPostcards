@@ -317,7 +317,7 @@ export default function HomeScreen() {
       const apiKey = Constants.expoConfig?.extra?.openaiApiKey;
       
       if (!apiKey) {
-        console.log('[NANAGRAM][HOME] Config:', Constants.expoConfig?.extra);  // Add debug logging
+        console.log('[XLPOSTCARDS][HOME] Config:', Constants.expoConfig?.extra);  // Add debug logging
         throw new Error('OpenAI API key not found');
       }
 
@@ -365,7 +365,7 @@ export default function HomeScreen() {
       setIsAIGenerated(true);
       
     } catch (error: unknown) {
-      console.error('[NANAGRAM][HOME] Error analyzing image:', error);
+      console.error('[XLPOSTCARDS][HOME] Error analyzing image:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Alert.alert('Error', `Failed to analyze image: ${errorMessage}`);
       setLocationClues(['Failed to analyze image. Please try again.']);
@@ -576,7 +576,7 @@ export default function HomeScreen() {
         to: newUri
       });
 
-      console.log('[NANAGRAM][HOME] Image copied to:', newUri);
+      console.log('[XLPOSTCARDS][HOME] Image copied to:', newUri);
       
       router.push({
         pathname: '/postcard-preview',
@@ -587,7 +587,7 @@ export default function HomeScreen() {
         }
       });
     } catch (error) {
-      console.error('[NANAGRAM][HOME] Error preparing postcard:', error);
+      console.error('[XLPOSTCARDS][HOME] Error preparing postcard:', error);
       Alert.alert('Error', 'Failed to prepare postcard. Please try again.');
     }
   };
@@ -617,14 +617,14 @@ export default function HomeScreen() {
           />
         ) : (
           <Image
-            source={require('@/assets/images/nanagramHeader.jpeg')}
+            source={require('@/assets/images/XLPostCards_Logo.jpg')}
             style={styles.headerImage}
             resizeMode="contain"
           />
         )
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title" style={{ color: '#0a7ea4' }}>NanaGram</ThemedText>
+        <ThemedText type="title" style={{ color: '#0a7ea4' }}>XLPostcards</ThemedText>
       </ThemedView>
       
       <ThemedView style={styles.buttonsContainer}>
@@ -779,7 +779,7 @@ export default function HomeScreen() {
         onPress={handleCreatePostcard}
         disabled={!isFormValid()}
       >
-        <ThemedText style={styles.buttonText}>Create NanaGram</ThemedText>
+        <ThemedText style={styles.buttonText}>Create XLPostcards</ThemedText>
       </TouchableOpacity>
 
       <ThemedView style={styles.formContainer}>

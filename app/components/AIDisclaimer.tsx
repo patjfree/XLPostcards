@@ -143,7 +143,7 @@ export default function AIDisclaimer({ contentToReport, onSubmitSuccess, default
         ) : null}
         <Text
           style={styles.reportLink}
-          onPress={() => Linking.openURL('https://citywalkabout.ai/privacy_nanagram')}
+          onPress={() => Linking.openURL('https://www.xlpostcards.com/privacy')}
         >
           Privacy Policy
         </Text>
