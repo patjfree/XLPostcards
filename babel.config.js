@@ -28,8 +28,14 @@ module.exports = function (api) {
           safe: false,
           allowUndefined: false,
           verbose: false,
+          whitelist: [
+            'OPENAI_API_KEY',
+            'STANNP_API_KEY',
+            'STRIPE_PUBLISHABLE_KEY_TEST',
+            'STRIPE_PUBLISHABLE_KEY_LIVE'
+          ]
         },
-      ],
+      ]
     ],
   };
 }; 
