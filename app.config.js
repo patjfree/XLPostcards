@@ -109,8 +109,6 @@ module.exports = {
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,
-    eas: {
-      projectId: "03F7AFE3-B39F-4A51-A0C1-848D9A7308F5"
-    }
+    eas: { "projectId": "19ca6de3-2925-45e9-afb3-08d23548a9a4"}
   },
 };
