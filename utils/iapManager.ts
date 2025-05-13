@@ -5,7 +5,7 @@ import * as RNIap from 'react-native-iap';
 
 // Define product IDs
 const PRODUCT_SKUS = {
-  android: ['nana_postcard'],
+  android: ['postcard_us'],
 };
 
 export interface PostcardPurchase extends RNIap.ProductPurchase {

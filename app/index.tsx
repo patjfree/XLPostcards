@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   submitButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#f28914',
     borderRadius: 8,
     alignItems: 'center',
     elevation: 2,
@@ -653,7 +653,7 @@ export default function HomeScreen() {
             onChangeText={handlePostcardMessageChange}
             multiline={true}
             numberOfLines={6}
-            placeholder="Write your message to Nana... or a friend or family member!"
+            placeholder="Write your message to your friend or loved one!"
             placeholderTextColor="rgba(0, 0, 0, 0.5)"
             editable={!loading}
           />
@@ -674,7 +674,7 @@ export default function HomeScreen() {
             disabled={!image || loading}
           >
             <ThemedText style={styles.buttonText}>
-              NanaBot Message Assist
+              AI writing assist
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
