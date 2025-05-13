@@ -7,9 +7,9 @@ const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';
 
 const getAppName = () => {
-  if (IS_DEV) return 'D:NanaGram';
-  if (IS_PREVIEW) return 'P:NanaGram';
-  return 'NanaGram';
+  if (IS_DEV) return 'D:XLPostcards';
+  if (IS_PREVIEW) return 'P:XLPostcards';
+  return 'XLPostcards';
 };
 
 console.log('APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
@@ -30,15 +30,15 @@ const getBundleIdentifier = () => {
 
 module.exports = {
   // ✅ You can switch this back to dynamic later
-  name: "NanaGram", // or: name: getAppName(),
-  slug: "NanaGram",
-  version: "1.0.7",
+  name: "XLPostcards", // or: name: getAppName(),
+  slug: "XLPostcards",
+  version: "1.0.0",
   runtimeVersion: {
     policy: "appVersion"
   },
   orientation: "portrait",
   icon: "./assets/images/icon1024.png",
-  scheme: "myapp",
+  scheme: "XLPostcards",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
   splash: {
@@ -54,7 +54,7 @@ module.exports = {
     buildNumber: process.env.IOS_BUILD_NUMBER || "1",
     infoPlist: {
       NSPhotoLibraryUsageDescription:
-        "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
+        "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       ITSAppUsesNonExemptEncryption: false
     }
   },
@@ -78,7 +78,7 @@ module.exports = {
   },
   plugins: [
     "expo-font",
-    ["expo-router", { origin: "https://nanagram.app" }],
+    ["expo-router", { origin: "https://xlpostcards.app" }],
     ["expo-splash-screen", {
       image: "./assets/images/icon1024.png",
       imageWidth: 200,
@@ -90,8 +90,8 @@ module.exports = {
         "Allow $(PRODUCT_NAME) to use your location to attach it to your photos.",
     }],
     ["expo-media-library", {
-      photosPermission: "NanaGram uses your photo library so you can select a photo for the front image on your postcard.",
-      savePhotosPermission: "Allow NanaGram to save photos you create.",
+      photosPermission: "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
+      savePhotosPermission: "Allow XLPostcards to save photos you create.",
       isAccessMediaLocationEnabled: true,
     }],
     "react-native-iap"
@@ -110,7 +110,7 @@ module.exports = {
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,
     eas: {
-      projectId: "d93ea347-63a8-409b-a797-1fc8d35ac10b"
+      projectId: "03F7AFE3-B39F-4A51-A0C1-848D9A7308F5"
     }
   },
 };

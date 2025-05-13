@@ -31,7 +31,7 @@
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release",
-        "scheme": "NanaGram",
+        "scheme": "XLPostcards"
       },
       "android": {
         "buildType": "app-bundle"
