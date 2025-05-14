@@ -63,7 +63,10 @@ module.exports = {
     versionCode: process.env.ANDROID_VERSION_CODE
       ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
       : 6,
-    icon: "./assets/images/icon1024.png",
+    adaptiveIcon: {
+      foregroundImage: "./assets/foreground.png",  // <-- your new image
+      backgroundColor: "#f58c17"
+    },
     permissions: [
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
