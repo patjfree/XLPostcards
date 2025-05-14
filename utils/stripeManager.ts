@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStripe } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
 
+const variant = Constants.expoConfig?.extra?.APP_VARIANT ?? 'production';
+const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
+
 export interface StripePurchase {
   idempotencyKey: string;
   transactionId: string;

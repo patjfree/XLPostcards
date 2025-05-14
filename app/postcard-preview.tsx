@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: 8,
-    backgroundColor: '#1D3D47',
+    backgroundColor: '#22303C',
   },
   scrollContent: {
     paddingTop: 40,
@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
   submitButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#f28914',
     borderRadius: 8,
     alignItems: 'center',
     elevation: 2,
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalButton: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#f28914',
     padding: 15,
     borderRadius: 8,
     width: '100%',

@@ -1,7 +1,8 @@
-require("dotenv").config();
+import 'dotenv/config';
+//require("dotenv").config(); - comment out for now
 
 // ✅ Use APP_VARIANT directly (not EAS_BUILD_PROFILE)
-const APP_VARIANT = process.env.APP_VARIANT || process.env.EAS_BUILD_PROFILE || 'production';
+const APP_VARIANT = process.env.EAS_BUILD_PROFILE || process.env.APP_VARIANT || 'production';
 
 const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';
@@ -30,7 +31,7 @@ const getBundleIdentifier = () => {
 
 module.exports = {
   // ✅ You can switch this back to dynamic later
-  name: "XLPostcards", // or: name: getAppName(),
+  name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
   version: "1.0.0",
   runtimeVersion: {
@@ -64,7 +65,7 @@ module.exports = {
       ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
       : 6,
     adaptiveIcon: {
-      foregroundImage: "./assets/foreground.png",  // <-- your new image
+      foregroundImage: "./assets/images/foreground.png",
       backgroundColor: "#f58c17"
     },
     permissions: [
@@ -106,12 +107,14 @@ module.exports = {
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
-    stripePublishableKey: process.env.APP_VARIANT === 'development' ? process.env.STRIPE_PUBLISHABLE_KEY_TEST : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
+    stripePublishableKey: IS_DEV
+      ? process.env.STRIPE_PUBLISHABLE_KEY_TEST
+      : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,
-    eas: { "projectId": "19ca6de3-2925-45e9-afb3-08d23548a9a4"}
-  },
+    eas: { projectId: "19ca6de3-2925-45e9-afb3-08d23548a9a4" }
+  }
 };
