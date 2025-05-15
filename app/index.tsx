@@ -321,7 +321,7 @@ export default function HomeScreen() {
         throw new Error('OpenAI API key not found');
       }
 
-      const promptText = "I am uploading a photo, and I want you to write a short (maximum 60 words), engaging postcard message based on it. Write it in a casual, friendly tone like a real postcard. Include interesting details about the location, sights, sounds, and atmosphere. If you can identify the place, mention it naturally in the message. Keep it personal and conversational, like a real postcard to a friend or family member. Start with two empty lines.";
+      const promptText = "I am uploading a photo, and I want you to write a short (maximum 100 words), engaging postcard message based on it. Write it in a casual, friendly tone like a real postcard. Include interesting details about the location, sights, sounds, and atmosphere. If you can identify the place, mention it naturally in the message. Keep it personal and conversational, like a real postcard to a friend or family member. Start with two empty lines.";
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -345,7 +345,7 @@ export default function HomeScreen() {
               ]
             }
           ],
-          max_tokens: 300
+          max_tokens: 400
         })
       });
 

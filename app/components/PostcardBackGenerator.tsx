@@ -42,8 +42,8 @@ const PostcardBackGenerator = ({ message, recipientInfo, onGenerated }: { messag
         options={{
           format: 'jpg',
           quality: 0.9,
-          width: 1871,
-          height: 1271,
+          width: 1872,
+          height: 2772,
         }}
       >
         <View style={{flex:1, backgroundColor: 'white'}}>

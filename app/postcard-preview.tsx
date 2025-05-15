@@ -19,9 +19,10 @@ import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
 import { stripeManager } from '@/utils/stripeManager';
 
-// Postcard dimensions at 300 DPI
-const POSTCARD_WIDTH = 1871;
-const POSTCARD_HEIGHT = 1271;
+// Postcard dimensions at 300 DPI (landscape 9x6)
+const POSTCARD_WIDTH = 2772;
+const POSTCARD_HEIGHT = 1872;
+const POSTCARD_ASPECT_RATIO = POSTCARD_HEIGHT / POSTCARD_WIDTH;
 
 // Define interface for ViewShot methods
 interface ViewShotMethods {
@@ -243,7 +244,7 @@ export default function PostcardPreviewScreen() {
       const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
       console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
-      formData.append('size', '4x6');
+      formData.append('size', '6x9');
       formData.append('padding', '0');
       
       // Add scaled front and back images
@@ -287,7 +288,7 @@ export default function PostcardPreviewScreen() {
       // Log the complete FormData for debugging
       console.log('[XLPOSTCARDS][STANNP] FormData contents:', {
         test: isTestMode ? 'true' : 'false',
-        size: '4x6',
+        size: '6x9',
         recipient: {
           firstname: firstName,
           lastname: lastName,
@@ -604,10 +605,10 @@ export default function PostcardPreviewScreen() {
     });
   };
   
-  // Calculate scale factor based on screen width
-  const screenWidth = Dimensions.get('window').width - 16; // Account for padding
-  const scaleFactor = screenWidth / POSTCARD_WIDTH;
-  const scaledHeight = POSTCARD_HEIGHT * scaleFactor;
+  // Calculate preview size based on screen width and 9:6 aspect ratio
+  const previewWidth = Dimensions.get('window').width - 16; // Account for padding
+  const previewHeight = previewWidth * POSTCARD_ASPECT_RATIO;
+  const previewScale = previewWidth / POSTCARD_WIDTH;
 
   // Error Modal Component
   const ErrorModal = () => {
@@ -805,8 +806,8 @@ export default function PostcardPreviewScreen() {
         <ViewShot 
           ref={viewShotFrontRef} 
           style={[styles.postcardPreviewContainer, {
-            width: screenWidth,
-            height: scaledHeight
+            width: previewWidth,
+            height: previewHeight
           }]}
           options={{
             width: POSTCARD_WIDTH,
@@ -815,17 +816,17 @@ export default function PostcardPreviewScreen() {
             format: "jpg"
           }}
         >
-          <View style={[styles.postcardContainer, {
-            transform: [{ scale: scaleFactor }],
+          <View style={{
+            width: POSTCARD_WIDTH,
+            height: POSTCARD_HEIGHT,
+            transform: [{ scale: previewScale }],
             transformOrigin: 'top left',
-            overflow: 'hidden'
-          }]}>
+            backgroundColor: 'white',
+            overflow: 'hidden',
+          }}>
             <Image 
               source={{ uri: imageUri }}
-              style={[styles.postcardFront, {
-                width: POSTCARD_WIDTH,
-                height: POSTCARD_HEIGHT
-              }]}
+              style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
               onError={(error: ImageErrorEvent) => {
                 console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
                 setImageLoadError(true);
@@ -838,7 +839,7 @@ export default function PostcardPreviewScreen() {
             {imageLoadError && (
               <View style={styles.errorOverlay}>
                 <ThemedText style={styles.errorText}>
-                  Failed to load image.{'\n'}Please go back and try again.
+                  Failed to load image.{"\n"}Please go back and try again.
                 </ThemedText>
               </View>
             )}
@@ -849,8 +850,8 @@ export default function PostcardPreviewScreen() {
         <ViewShot 
           ref={viewShotBackRef} 
           style={[styles.postcardPreviewContainer, styles.marginTop, {
-            width: screenWidth,
-            height: scaledHeight
+            width: previewWidth,
+            height: previewHeight
           }]}
           options={{
             width: POSTCARD_WIDTH,
@@ -860,35 +861,54 @@ export default function PostcardPreviewScreen() {
             fileName: "postcard-back"
           }}
         >
-          <View style={[styles.postcardContainer, {
-            transform: [{ scale: scaleFactor }],
-            transformOrigin: 'top left'
-          }]}>
+          <View style={{
+            width: POSTCARD_WIDTH,
+            height: POSTCARD_HEIGHT,
+            transform: [{ scale: previewScale }],
+            transformOrigin: 'top left',
+            backgroundColor: 'white',
+            overflow: 'hidden',
+          }}>
             <Image
               source={require('@/assets/images/PostcardBackTemplate.jpg')}
-              style={[styles.postcardBack]}
-              resizeMode="contain"
+              style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
             />
-            
-            {/* Message Box */}
-            <View style={[styles.messageBox]}>
-              <ThemedText style={styles.messageText}>
+            {/* Message Box (reasonable default: left half) */}
+            <View style={{
+              position: 'absolute',
+              top: 180,
+              left: 120,
+              width: 1200,
+              height: 1500,
+              padding: 40,
+              backgroundColor: 'transparent',
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
+            }}>
+              <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
                 {message}
               </ThemedText>
             </View>
-
-            {/* Address Box */}
-            <View style={[styles.addressBox]}>
-              <View style={styles.addressContent}>
-                <ThemedText style={styles.recipientName}>
-                  {recipientInfo.to}
-                </ThemedText>
-                <ThemedText style={styles.addressText}>
-                  {recipientInfo.addressLine1}
-                  {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
-                  {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
-                </ThemedText>
-              </View>
+            {/* Address Box (centered vertically) */}
+            <View style={{
+              position: 'absolute',
+              top: (POSTCARD_HEIGHT / 2) - 250, // Centered for height 500
+              left: 1700,
+              width: 900,
+              height: 500,
+              padding: 0,
+              backgroundColor: 'transparent',
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
+            }}>
+              <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
+                {recipientInfo.to}
+              </ThemedText>
+              <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
+                {recipientInfo.addressLine1}
+                {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
+                {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+              </ThemedText>
             </View>
           </View>
         </ViewShot>
