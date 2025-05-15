@@ -889,10 +889,10 @@ export default function PostcardPreviewScreen() {
                 {message}
               </ThemedText>
             </View>
-            {/* Address Box (centered vertically) */}
+            {/* Address Box (lowered further) */}
             <View style={{
               position: 'absolute',
-              top: (POSTCARD_HEIGHT / 2) - 250, // Centered for height 500
+              top: POSTCARD_HEIGHT - 600, // Lowered further (was centered at (POSTCARD_HEIGHT / 2) - 250)
               left: 1700,
               width: 900,
               height: 500,
