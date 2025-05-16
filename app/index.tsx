@@ -385,7 +385,8 @@ export default function HomeScreen() {
         loadAddresses();
         return;
       } else {
-        // Show correction modal for material changes
+        setShowAddressModal(false); // Hide main modal before showing correction modal
+        setShowCorrectionModal(true);
         return;
       }
     }
@@ -748,7 +749,7 @@ export default function HomeScreen() {
           </Modal>
 
           {/* Correction Modal */}
-          <Modal visible={showCorrectionModal} animationType="slide" transparent onRequestClose={() => setShowCorrectionModal(false)}>
+          <Modal visible={showCorrectionModal} animationType="slide" transparent presentationStyle="overFullScreen" onRequestClose={() => setShowCorrectionModal(false)}>
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
                 <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Address Correction</ThemedText>
