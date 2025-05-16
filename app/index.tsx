@@ -13,6 +13,14 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from './components/AIDisclaimer';
 
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+];
+
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -23,7 +31,9 @@ export default function HomeScreen() {
   const [addressItems, setAddressItems] = useState<Array<{ label: string; value: string }>>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [newAddress, setNewAddress] = useState({ name: '', address: '', city: '', state: '', zip: '' });
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const [stateItems] = useState(US_STATES.map(s => ({ label: s, value: s })));
+  const [newAddress, setNewAddress] = useState({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
   const [addresses, setAddresses] = useState<any[]>([]);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
@@ -147,10 +157,13 @@ export default function HomeScreen() {
   const handleEditAddress = (address: any) => {
     setNewAddress({
       name: address.name,
+      salutation: address.salutation || '',
       address: address.address,
+      address2: address.address2 || '',
       city: address.city,
       state: address.state,
       zip: address.zip,
+      birthday: address.birthday || '',
     });
     setEditingAddressId(address.id);
     setShowAddressModal(true);
@@ -170,7 +183,7 @@ export default function HomeScreen() {
 
   const handleSaveNewAddress = async () => {
     if (!newAddress.name || !newAddress.address || !newAddress.city || !newAddress.state || !newAddress.zip) {
-      Alert.alert('Please fill in all address fields');
+      Alert.alert('Please fill in all required fields');
       return;
     }
     let updated;
@@ -182,7 +195,7 @@ export default function HomeScreen() {
       setSelectedAddressId(id);
     }
     await AsyncStorage.setItem('addresses', JSON.stringify(updated));
-    setNewAddress({ name: '', address: '', city: '', state: '', zip: '' });
+    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
     setShowAddressModal(false);
     setEditingAddressId(null);
     loadAddresses();
@@ -292,22 +305,59 @@ export default function HomeScreen() {
           </ThemedView>
           <Modal visible={showAddressModal} animationType="slide" transparent onRequestClose={() => setShowAddressModal(false)}>
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
-                <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Add New Address</ThemedText>
-                <TextInput style={styles.input} placeholder="Name" placeholderTextColor="#888" value={newAddress.name} onChangeText={t => setNewAddress({ ...newAddress, name: t })} />
-                <TextInput style={styles.input} placeholder="Address" placeholderTextColor="#888" value={newAddress.address} onChangeText={t => setNewAddress({ ...newAddress, address: t })} />
-                <TextInput style={styles.input} placeholder="City" placeholderTextColor="#888" value={newAddress.city} onChangeText={t => setNewAddress({ ...newAddress, city: t })} />
-                <TextInput style={styles.input} placeholder="State" placeholderTextColor="#888" value={newAddress.state} onChangeText={t => setNewAddress({ ...newAddress, state: t })} maxLength={2} autoCapitalize="characters" />
-                <TextInput style={styles.input} placeholder="Zip" placeholderTextColor="#888" value={newAddress.zip} onChangeText={t => setNewAddress({ ...newAddress, zip: t })} keyboardType="numeric" />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-                  <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setShowAddressModal(false); setEditingAddressId(null); }}>
-                    <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Cancel</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.submitButton, { marginLeft: 8 }]} onPress={handleSaveNewAddress}>
-                    <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Save</ThemedText>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <ScrollView
+                  contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+                  keyboardShouldPersistTaps="handled"
+                  style={{ width: '100%' }}
+                >
+                  <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
+                    <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Add New Address</ThemedText>
+                    <TextInput style={styles.input} placeholder="Name *" placeholderTextColor="#888" value={newAddress.name} onChangeText={t => setNewAddress({ ...newAddress, name: t })} />
+                    <TextInput style={styles.input} placeholder="Salutation e.g. Dear Grandma" placeholderTextColor="#888" value={newAddress.salutation} onChangeText={t => setNewAddress({ ...newAddress, salutation: t })} />
+                    <TextInput style={styles.input} placeholder="Address *" placeholderTextColor="#888" value={newAddress.address} onChangeText={t => setNewAddress({ ...newAddress, address: t })} />
+                    <TextInput style={styles.input} placeholder="Address line #2" placeholderTextColor="#888" value={newAddress.address2} onChangeText={t => setNewAddress({ ...newAddress, address2: t })} />
+                    <TextInput style={styles.input} placeholder="City *" placeholderTextColor="#888" value={newAddress.city} onChangeText={t => setNewAddress({ ...newAddress, city: t })} />
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <DropDownPicker
+                          open={stateDropdownOpen}
+                          value={newAddress.state}
+                          items={stateItems}
+                          setOpen={setStateDropdownOpen}
+                          setValue={val => {
+                            const value = typeof val === 'function' ? val(newAddress.state) : val;
+                            setNewAddress({ ...newAddress, state: value });
+                          }}
+                          setItems={() => {}}
+                          placeholder="State *"
+                          style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', marginBottom: 8, minHeight: 48 }}
+                          dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914' }}
+                          textStyle={{ color: '#222', fontWeight: '500' }}
+                          listMode="SCROLLVIEW"
+                          zIndex={4000}
+                          zIndexInverse={2000}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <TextInput style={styles.input} placeholder="Zip *" placeholderTextColor="#888" value={newAddress.zip} onChangeText={t => setNewAddress({ ...newAddress, zip: t })} keyboardType="numeric" />
+                      </View>
+                    </View>
+                    <TextInput style={styles.input} placeholder="Birthday (mm/dd/yyyy)" placeholderTextColor="#888" value={newAddress.birthday} onChangeText={t => setNewAddress({ ...newAddress, birthday: t })} keyboardType="numbers-and-punctuation" />
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                      <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setShowAddressModal(false); setEditingAddressId(null); }}>
+                        <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Cancel</ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.submitButton, { marginLeft: 8 }]} onPress={handleSaveNewAddress}>
+                        <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Save</ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </ScrollView>
+              </KeyboardAvoidingView>
             </View>
           </Modal>
 
