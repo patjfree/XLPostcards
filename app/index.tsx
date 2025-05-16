@@ -610,18 +610,11 @@ export default function HomeScreen() {
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#ffffff', dark: '#ffffff' }}
       headerImage={
-        image ? (
-          <Image
-            source={{ uri: image.uri }}
-            style={styles.headerImage}
-          />
-        ) : (
-          <Image
-            source={require('@/assets/images/XLPostCards_Logo.jpg')}
-            style={styles.headerImage}
-            resizeMode="contain"
-          />
-        )
+        <Image
+          source={require('@/assets/images/xlpostcards_1024x500.png')}
+          style={styles.headerImage}
+          resizeMode="contain"
+        />
       }>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title" style={{ color: '#0a7ea4' }}>XLPostcards</ThemedText>

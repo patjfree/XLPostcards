@@ -350,7 +350,7 @@ export default function PostcardPreviewScreen() {
         setStannpAttempts(0);
         setSendResult({
           success: true,
-          message: `Your postcard will arrive in two weeks.`,
+          message: `Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.`,
           pdfUrl: pdfUrl
         });
         console.log('[XLPOSTCARDS][STANNP] Showing success modal now');
@@ -408,7 +408,7 @@ export default function PostcardPreviewScreen() {
         <View style={styles.modalContent}>
           <ThemedText style={styles.modalTitle}>Success!</ThemedText>
           <ThemedText style={styles.modalText}>
-            Your postcard will arrive in two weeks.
+            Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.
           </ThemedText>
           {__DEV__ && sendResult?.pdfUrl && (
             <TouchableOpacity 
