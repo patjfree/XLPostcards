@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -607,180 +607,184 @@ export default function HomeScreen() {
   };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#ffffff', dark: '#ffffff' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/xlpostcards_1024x500.png')}
-          style={styles.headerImage}
-          resizeMode="contain"
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title" style={{ color: '#0a7ea4' }}>XLPostcards</ThemedText>
-      </ThemedView>
-      
-      <ThemedView style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.submitButton} onPress={pickImage}>
-          <ThemedText style={styles.buttonText}>Select Photo</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ParallaxScrollView
+          headerBackgroundColor={{ light: '#ffffff', dark: '#ffffff' }}
+          headerImage={
+            <Image
+              source={require('@/assets/images/xlpostcards_1024x500.png')}
+              style={styles.headerImage}
+              resizeMode="contain"
+            />
+          }
+        >
+          <ThemedView style={styles.titleContainer}>
+            <ThemedText type="title" style={{ color: '#0a7ea4' }}>XLPostcards</ThemedText>
+          </ThemedView>
+          
+          <ThemedView style={styles.buttonsContainer}>
+            <TouchableOpacity style={styles.submitButton} onPress={pickImage}>
+              <ThemedText style={styles.buttonText}>Select Photo</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
 
-      {image && (
-        <ThemedView style={styles.imagePreviewContainer}>
-          <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-        </ThemedView>
-      )}
-
-      <ThemedView style={styles.messageSection}>
-        <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
-        <View style={styles.messageInputContainer}>
-          <TextInput
-            style={[
-              styles.input, 
-              styles.messageInput, 
-              { color: 'black' },
-              loading && styles.inputDisabled
-            ]}
-            value={postcardMessage}
-            onChangeText={handlePostcardMessageChange}
-            multiline={true}
-            numberOfLines={6}
-            placeholder="Write your message to your friend or loved one!"
-            placeholderTextColor="rgba(0, 0, 0, 0.5)"
-            editable={!loading}
-          />
-          {loading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#A1CEDC" />
-            </View>
+          {image && (
+            <ThemedView style={styles.imagePreviewContainer}>
+              <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+            </ThemedView>
           )}
-        </View>
-        
-        <ThemedView style={styles.analyzeButtonsContainer}>
+
+          <ThemedView style={styles.recipientSection}>
+            <ThemedText style={styles.sectionTitle}>Recipient</ThemedText>
+            <ThemedText style={styles.sublabel}>Name: *</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={recipientInfo.to}
+              onChangeText={handleContactAutofill}
+              placeholder="Recipient's name"
+              textContentType="name"
+              autoComplete="name"
+              dataDetectorTypes="address"
+            />
+            <ThemedText style={styles.sublabel}>Address 1: *</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={recipientInfo.addressLine1}
+              onChangeText={handleAddressAutofill}
+              placeholder="Street address, P.O. box, etc."
+              textContentType="fullStreetAddress"
+              autoComplete="street-address"
+              dataDetectorTypes="address"
+            />
+            <ThemedText style={styles.sublabel}>Address 2:</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={recipientInfo.addressLine2}
+              onChangeText={(text) => handleRecipientChange('addressLine2', text)}
+              placeholder="Apt, suite, etc."
+              textContentType="fullStreetAddress"
+              autoComplete="street-address"
+            />
+            <ThemedView style={styles.rowContainer}>
+              <ThemedView style={styles.cityStateContainer}>
+                <ThemedText style={styles.sublabel}>City: *</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  value={recipientInfo.city}
+                  onChangeText={(text) => handleRecipientChange('city', text)}
+                  placeholder="City"
+                  textContentType="addressCity"
+                  autoComplete="address-line1"
+                />
+              </ThemedView>
+              <ThemedView style={styles.cityStateContainer}>
+                <ThemedText style={styles.sublabel}>State: *</ThemedText>
+                <TextInput
+                  style={[styles.input, stateError ? styles.inputError : null]}
+                  value={recipientInfo.state}
+                  onChangeText={(text) => handleRecipientChange('state', text)}
+                  onBlur={() => handleFieldBlur('state')}
+                  placeholder="State"
+                  textContentType="addressState"
+                  autoComplete="address-line2"
+                  maxLength={2}
+                  autoCapitalize="characters"
+                />
+                {stateError ? <ThemedText style={styles.errorText}>{stateError}</ThemedText> : null}
+              </ThemedView>
+            </ThemedView>
+            <ThemedText style={styles.sublabel}>Zipcode: *</ThemedText>
+            <TextInput
+              style={[styles.input, zipcodeError ? styles.inputError : null]}
+              value={recipientInfo.zipcode}
+              onChangeText={(text) => handleRecipientChange('zipcode', text)}
+              onBlur={() => handleFieldBlur('zipcode')}
+              placeholder="Zipcode"
+              keyboardType="numeric"
+              textContentType="postalCode"
+              autoComplete="postal-code"
+              maxLength={10}
+            />
+            {zipcodeError ? <ThemedText style={styles.errorText}>{zipcodeError}</ThemedText> : null}
+            <ThemedText style={styles.sublabel}>Country:</ThemedText>
+            <TextInput
+              style={[styles.input, styles.inputDisabled]}
+              value={recipientInfo.country}
+              onChangeText={(text) => handleRecipientChange('country', text)}
+              placeholder="Country"
+              textContentType="countryName"
+              autoComplete="country"
+              editable={false}
+              selectTextOnFocus={false}
+            />
+          </ThemedView>
+
+          <ThemedView style={styles.messageSection}>
+            <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={[
+                  styles.input, 
+                  styles.messageInput, 
+                  { color: 'black' },
+                  loading && styles.inputDisabled
+                ]}
+                value={postcardMessage}
+                onChangeText={handlePostcardMessageChange}
+                multiline={true}
+                numberOfLines={6}
+                placeholder="Write your message to your friend or loved one!"
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                editable={!loading}
+              />
+              {loading && (
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="large" color="#A1CEDC" />
+                </View>
+              )}
+            </View>
+            <ThemedView style={styles.analyzeButtonsContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.submitButton,
+                  (!image || loading) && { opacity: 0.5 }
+                ]}
+                onPress={() => analyzeImage()}
+                disabled={!image || loading}
+              >
+                <ThemedText style={styles.buttonText}>
+                  AI writing assist
+                </ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
+          </ThemedView>
+
           <TouchableOpacity 
             style={[
               styles.submitButton,
-              (!image || loading) && { opacity: 0.5 }
-            ]}
-            onPress={() => analyzeImage()}
-            disabled={!image || loading}
+              !isFormValid() && { opacity: 0.5 }
+            ]} 
+            onPress={handleCreatePostcard}
+            disabled={!isFormValid()}
           >
-            <ThemedText style={styles.buttonText}>
-              AI writing assist
-            </ThemedText>
+            <ThemedText style={styles.buttonText}>Create XLPostcards</ThemedText>
           </TouchableOpacity>
-        </ThemedView>
-      </ThemedView>
 
-      <ThemedView style={styles.recipientSection}>
-        <ThemedText style={styles.sectionTitle}>Recipient</ThemedText>
-        <ThemedText style={styles.sublabel}>Name: *</ThemedText>
-        <TextInput
-          style={styles.input}
-          value={recipientInfo.to}
-          onChangeText={handleContactAutofill}
-          placeholder="Recipient's name"
-          textContentType="name"
-          autoComplete="name"
-          dataDetectorTypes="address"
-        />
-        
-        <ThemedText style={styles.sublabel}>Address 1: *</ThemedText>
-        <TextInput
-          style={styles.input}
-          value={recipientInfo.addressLine1}
-          onChangeText={handleAddressAutofill}
-          placeholder="Street address, P.O. box, etc."
-          textContentType="fullStreetAddress"
-          autoComplete="street-address"
-          dataDetectorTypes="address"
-        />
-        
-        <ThemedText style={styles.sublabel}>Address 2:</ThemedText>
-        <TextInput
-          style={styles.input}
-          value={recipientInfo.addressLine2}
-          onChangeText={(text) => handleRecipientChange('addressLine2', text)}
-          placeholder="Apt, suite, etc."
-          textContentType="fullStreetAddress"
-          autoComplete="street-address"
-        />
-        
-        <ThemedView style={styles.rowContainer}>
-          <ThemedView style={styles.cityStateContainer}>
-            <ThemedText style={styles.sublabel}>City: *</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={recipientInfo.city}
-              onChangeText={(text) => handleRecipientChange('city', text)}
-              placeholder="City"
-              textContentType="addressCity"
-              autoComplete="address-line1"
-            />
+          <ThemedView style={styles.formContainer}>
+            <ThemedText style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
+              Currently postcards can only be sent to the US
+            </ThemedText>
+            <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
           </ThemedView>
-          
-          <ThemedView style={styles.cityStateContainer}>
-            <ThemedText style={styles.sublabel}>State: *</ThemedText>
-            <TextInput
-              style={[styles.input, stateError ? styles.inputError : null]}
-              value={recipientInfo.state}
-              onChangeText={(text) => handleRecipientChange('state', text)}
-              onBlur={() => handleFieldBlur('state')}
-              placeholder="State"
-              textContentType="addressState"
-              autoComplete="address-line2"
-              maxLength={2}
-              autoCapitalize="characters"
-            />
-            {stateError ? <ThemedText style={styles.errorText}>{stateError}</ThemedText> : null}
-          </ThemedView>
-        </ThemedView>
-        
-        <ThemedText style={styles.sublabel}>Zipcode: *</ThemedText>
-        <TextInput
-          style={[styles.input, zipcodeError ? styles.inputError : null]}
-          value={recipientInfo.zipcode}
-          onChangeText={(text) => handleRecipientChange('zipcode', text)}
-          onBlur={() => handleFieldBlur('zipcode')}
-          placeholder="Zipcode"
-          keyboardType="numeric"
-          textContentType="postalCode"
-          autoComplete="postal-code"
-          maxLength={10}
-        />
-        {zipcodeError ? <ThemedText style={styles.errorText}>{zipcodeError}</ThemedText> : null}
-
-        <ThemedText style={styles.sublabel}>Country:</ThemedText>
-        <TextInput
-          style={[styles.input, styles.inputDisabled]}
-          value={recipientInfo.country}
-          onChangeText={(text) => handleRecipientChange('country', text)}
-          placeholder="Country"
-          textContentType="countryName"
-          autoComplete="country"
-          editable={false}
-          selectTextOnFocus={false}
-        />
-      </ThemedView>
-      
-      <TouchableOpacity 
-        style={[
-          styles.submitButton,
-          !isFormValid() && { opacity: 0.5 }
-        ]} 
-        onPress={handleCreatePostcard}
-        disabled={!isFormValid()}
-      >
-        <ThemedText style={styles.buttonText}>Create XLPostcards</ThemedText>
-      </TouchableOpacity>
-
-      <ThemedView style={styles.formContainer}>
-        <ThemedText style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
-          Currently postcards can only be sent to the US
-        </ThemedText>
-        <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
-      </ThemedView>
-    </ParallaxScrollView>
+        </ParallaxScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
