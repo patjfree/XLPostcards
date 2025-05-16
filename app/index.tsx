@@ -130,16 +130,6 @@ export default function HomeScreen() {
       ...parsed.map((a: any) => ({
         label: a.name,
         value: a.id,
-        icon: () => (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
-            <TouchableOpacity onPress={() => handleEditAddress(a)} style={{ marginRight: 8 }}>
-              <Ionicons name="pencil" size={18} color="#f28914" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDeleteAddress(a.id)}>
-              <Ionicons name="trash" size={18} color="#f28914" />
-            </TouchableOpacity>
-          </View>
-        ),
       })),
       { label: '+ Add new address', value: 'add_new' }
     ]);
@@ -288,13 +278,17 @@ export default function HomeScreen() {
               listMode="SCROLLVIEW"
               zIndex={3000}
               zIndexInverse={1000}
-              renderListItem={({ item }) => (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 }}>
-                  <ThemedText style={{ color: '#222', fontWeight: '500' }}>{item.label}</ThemedText>
-                  {item.icon && item.icon()}
-                </View>
-              )}
             />
+            {selectedAddressId && selectedAddressId !== 'add_new' && (
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8 }}>
+                <TouchableOpacity onPress={() => handleEditAddress(addresses.find(a => a.id === selectedAddressId))} style={{ marginRight: 16 }}>
+                  <Ionicons name="pencil" size={20} color="#f28914" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteAddress(selectedAddressId)}>
+                  <Ionicons name="trash" size={20} color="#f28914" />
+                </TouchableOpacity>
+              </View>
+            )}
           </ThemedView>
           <Modal visible={showAddressModal} animationType="slide" transparent onRequestClose={() => setShowAddressModal(false)}>
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
