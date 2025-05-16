@@ -21,6 +21,8 @@ const US_STATES = [
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
 ];
 
+const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
+
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -78,15 +80,52 @@ export default function HomeScreen() {
     }
   };
 
-  // Function to analyze the image with OpenAI (stub)
+  // Function to analyze the image with OpenAI
   const analyzeImage = async () => {
     if (!image) {
       Alert.alert('No image', 'Please select a photo first.');
       return;
     }
+    const selected = addresses.find(a => a.id === selectedAddressId);
+    const salutation = selected?.salutation || '';
     setLoading(true);
     try {
-      setPostcardMessage('AI generated message based on the image.');
+      // Prepare base64 image
+      let base64Image = image.base64 ? `data:image/jpeg;base64,${image.base64}` : undefined;
+      // Compose prompt
+      let promptText =
+        `Write a friendly, engaging postcard message (max 100 words) based on the attached photo.` +
+        (salutation ? ` Start the message with: "${salutation}".` : '') +
+        (postcardMessage ? ` Here are some hints or ideas: ${postcardMessage}` : '') +
+        ` Write it in a casual, personal tone, like a real postcard.`;
+      // Call OpenAI API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: promptText },
+                ...(base64Image ? [{ type: 'image_url', image_url: { url: base64Image } }] : [])
+              ]
+            }
+          ],
+          max_tokens: 400
+        })
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || 'Error analyzing image');
+      }
+      // Get the paragraph from the response
+      const content = data.choices[0].message.content;
+      setPostcardMessage(content);
       setIsAIGenerated(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to analyze image.');
@@ -236,42 +275,6 @@ export default function HomeScreen() {
             </ThemedView>
           )}
 
-          {/* Message Block */}
-          <ThemedView style={styles.messageSection}>
-            <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
-            <View style={styles.messageInputContainer}>
-              <TextInput
-                style={[styles.input, styles.messageInput]}
-                value={postcardMessage}
-                onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); }}
-                multiline={true}
-                numberOfLines={6}
-                placeholder="Write your message to your friend or loved one!"
-                placeholderTextColor="#888"
-                editable={!loading}
-              />
-              {loading && (
-                <View style={styles.loadingOverlay}>
-                  <ActivityIndicator size="large" color="#A1CEDC" />
-                </View>
-              )}
-            </View>
-            <ThemedView style={styles.analyzeButtonsContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.submitButton,
-                  (!image || loading) && { opacity: 0.5 }
-                ]}
-                onPress={analyzeImage}
-                disabled={!image || loading}
-              >
-                <ThemedText style={styles.buttonText}>
-                  AI writing assist
-                </ThemedText>
-              </TouchableOpacity>
-            </ThemedView>
-          </ThemedView>
-
           {/* Address Dropdown Section */}
           <ThemedView style={{ marginVertical: 20, zIndex: 1000 }}>
             <ThemedText style={{ fontWeight: 'bold', color: '#f28914', fontSize: 18, marginBottom: 8 }}>Select Recipient</ThemedText>
@@ -303,6 +306,43 @@ export default function HomeScreen() {
               </View>
             )}
           </ThemedView>
+
+          {/* Message Block */}
+          <ThemedView style={styles.messageSection}>
+            <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={[styles.input, styles.messageInput]}
+                value={postcardMessage}
+                onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); }}
+                multiline={true}
+                numberOfLines={6}
+                placeholder="Write your message or give our AI assist some ideas on what you want your message to say."
+                placeholderTextColor="#888"
+                editable={!loading}
+              />
+              {loading && (
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="large" color="#A1CEDC" />
+                </View>
+              )}
+            </View>
+            <ThemedView style={styles.analyzeButtonsContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.submitButton,
+                  (!image || loading) && { opacity: 0.5 }
+                ]}
+                onPress={analyzeImage}
+                disabled={!image || loading}
+              >
+                <ThemedText style={styles.buttonText}>
+                  AI writing assist
+                </ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
+          </ThemedView>
+
           <Modal visible={showAddressModal} animationType="slide" transparent onRequestClose={() => setShowAddressModal(false)}>
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <KeyboardAvoidingView
