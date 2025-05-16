@@ -7,6 +7,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import DropDownPicker from 'react-native-dropdown-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
 
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -22,6 +23,55 @@ const US_STATES = [
 ];
 
 const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
+const stannpApiKey = Constants.expoConfig?.extra?.stannpApiKey;
+
+// Helper: Normalize abbreviations for comparison
+const ABBREVIATIONS = [
+  ['STREET', 'ST'], ['ROAD', 'RD'], ['AVENUE', 'AVE'], ['SUITE', 'STE'], ['APARTMENT', 'APT'], ['FLOOR', 'FL'], ['UNIT', 'UNIT'], ['BOULEVARD', 'BLVD'], ['DRIVE', 'DR'], ['LANE', 'LN'], ['COURT', 'CT'], ['TERRACE', 'TER'], ['PLACE', 'PL'], ['NORTH', 'N'], ['SOUTH', 'S'], ['EAST', 'E'], ['WEST', 'W']
+];
+function normalizeAbbr(str: string): string {
+  if (!str) return '';
+  let s = str.toUpperCase();
+  ABBREVIATIONS.forEach(([long, abbr]) => {
+    s = s.replace(new RegExp(`\\b${long}\\b`, 'g'), abbr);
+  });
+  return s.replace(/\s+/g, ' ').trim();
+}
+function normalizeZip(zip: string): string {
+  if (!zip) return '';
+  return zip.trim();
+}
+function zip5(zip: string): string {
+  return zip ? zip.substring(0, 5) : '';
+}
+function isMaterialAddressChange(orig: any, corr: any): boolean {
+  // Compare address line 1 (with abbr and case-insensitive)
+  const origAddr = normalizeAbbr(orig.address || '');
+  const corrAddr = normalizeAbbr(corr.address || '');
+  // If unit/suite moved from address2 to address1, treat as non-material
+  const origAddr2 = (orig.address2 || '').toUpperCase().trim();
+  const corrAddr2 = (corr.address2 || '').toUpperCase().trim();
+  // If address2 is empty in correction, but its value is now in address1, treat as non-material
+  const addr2Moved = origAddr2 && !corrAddr2 && corrAddr.includes(origAddr2);
+  // Compare city/state (case-insensitive)
+  const origCity = (orig.city || '').toUpperCase().trim();
+  const corrCity = (corr.city || '').toUpperCase().trim();
+  const origState = (orig.state || '').toUpperCase().trim();
+  const corrState = (corr.state || '').toUpperCase().trim();
+  // Compare zip (5 digit vs 9 digit)
+  const origZip5 = zip5(orig.zip);
+  const corrZip5 = zip5(corr.zip);
+  // Material if city/state/zip5 differ
+  if (origCity !== corrCity || origState !== corrState || origZip5 !== corrZip5) return true;
+  // Material if address1 differs in more than abbr/case/unit movement
+  if (origAddr !== corrAddr && !(addr2Moved && origAddr.replace(origAddr2, '').trim() === corrAddr.replace(origAddr2, '').trim())) return true;
+  // If address2 is present in original but not in correction, and it's not just moved, material
+  if (origAddr2 && !corrAddr2 && !addr2Moved) return true;
+  // If address2 is present in correction but not in original, material
+  if (!origAddr2 && corrAddr2) return true;
+  // Otherwise, non-material
+  return false;
+}
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
@@ -38,6 +88,13 @@ export default function HomeScreen() {
   const [newAddress, setNewAddress] = useState({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
   const [addresses, setAddresses] = useState<any[]>([]);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [addressValidationStatus, setAddressValidationStatus] = useState<'idle'|'loading'|'valid'|'invalid'|'error'>('idle');
+  const [addressValidationMessage, setAddressValidationMessage] = useState('');
+  const [showValidationOptions, setShowValidationOptions] = useState(false);
+  const [correctedAddress, setCorrectedAddress] = useState<any>(null);
+  const [showAddressCorrection, setShowAddressCorrection] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+  const [showUSPSNote, setShowUSPSNote] = useState(false);
 
   // Request permissions on component mount
   useEffect(() => {
@@ -220,23 +277,187 @@ export default function HomeScreen() {
     ]);
   };
 
+  const validateAddressWithStannp = async (address: any) => {
+    setAddressValidationStatus('loading');
+    setAddressValidationMessage('Please wait while we verify the address…');
+    setCorrectedAddress(null);
+    setShowAddressCorrection(false);
+    setShowCorrectionModal(false);
+    try {
+      const formData = new URLSearchParams();
+      formData.append('company', 'Stannp');
+      formData.append('address1', address.address);
+      formData.append('address2', address.address2 || '');
+      formData.append('city', address.city);
+      formData.append('state', address.state);
+      formData.append('zipcode', address.zip);
+      formData.append('country', 'US');
+      console.log('[XLPOSTCARDS][STANNP][VALIDATE] Request payload:', Object.fromEntries(formData));
+      const response = await fetch('https://api-us1.stannp.com/v1/addresses/validate', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${stannpApiKey}:`),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+      const raw = await response.text();
+      console.log('[XLPOSTCARDS][STANNP][VALIDATE] Raw response:', raw);
+      const data = JSON.parse(raw);
+      if (data?.data?.is_valid === true) {
+        const corrected = {
+          address: data.data.address1,
+          address2: data.data.address2 || '',
+          city: data.data.city,
+          state: data.data.county, // Stannp returns state in county field
+          zip: data.data.postcode,
+        };
+        const hasChanges =
+          corrected.address !== address.address ||
+          corrected.address2 !== (address.address2 || '') ||
+          corrected.city !== address.city ||
+          corrected.state !== address.state ||
+          corrected.zip !== address.zip;
+        if (hasChanges) {
+          setCorrectedAddress(corrected);
+          setShowCorrectionModal(true);
+          setAddressValidationStatus('valid');
+          setAddressValidationMessage('We found a suggested correction for your address.');
+          return { isValid: true, corrected };
+        } else {
+          setAddressValidationStatus('valid');
+          setAddressValidationMessage('Address confirmed.');
+          return { isValid: true, corrected: null };
+        }
+      } else {
+        setAddressValidationStatus('invalid');
+        setAddressValidationMessage("We couldn't verify this address. Please check for typos or confirm it's correct.");
+        setShowValidationOptions(true);
+        return { isValid: false, corrected: null };
+      }
+    } catch (e) {
+      console.error('[XLPOSTCARDS][STANNP][VALIDATE] Error:', e);
+      setAddressValidationStatus('error');
+      setAddressValidationMessage("We couldn't verify this address. Please check for typos or confirm it's correct.");
+      setShowValidationOptions(true);
+      return { isValid: false, corrected: null };
+    }
+  };
+
   const handleSaveNewAddress = async () => {
     if (!newAddress.name || !newAddress.address || !newAddress.city || !newAddress.state || !newAddress.zip) {
       Alert.alert('Please fill in all required fields');
       return;
     }
+    setShowValidationOptions(false);
+    setShowUSPSNote(false);
+    const addressToSave = { ...newAddress };
+    const { isValid, corrected } = await validateAddressWithStannp(addressToSave);
+    if (isValid && corrected) {
+      // Check if material change
+      if (!isMaterialAddressChange(addressToSave, corrected)) {
+        // Auto-apply correction, show USPS note
+        const merged = {
+          ...addressToSave,
+          address: corrected.address,
+          address2: corrected.address2,
+          city: corrected.city,
+          state: corrected.state,
+          zip: corrected.zip,
+        };
+        let updated;
+        if (editingAddressId) {
+          updated = addresses.map(a => a.id === editingAddressId ? { ...merged, id: editingAddressId, verified: true } : a);
+        } else {
+          const id = Date.now().toString();
+          updated = [...addresses, { ...merged, id, verified: true }];
+          setSelectedAddressId(id);
+        }
+        await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+        setShowAddressModal(false);
+        setEditingAddressId(null);
+        setAddressValidationStatus('idle');
+        setAddressValidationMessage('');
+        setCorrectedAddress(null);
+        setShowCorrectionModal(false);
+        setShowUSPSNote(true);
+        loadAddresses();
+        return;
+      } else {
+        // Show correction modal for material changes
+        return;
+      }
+    }
+    if (isValid) {
+      let updated;
+      if (editingAddressId) {
+        updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
+      } else {
+        const id = Date.now().toString();
+        updated = [...addresses, { ...addressToSave, id, verified: true }];
+        setSelectedAddressId(id);
+      }
+      await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+      setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+      setShowAddressModal(false);
+      setEditingAddressId(null);
+      setAddressValidationStatus('idle');
+      setAddressValidationMessage('');
+      setCorrectedAddress(null);
+      setShowCorrectionModal(false);
+      setShowUSPSNote(false);
+      loadAddresses();
+    }
+  };
+
+  const handleUseOriginalAddress = async () => {
+    const addressToSave = { ...newAddress };
     let updated;
     if (editingAddressId) {
-      updated = addresses.map(a => a.id === editingAddressId ? { ...newAddress, id: editingAddressId } : a);
+      updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
     } else {
       const id = Date.now().toString();
-      updated = [...addresses, { ...newAddress, id }];
+      updated = [...addresses, { ...addressToSave, id, verified: true }];
       setSelectedAddressId(id);
     }
     await AsyncStorage.setItem('addresses', JSON.stringify(updated));
     setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
     setShowAddressModal(false);
     setEditingAddressId(null);
+    setAddressValidationStatus('idle');
+    setAddressValidationMessage('');
+    setCorrectedAddress(null);
+    setShowCorrectionModal(false);
+    loadAddresses();
+  };
+
+  const handleUseCorrectedAddress = async () => {
+    // Merge only address fields from correctedAddress, keep name/salutation/birthday
+    const addressToSave = {
+      ...newAddress,
+      address: correctedAddress.address,
+      address2: correctedAddress.address2,
+      city: correctedAddress.city,
+      state: correctedAddress.state,
+      zip: correctedAddress.zip,
+    };
+    let updated;
+    if (editingAddressId) {
+      updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
+    } else {
+      const id = Date.now().toString();
+      updated = [...addresses, { ...addressToSave, id, verified: true }];
+      setSelectedAddressId(id);
+    }
+    await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+    setShowAddressModal(false);
+    setEditingAddressId(null);
+    setAddressValidationStatus('idle');
+    setAddressValidationMessage('');
+    setCorrectedAddress(null);
+    setShowCorrectionModal(false);
     loadAddresses();
   };
 
@@ -287,11 +508,19 @@ export default function HomeScreen() {
               setItems={setAddressItems}
               placeholder="Select recipient"
               style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', marginBottom: 8 }}
-              dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914' }}
+              dropDownContainerStyle={{
+                backgroundColor: '#fff',
+                borderColor: '#f28914',
+                maxHeight: 300,
+              }}
               listItemContainerStyle={{ height: 50, backgroundColor: '#fff' }}
               textStyle={{ color: '#222', fontWeight: '500' }}
               onChangeValue={handleAddressSelect}
               listMode="SCROLLVIEW"
+              scrollViewProps={{
+                nestedScrollEnabled: true,
+                persistentScrollbar: true,
+              }}
               zIndex={3000}
               zIndexInverse={1000}
             />
@@ -387,6 +616,123 @@ export default function HomeScreen() {
                       </View>
                     </View>
                     <TextInput style={styles.input} placeholder="Birthday (mm/dd/yyyy)" placeholderTextColor="#888" value={newAddress.birthday} onChangeText={t => setNewAddress({ ...newAddress, birthday: t })} keyboardType="numbers-and-punctuation" />
+                    {addressValidationStatus === 'loading' && (
+                      <ThemedText style={{ color: '#f28914', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
+                    )}
+                    {(addressValidationStatus === 'valid') && (
+                      <ThemedText style={{ color: 'green', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
+                    )}
+                    {showAddressCorrection && correctedAddress && (
+                      <View style={styles.addressCorrectionContainer}>
+                        <ThemedText style={styles.addressCorrectionTitle}>Address Correction</ThemedText>
+                        <View style={styles.addressComparisonContainer}>
+                          <View style={styles.addressColumn}>
+                            <ThemedText style={styles.addressColumnTitle}>Your Entry</ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.address !== newAddress.address && styles.addressFieldChanged
+                            ]}>
+                              {newAddress.address}
+                            </ThemedText>
+                            {newAddress.address2 && (
+                              <ThemedText style={[
+                                styles.addressField,
+                                correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
+                              ]}>
+                                {newAddress.address2}
+                              </ThemedText>
+                            )}
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.city !== newAddress.city && styles.addressFieldChanged
+                            ]}>
+                              {newAddress.city}
+                            </ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.state !== newAddress.state && styles.addressFieldChanged
+                            ]}>
+                              {newAddress.state}
+                            </ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
+                            ]}>
+                              {newAddress.zip}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.addressColumn}>
+                            <ThemedText style={styles.addressColumnTitle}>Suggested Correction</ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.address !== newAddress.address && styles.addressFieldChanged
+                            ]}>
+                              {correctedAddress.address}
+                            </ThemedText>
+                            {correctedAddress.address2 && (
+                              <ThemedText style={[
+                                styles.addressField,
+                                correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
+                              ]}>
+                                {correctedAddress.address2}
+                              </ThemedText>
+                            )}
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.city !== newAddress.city && styles.addressFieldChanged
+                            ]}>
+                              {correctedAddress.city}
+                            </ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.state !== newAddress.state && styles.addressFieldChanged
+                            ]}>
+                              {correctedAddress.state}
+                            </ThemedText>
+                            <ThemedText style={[
+                              styles.addressField,
+                              correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
+                            ]}>
+                              {correctedAddress.zip}
+                            </ThemedText>
+                          </View>
+                        </View>
+                        <View style={styles.addressCorrectionButtons}>
+                          <TouchableOpacity 
+                            style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} 
+                            onPress={handleUseOriginalAddress}
+                          >
+                            <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Use My Entry</ThemedText>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.submitButton, { marginLeft: 8 }]} 
+                            onPress={handleUseCorrectedAddress}
+                          >
+                            <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Correction</ThemedText>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                    {(addressValidationStatus === 'invalid' || addressValidationStatus === 'error') && !showAddressCorrection && (
+                      <>
+                        <ThemedText style={{ color: '#f28914', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
+                        {showValidationOptions && (
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                            <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setAddressValidationStatus('idle'); setShowValidationOptions(false); }}>
+                              <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Edit Address</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.submitButton, { marginLeft: 8 }]} onPress={handleUseOriginalAddress}>
+                              <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Anyway</ThemedText>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </>
+                    )}
+                    {showUSPSNote && (
+                      <ThemedText style={{ color: '#888', textAlign: 'center', marginTop: 8, fontSize: 13 }}>
+                        Address formatted to USPS standards
+                      </ThemedText>
+                    )}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
                       <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setShowAddressModal(false); setEditingAddressId(null); }}>
                         <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Cancel</ThemedText>
@@ -398,6 +744,81 @@ export default function HomeScreen() {
                   </View>
                 </ScrollView>
               </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* Correction Modal */}
+          <Modal visible={showCorrectionModal} animationType="slide" transparent onRequestClose={() => setShowCorrectionModal(false)}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
+                <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Address Correction</ThemedText>
+                <View style={styles.addressComparisonContainerVertical}>
+                  <View style={styles.addressColumnVertical}>
+                    <ThemedText style={styles.addressColumnTitle}>Suggested Correction</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.address !== newAddress.address && styles.addressFieldChanged
+                    ]}>{correctedAddress?.address}</ThemedText>
+                    {correctedAddress?.address2 ? (
+                      <ThemedText style={[
+                        styles.addressField,
+                        correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
+                      ]}>{correctedAddress.address2}</ThemedText>
+                    ) : null}
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.city !== newAddress.city && styles.addressFieldChanged
+                    ]}>{correctedAddress?.city}</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.state !== newAddress.state && styles.addressFieldChanged
+                    ]}>{correctedAddress?.state}</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
+                    ]}>{correctedAddress?.zip}</ThemedText>
+                  </View>
+                  <View style={styles.addressColumnVertical}>
+                    <ThemedText style={styles.addressColumnTitle}>Your Entry</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.address !== newAddress.address && styles.addressFieldChanged
+                    ]}>{newAddress.address}</ThemedText>
+                    {newAddress.address2 ? (
+                      <ThemedText style={[
+                        styles.addressField,
+                        correctedAddress && correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
+                      ]}>{newAddress.address2}</ThemedText>
+                    ) : null}
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.city !== newAddress.city && styles.addressFieldChanged
+                    ]}>{newAddress.city}</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.state !== newAddress.state && styles.addressFieldChanged
+                    ]}>{newAddress.state}</ThemedText>
+                    <ThemedText style={[
+                      styles.addressField,
+                      correctedAddress && correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
+                    ]}>{newAddress.zip}</ThemedText>
+                  </View>
+                </View>
+                <View style={styles.addressCorrectionButtons}>
+                  <TouchableOpacity 
+                    style={[styles.submitButton, { backgroundColor: '#f28914', borderColor: '#f28914', borderWidth: 1 }]} 
+                    onPress={handleUseCorrectedAddress}
+                  >
+                    <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Corrected Address</ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.submitButton, { marginLeft: 8, backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} 
+                    onPress={handleUseOriginalAddress}
+                  >
+                    <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Keep my entry</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           </Modal>
 
@@ -527,5 +948,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 4,
+  },
+  addressCorrectionContainer: {
+    marginVertical: 16,
+    padding: 16,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  addressCorrectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f28914',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  addressComparisonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  addressColumn: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  addressColumnTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  addressField: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  addressFieldChanged: {
+    color: '#f28914',
+    fontWeight: '600',
+  },
+  addressCorrectionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  addressComparisonContainerVertical: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  addressColumnVertical: {
+    marginBottom: 12,
   },
 });
