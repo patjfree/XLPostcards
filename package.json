@@ -15,11 +15,12 @@
     "preset": "jest-expo"
   },
   "dependencies": {
+    "@expo/config-plugins": "9.0.0",
     "@expo/vector-icons": "^14.0.2",
-    "@react-native-async-storage/async-storage": "^1.23.1",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-picker/picker": "2.9.0",
     "@react-navigation/bottom-tabs": "^7.0.0",
-    "@react-navigation/drawer": "^7.3.12",
+    "@react-navigation/drawer": "^7.1.1",
     "@react-navigation/native": "^7.0.0",
     "@stripe/stripe-react-native": "0.38.6",
     "cors": "^2.8.5",
@@ -28,7 +29,7 @@
     "expo-constants": "~17.0.8",
     "expo-contacts": "~14.0.5",
     "expo-dev-client": "~5.0.19",
-    "expo-file-system": "^18.0.11",
+    "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.4",
     "expo-haptics": "~14.0.1",
     "expo-image-manipulator": "~13.0.6",
@@ -49,7 +50,7 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
     "react-native-dotenv": "^3.4.11",
-    "react-native-dropdown-picker": "^5.4.6",
+    "react-native-dropdown-picker": "^5.4.3",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-get-random-values": "~1.11.0",
     "react-native-iap": "^12.16.2",
@@ -81,11 +82,15 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-iap"
+        ],
         "listUnknownPackages": false
       }
     }
   },
   "resolutions": {
+    "@expo/config-plugins": "9.0.0",
     "react-native-reanimated": "~3.16.1"
   }
 }

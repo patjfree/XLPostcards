@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
 import { usePostcardStore } from '../../src/store/postcardStore';
 import { useAddressBookStore, Address } from '../../src/store/addressBookStore';
-import { useAuthStore } from '../../src/store/authStore';
 import { useStannpStore } from '../../src/store/stannpStore';
 import { useImageStore } from '../../src/store/imageStore';
 import { useMessageStore } from '../../src/store/messageStore';
@@ -18,7 +17,6 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 import EditAddressModal from './EditAddressModal';
 import * as ImagePicker from 'expo-image-picker';
-import Constants from 'expo-constants';
 
 export default function PostcardForm() {
   const router = useRouter();
