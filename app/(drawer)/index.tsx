@@ -27,6 +27,10 @@ const US_STATES = [
 const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
 const stannpApiKey = Constants.expoConfig?.extra?.stannpApiKey;
 
+const SETTINGS_KEYS = {
+  SIGNATURE: 'settings_signature',
+};
+
 // Helper: Normalize abbreviations for comparison
 const ABBREVIATIONS = [
   ['STREET', 'ST'], ['ROAD', 'RD'], ['AVENUE', 'AVE'], ['SUITE', 'STE'], ['APARTMENT', 'APT'], ['FLOOR', 'FL'], ['UNIT', 'UNIT'], ['BOULEVARD', 'BLVD'], ['DRIVE', 'DR'], ['LANE', 'LN'], ['COURT', 'CT'], ['TERRACE', 'TER'], ['PLACE', 'PL'], ['NORTH', 'N'], ['SOUTH', 'S'], ['EAST', 'E'], ['WEST', 'W']
@@ -162,6 +166,13 @@ export default function HomeScreen() {
         (salutation ? ` Start the message with: "${salutation}".` : '') +
         (postcardMessage ? ` Here are some hints or ideas: ${postcardMessage}` : '') +
         ` Write it in a casual, personal tone, like a real postcard.`;
+
+      // Get signature block from settings
+      let signatureBlock = await AsyncStorage.getItem(SETTINGS_KEYS.SIGNATURE);
+      if (signatureBlock) {
+        promptText += ` End the message with: "${signatureBlock}"`;
+      }
+
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -475,7 +486,7 @@ export default function HomeScreen() {
       style={{ flex: 1 }}
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header image and hamburger inside scrollable area */}
@@ -486,7 +497,7 @@ export default function HomeScreen() {
             resizeMode="cover"
           />
           <TouchableOpacity style={styles.hamburgerInHeaderScroll} onPress={() => navigation.openDrawer()}>
-            <Ionicons name="menu" size={24} color="#0a7ea4" />
+            <Ionicons name="menu" size={28} color="#0a7ea4" />
           </TouchableOpacity>
         </View>
         <ThemedView style={styles.titleContainer}>
@@ -494,8 +505,8 @@ export default function HomeScreen() {
         </ThemedView>
 
         <ThemedView style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.submitButton} onPress={pickImage}>
-            <ThemedText style={styles.buttonText}>Select Photo</ThemedText>
+          <TouchableOpacity style={styles.fullWidthButton} onPress={pickImage}>
+            <ThemedText style={styles.buttonText}>1) Select Photo</ThemedText>
           </TouchableOpacity>
         </ThemedView>
 
@@ -506,48 +517,68 @@ export default function HomeScreen() {
         )}
 
         {/* Address Dropdown Section */}
-        <ThemedView style={{ marginVertical: 20, zIndex: 1000 }}>
-          <ThemedText style={{ fontWeight: 'bold', color: '#f28914', fontSize: 18, marginBottom: 8 }}>Select Recipient</ThemedText>
-          <DropDownPicker
-            open={addressDropdownOpen}
-            value={selectedAddressId}
-            items={addressItems}
-            setOpen={setAddressDropdownOpen}
-            setValue={setSelectedAddressId}
-            setItems={setAddressItems}
-            placeholder="Select recipient"
-            style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', marginBottom: 8 }}
-            dropDownContainerStyle={{
-              backgroundColor: '#fff',
-              borderColor: '#f28914',
-              maxHeight: 300,
-            }}
-            listItemContainerStyle={{ height: 50, backgroundColor: '#fff' }}
-            textStyle={{ color: '#222', fontWeight: '500' }}
-            onChangeValue={handleAddressSelect}
-            listMode="SCROLLVIEW"
-            scrollViewProps={{
-              nestedScrollEnabled: true,
-              persistentScrollbar: true,
-            }}
-            zIndex={3000}
-            zIndexInverse={1000}
-          />
-          {selectedAddressId && selectedAddressId !== 'add_new' && (
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8 }}>
-              <TouchableOpacity onPress={() => handleEditAddress(addresses.find(a => a.id === selectedAddressId))} style={{ marginRight: 16 }}>
-                <Ionicons name="pencil" size={20} color="#f28914" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDeleteAddress(selectedAddressId)}>
-                <Ionicons name="trash" size={20} color="#f28914" />
-              </TouchableOpacity>
+        <ThemedView style={[styles.sectionBlock, { zIndex: 3000 }]}>
+          <ThemedText style={styles.sectionLabel}>2) Select Recipient</ThemedText>
+          <View style={[styles.recipientRow, { zIndex: 3001 }]}>
+            <View style={{ flex: 1 }}>
+              <DropDownPicker
+                open={addressDropdownOpen}
+                value={selectedAddressId}
+                items={addressItems}
+                setOpen={setAddressDropdownOpen}
+                setValue={setSelectedAddressId}
+                setItems={setAddressItems}
+                placeholder="Select recipient"
+                style={styles.recipientDropdown}
+                dropDownContainerStyle={styles.recipientDropdownContainer}
+                listItemContainerStyle={styles.recipientDropdownItem}
+                textStyle={styles.recipientDropdownText}
+                onChangeValue={handleAddressSelect}
+                listMode="MODAL"
+                modalTitle="Select Recipient"
+                modalAnimationType="slide"
+                modalContentContainerStyle={{
+                  borderRadius: 16,
+                  margin: 24,
+                  backgroundColor: '#fff',
+                  maxHeight: 350,
+                  alignSelf: 'center',
+                  width: '90%',
+                }}
+                modalProps={{
+                  presentationStyle: 'pageSheet', // iOS only, but makes it look more native
+                  transparent: true,
+                }}
+                listItemLabelStyle={{
+                  fontSize: 18,
+                  color: '#222',
+                  fontWeight: '500',
+                }}
+                selectedItemLabelStyle={{
+                  color: '#f28914',
+                  fontWeight: 'bold',
+                }}
+                zIndex={3000}
+                zIndexInverse={1000}
+                dropDownDirection="AUTO"
+              />
             </View>
-          )}
+            {selectedAddressId && selectedAddressId !== 'add_new' && (
+              <View style={styles.recipientIcons}>
+                <TouchableOpacity onPress={() => handleEditAddress(addresses.find(a => a.id === selectedAddressId))}>
+                  <Ionicons name="pencil" size={20} color="#f28914" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteAddress(selectedAddressId)} style={{ marginLeft: 12 }}>
+                  <Ionicons name="trash" size={20} color="#f28914" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </ThemedView>
 
         {/* Message Block */}
-        <ThemedView style={styles.messageSection}>
-          <ThemedText style={styles.sectionTitle}>Message *</ThemedText>
+        <ThemedView style={[styles.sectionBlock, { zIndex: 1000 }]}>
+          <ThemedText style={styles.sectionLabel}>3) Write Message</ThemedText>
           <View style={styles.messageInputContainer}>
             <TextInput
               style={[styles.input, styles.messageInput]}
@@ -565,281 +596,33 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
-          <ThemedView style={styles.analyzeButtonsContainer}>
+          <View style={styles.aiRow}>
+            <ThemedText style={styles.aiPrompt}>Not sure what to say? Try →</ThemedText>
             <TouchableOpacity 
               style={[
                 styles.submitButton,
+                styles.aiButton,
                 (!image || loading) && { opacity: 0.5 }
               ]}
               onPress={analyzeImage}
               disabled={!image || loading}
             >
-              <ThemedText style={styles.buttonText}>
-                AI writing assist
-              </ThemedText>
+              <ThemedText style={styles.buttonText}>Write for Me</ThemedText>
             </TouchableOpacity>
-          </ThemedView>
+          </View>
         </ThemedView>
-
-        <Modal visible={showAddressModal} animationType="slide" transparent onRequestClose={() => setShowAddressModal(false)}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-            >
-              <ScrollView
-                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
-                keyboardShouldPersistTaps="handled"
-                style={{ width: '100%' }}
-              >
-                <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
-                  <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Add New Address</ThemedText>
-                  <TextInput style={styles.input} placeholder="Name *" placeholderTextColor="#888" value={newAddress.name} onChangeText={t => setNewAddress({ ...newAddress, name: t })} />
-                  <TextInput style={styles.input} placeholder="Salutation e.g. Dear Grandma" placeholderTextColor="#888" value={newAddress.salutation} onChangeText={t => setNewAddress({ ...newAddress, salutation: t })} />
-                  <TextInput style={styles.input} placeholder="Address *" placeholderTextColor="#888" value={newAddress.address} onChangeText={t => setNewAddress({ ...newAddress, address: t })} />
-                  <TextInput style={styles.input} placeholder="Address line #2" placeholderTextColor="#888" value={newAddress.address2} onChangeText={t => setNewAddress({ ...newAddress, address2: t })} />
-                  <TextInput style={styles.input} placeholder="City *" placeholderTextColor="#888" value={newAddress.city} onChangeText={t => setNewAddress({ ...newAddress, city: t })} />
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <DropDownPicker
-                        open={stateDropdownOpen}
-                        value={newAddress.state}
-                        items={stateItems}
-                        setOpen={setStateDropdownOpen}
-                        setValue={val => {
-                          const value = typeof val === 'function' ? val(newAddress.state) : val;
-                          setNewAddress({ ...newAddress, state: value });
-                        }}
-                        setItems={() => {}}
-                        placeholder="State *"
-                        style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', marginBottom: 8, minHeight: 48 }}
-                        dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914' }}
-                        textStyle={{ color: '#222', fontWeight: '500' }}
-                        listMode="SCROLLVIEW"
-                        zIndex={4000}
-                        zIndexInverse={2000}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <TextInput style={styles.input} placeholder="Zip *" placeholderTextColor="#888" value={newAddress.zip} onChangeText={t => setNewAddress({ ...newAddress, zip: t })} keyboardType="numeric" />
-                    </View>
-                  </View>
-                  <TextInput style={styles.input} placeholder="Birthday (mm/dd/yyyy)" placeholderTextColor="#888" value={newAddress.birthday} onChangeText={t => setNewAddress({ ...newAddress, birthday: t })} keyboardType="numbers-and-punctuation" />
-                  {addressValidationStatus === 'loading' && (
-                    <ThemedText style={{ color: '#f28914', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
-                  )}
-                  {(addressValidationStatus === 'valid') && (
-                    <ThemedText style={{ color: 'green', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
-                  )}
-                  {showAddressCorrection && correctedAddress && (
-                    <View style={styles.addressCorrectionContainer}>
-                      <ThemedText style={styles.addressCorrectionTitle}>Address Correction</ThemedText>
-                      <View style={styles.addressComparisonContainer}>
-                        <View style={styles.addressColumn}>
-                          <ThemedText style={styles.addressColumnTitle}>Your Entry</ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.address !== newAddress.address && styles.addressFieldChanged
-                          ]}>
-                            {newAddress.address}
-                          </ThemedText>
-                          {newAddress.address2 && (
-                            <ThemedText style={[
-                              styles.addressField,
-                              correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
-                            ]}>
-                              {newAddress.address2}
-                            </ThemedText>
-                          )}
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.city !== newAddress.city && styles.addressFieldChanged
-                          ]}>
-                            {newAddress.city}
-                          </ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.state !== newAddress.state && styles.addressFieldChanged
-                          ]}>
-                            {newAddress.state}
-                          </ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
-                          ]}>
-                            {newAddress.zip}
-                          </ThemedText>
-                        </View>
-                        <View style={styles.addressColumn}>
-                          <ThemedText style={styles.addressColumnTitle}>Suggested Correction</ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.address !== newAddress.address && styles.addressFieldChanged
-                          ]}>
-                            {correctedAddress.address}
-                          </ThemedText>
-                          {correctedAddress.address2 && (
-                            <ThemedText style={[
-                              styles.addressField,
-                              correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
-                            ]}>
-                              {correctedAddress.address2}
-                            </ThemedText>
-                          )}
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.city !== newAddress.city && styles.addressFieldChanged
-                          ]}>
-                            {correctedAddress.city}
-                          </ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.state !== newAddress.state && styles.addressFieldChanged
-                          ]}>
-                            {correctedAddress.state}
-                          </ThemedText>
-                          <ThemedText style={[
-                            styles.addressField,
-                            correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
-                          ]}>
-                            {correctedAddress.zip}
-                          </ThemedText>
-                        </View>
-                      </View>
-                      <View style={styles.addressCorrectionButtons}>
-                        <TouchableOpacity 
-                          style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} 
-                          onPress={handleUseOriginalAddress}
-                        >
-                          <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Use My Entry</ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.submitButton, { marginLeft: 8 }]} 
-                          onPress={handleUseCorrectedAddress}
-                        >
-                          <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Correction</ThemedText>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                  {(addressValidationStatus === 'invalid' || addressValidationStatus === 'error') && !showAddressCorrection && (
-                    <>
-                      <ThemedText style={{ color: '#f28914', textAlign: 'center', marginVertical: 8 }}>{addressValidationMessage}</ThemedText>
-                      {showValidationOptions && (
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-                          <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setAddressValidationStatus('idle'); setShowValidationOptions(false); }}>
-                            <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Edit Address</ThemedText>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={[styles.submitButton, { marginLeft: 8 }]} onPress={handleUseOriginalAddress}>
-                            <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Anyway</ThemedText>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </>
-                  )}
-                  {showUSPSNote && (
-                    <ThemedText style={{ color: '#888', textAlign: 'center', marginTop: 8, fontSize: 13 }}>
-                      Address formatted to USPS standards
-                    </ThemedText>
-                  )}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-                    <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} onPress={() => { setShowAddressModal(false); setEditingAddressId(null); }}>
-                      <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Cancel</ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.submitButton, { marginLeft: 8 }]} onPress={handleSaveNewAddress}>
-                      <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Save</ThemedText>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
-
-        {/* Correction Modal */}
-        <Modal visible={showCorrectionModal} animationType="slide" transparent presentationStyle="overFullScreen" onRequestClose={() => setShowCorrectionModal(false)}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '90%' }}>
-              <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', marginBottom: 16, textAlign: 'center' }}>Address Correction</ThemedText>
-              <View style={styles.addressComparisonContainerVertical}>
-                <View style={styles.addressColumnVertical}>
-                  <ThemedText style={styles.addressColumnTitle}>Suggested Correction</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.address !== newAddress.address && styles.addressFieldChanged
-                  ]}>{correctedAddress?.address}</ThemedText>
-                  {correctedAddress?.address2 ? (
-                    <ThemedText style={[
-                      styles.addressField,
-                      correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
-                    ]}>{correctedAddress.address2}</ThemedText>
-                  ) : null}
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.city !== newAddress.city && styles.addressFieldChanged
-                  ]}>{correctedAddress?.city}</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.state !== newAddress.state && styles.addressFieldChanged
-                  ]}>{correctedAddress?.state}</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
-                  ]}>{correctedAddress?.zip}</ThemedText>
-                </View>
-                <View style={styles.addressColumnVertical}>
-                  <ThemedText style={styles.addressColumnTitle}>Your Entry</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.address !== newAddress.address && styles.addressFieldChanged
-                  ]}>{newAddress.address}</ThemedText>
-                  {newAddress.address2 ? (
-                    <ThemedText style={[
-                      styles.addressField,
-                      correctedAddress && correctedAddress.address2 !== newAddress.address2 && styles.addressFieldChanged
-                    ]}>{newAddress.address2}</ThemedText>
-                  ) : null}
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.city !== newAddress.city && styles.addressFieldChanged
-                  ]}>{newAddress.city}</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.state !== newAddress.state && styles.addressFieldChanged
-                  ]}>{newAddress.state}</ThemedText>
-                  <ThemedText style={[
-                    styles.addressField,
-                    correctedAddress && correctedAddress.zip !== newAddress.zip && styles.addressFieldChanged
-                  ]}>{newAddress.zip}</ThemedText>
-                </View>
-              </View>
-              <View style={styles.addressCorrectionButtons}>
-                <TouchableOpacity 
-                  style={[styles.submitButton, { backgroundColor: '#f28914', borderColor: '#f28914', borderWidth: 1 }]} 
-                  onPress={handleUseCorrectedAddress}
-                >
-                  <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Use Corrected Address</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.submitButton, { marginLeft: 8, backgroundColor: '#fff', borderColor: '#f28914', borderWidth: 1 }]} 
-                  onPress={handleUseOriginalAddress}
-                >
-                  <ThemedText style={{ color: '#f28914', fontWeight: 'bold' }}>Keep my entry</ThemedText>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
 
         <TouchableOpacity 
           style={[
             styles.submitButton,
-            (!image || !postcardMessage) && { opacity: 0.5 }
+            styles.createButton,
+            (!image || !postcardMessage) && { opacity: 0.5 },
+            { zIndex: 1 }
           ]} 
           onPress={handleCreatePostcard}
           disabled={!image || !postcardMessage}
         >
-          <ThemedText style={styles.buttonText}>Create XLPostcard</ThemedText>
+          <ThemedText style={styles.createButtonText}>Create XLPostcard</ThemedText>
         </TouchableOpacity>
 
         <ThemedView style={styles.formContainer}>
@@ -857,6 +640,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     alignItems: 'center',
     marginBottom: 10,
+    marginTop: 24,
   },
   headerImage: {
     height: 200,
@@ -870,21 +654,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   submitButton: {
-    flex: 1,
     padding: 16,
     backgroundColor: '#f28914',
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    minWidth: 120,
+  },
+  createButton: {
+    height: 56,
+    marginTop: 12,
+    marginBottom: 24,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
   buttonText: {
     color: 'white',
     fontWeight: '600',
     fontSize: 22,
+    lineHeight: 28,
+    textAlign: 'center',
   },
   imagePreviewContainer: {
     marginBottom: 10,
@@ -1015,19 +809,23 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     marginBottom: 0,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
   },
   scrollHeaderImage: {
     width: '100%',
     height: 180,
+    marginLeft: 0,
+    marginRight: 0,
   },
   hamburgerInHeaderScroll: {
     position: 'absolute',
-    top: 30,
+    top: 44,
     left: 20,
     backgroundColor: '#f0e6c2',
     borderRadius: 8,
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1035,5 +833,96 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  fullWidthButton: {
+    width: '100%',
+    backgroundColor: '#f28914',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  sectionBlock: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 1,
+    zIndex: 100,
+  },
+  sectionLabel: {
+    fontWeight: 'bold',
+    color: '#f28914',
+    fontSize: 18,
+    marginBottom: 8,
+  },
+  recipientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 200,
+  },
+  recipientDropdown: {
+    borderColor: '#f28914',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    minHeight: 40,
+    marginBottom: 0,
+    zIndex: 3000,
+  },
+  recipientDropdownContainer: {
+    backgroundColor: '#fff',
+    borderColor: '#f28914',
+    maxHeight: 200,
+    zIndex: 4000,
+  },
+  recipientDropdownItem: {
+    height: 40,
+    backgroundColor: '#fff',
+  },
+  recipientDropdownText: {
+    color: '#222',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  recipientIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  aiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+    justifyContent: 'flex-end',
+  },
+  aiPrompt: {
+    color: '#888',
+    fontSize: 15,
+    marginRight: 8,
+  },
+  aiButton: {
+    width: 150,
+    paddingHorizontal: 0,
+    height: 56,
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 22,
+    lineHeight: 28,
+    textAlign: 'center',
   },
 });

@@ -62,7 +62,7 @@ export default function SettingsScreen() {
       <ThemedText type="title" style={styles.title}>Settings</ThemedText>
       
       <View style={styles.section}>
-        <ThemedText style={styles.label}>Email Address</ThemedText>
+        <ThemedText style={styles.label}>Email</ThemedText>
         <TextInput
           style={styles.input}
           value={email}
