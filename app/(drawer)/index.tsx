@@ -632,6 +632,162 @@ export default function HomeScreen() {
           <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
         </ThemedView>
       </ScrollView>
+
+      {/* Add/Edit Address Modal */}
+      <Modal
+        visible={showAddressModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowAddressModal(false);
+          setEditingAddressId(null);
+          setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={{ flex: 1, maxWidth: 420, width: '98%', alignSelf: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 20, justifyContent: 'center' }}>
+              <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
+                {editingAddressId ? 'Edit Address' : 'Add New Address'}
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Name *"
+                value={newAddress.name}
+                onChangeText={text => setNewAddress({ ...newAddress, name: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Salutation e.g. Dear Grandma"
+                value={newAddress.salutation}
+                onChangeText={text => setNewAddress({ ...newAddress, salutation: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Address line #1 *"
+                value={newAddress.address}
+                onChangeText={text => setNewAddress({ ...newAddress, address: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Address line #2"
+                value={newAddress.address2}
+                onChangeText={text => setNewAddress({ ...newAddress, address2: text })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="City *"
+                value={newAddress.city}
+                onChangeText={text => setNewAddress({ ...newAddress, city: text })}
+              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <DropDownPicker
+                    open={stateDropdownOpen}
+                    value={newAddress.state}
+                    items={stateItems}
+                    setOpen={setStateDropdownOpen}
+                    setValue={valOrCallback =>
+                      setNewAddress(prev => ({
+                        ...prev,
+                        state: typeof valOrCallback === 'function' ? valOrCallback(prev.state) : valOrCallback
+                      }))
+                    }
+                    placeholder="State *"
+                    style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', minHeight: 40, marginBottom: 0 }}
+                    dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914', maxHeight: 200, zIndex: 4000 }}
+                    zIndex={4000}
+                    zIndexInverse={1000}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Zip *"
+                    value={newAddress.zip}
+                    onChangeText={text => setNewAddress({ ...newAddress, zip: text })}
+                  />
+                </View>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Birthday (mm/dd/yyyy)"
+                value={newAddress.birthday}
+                onChangeText={text => setNewAddress({ ...newAddress, birthday: text })}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                <TouchableOpacity
+                  style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f28914' }]}
+                  onPress={() => {
+                    setShowAddressModal(false);
+                    setEditingAddressId(null);
+                    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+                  }}
+                >
+                  <ThemedText style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Cancel</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.submitButton, { backgroundColor: '#f28914' }]}
+                  onPress={handleSaveNewAddress}
+                >
+                  <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Save</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Address Correction Modal */}
+      <Modal
+        visible={showCorrectionModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowCorrectionModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={{ width: '92%', backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>
+            <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
+              Address Correction
+            </ThemedText>
+            {correctedAddress && (
+              <View>
+                <ThemedText style={{ fontWeight: 'bold', color: '#888', marginBottom: 8 }}>Suggested Correction</ThemedText>
+                <ThemedText style={{ color: correctedAddress.address !== newAddress.address ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.address}</ThemedText>
+                <ThemedText style={{ color: correctedAddress.city !== newAddress.city ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.city}</ThemedText>
+                <ThemedText style={{ color: correctedAddress.state !== newAddress.state ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.state}</ThemedText>
+                <ThemedText style={{ color: correctedAddress.zip !== newAddress.zip ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.zip}</ThemedText>
+                <ThemedText style={{ fontWeight: 'bold', color: '#888', marginTop: 16, marginBottom: 8 }}>Your Entry</ThemedText>
+                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.address}</ThemedText>
+                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.city}</ThemedText>
+                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.state}</ThemedText>
+                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.zip}</ThemedText>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 }}>
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: '#f28914', borderWidth: 1, borderColor: '#f28914', flex: 1, marginRight: 8 }]}
+                onPress={handleUseCorrectedAddress}
+              >
+                <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Use Correction</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f28914', flex: 1, marginLeft: 8 }]}
+                onPress={handleUseOriginalAddress}
+              >
+                <ThemedText style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Use My Entry</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
