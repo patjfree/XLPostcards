@@ -4,10 +4,11 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { iapManager, clearStalePurchases } from '../utils/iapManager';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Slot } from 'expo-router';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -24,7 +25,7 @@ export default function RootLayout() {
       clearStalePurchases().then(() => {
         // Initialize IAP manager when fonts are loaded
         iapManager.initialize().catch((error: any) => {
-          console.error('[NANAGRAM][IAP] Error initializing IAP manager:', error);
+          console.error('[XLPOSTCARDS][IAP] Error initializing IAP manager:', error);
         });
       });
     }
@@ -37,13 +38,11 @@ export default function RootLayout() {
   const stripePublishableKey = Constants.expoConfig?.extra?.stripePublishableKey || '';
 
   return (
-    <StripeProvider publishableKey={stripePublishableKey}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="postcard-preview" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="dark" />
-    </StripeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StripeProvider publishableKey={stripePublishableKey}>
+        <Slot />
+        <StatusBar style="dark" />
+      </StripeProvider>
+    </GestureHandlerRootView>
   );
 }
