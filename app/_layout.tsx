@@ -30,7 +30,7 @@ export default function RootLayout() {
         });
       });
       // Set navigation bar color to white to match app background
-      SystemUI.setBackgroundColorAsync('#fff');
+      SystemUI.setBackgroundColorAsync('#e5851a');
     }
   }, [loaded]);
 

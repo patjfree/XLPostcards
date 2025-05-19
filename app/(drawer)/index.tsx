@@ -486,15 +486,20 @@ export default function HomeScreen() {
       style={{ flex: 1 }}
     >
       {/* Spacer to prevent header image from being cut off by the status bar */}
-      <View style={{ height: (Constants.statusBarHeight || 32), backgroundColor: '#f28914', width: '100%' }} />
+      <View style={{ height: (Constants.statusBarHeight || 32), backgroundColor: '#e5851a', width: '100%' }} />
       {/* Header image and hamburger menu, now edge-to-edge and not cut off */}
-      <View style={{ width: '100%', backgroundColor: '#f28914' }}>
+      <View style={{ width: '100%', backgroundColor: '#e5851a' }}>
         <Image
-          source={require('@/assets/images/xlpostcards_1024x500.png')}
-          style={{ width: '100%', height: undefined, aspectRatio: 1024 / 500 }}
+          source={require('@/assets/images/XLPostcards-Header.png')}
+          style={{
+            width: '100%',
+            height: undefined,
+            aspectRatio: 4, // 4:1 aspect ratio recommended
+            backgroundColor: '#e5851a',
+          }}
           resizeMode="cover"
         />
-        <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 54 }]} onPress={() => navigation.openDrawer()}>
+        <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 32 }]} onPress={() => navigation.openDrawer()}>
           <Ionicons name="menu" size={28} color="#0a7ea4" />
         </TouchableOpacity>
       </View>
@@ -966,7 +971,7 @@ const styles = StyleSheet.create({
   },
   hamburgerInHeaderScroll: {
     position: 'absolute',
-    top: 54,
+    top: 32,
     left: 20,
     backgroundColor: '#f0e6c2',
     borderRadius: 8,
