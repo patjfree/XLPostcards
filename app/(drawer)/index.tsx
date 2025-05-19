@@ -602,11 +602,11 @@ export default function HomeScreen() {
               </View>
             )}
             <TouchableOpacity 
-              style={[styles.submitButton, styles.aiButton, (!image || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }]}
+              style={[styles.submitButton, styles.aiButton, (!image || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }, { minWidth: 180 }]}
               onPress={analyzeImage}
               disabled={!image || loading}
             >
-              <ThemedText style={styles.buttonText}>Write for me</ThemedText>
+              <ThemedText style={[styles.buttonText, { fontSize: 18 }]}>Write for me</ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -661,30 +661,35 @@ export default function HomeScreen() {
                 placeholder="Name *"
                 value={newAddress.name}
                 onChangeText={text => setNewAddress({ ...newAddress, name: text })}
+                placeholderTextColor="#b3b3b3"
               />
               <TextInput
                 style={styles.input}
                 placeholder="Salutation e.g. Dear Grandma"
                 value={newAddress.salutation}
                 onChangeText={text => setNewAddress({ ...newAddress, salutation: text })}
+                placeholderTextColor="#b3b3b3"
               />
               <TextInput
                 style={styles.input}
                 placeholder="Address line #1"
                 value={newAddress.address}
                 onChangeText={text => setNewAddress({ ...newAddress, address: text })}
+                placeholderTextColor="#b3b3b3"
               />
               <TextInput
                 style={styles.input}
                 placeholder="Address line #2"
                 value={newAddress.address2}
                 onChangeText={text => setNewAddress({ ...newAddress, address2: text })}
+                placeholderTextColor="#b3b3b3"
               />
               <TextInput
                 style={styles.input}
                 placeholder="City"
                 value={newAddress.city}
                 onChangeText={text => setNewAddress({ ...newAddress, city: text })}
+                placeholderTextColor="#b3b3b3"
               />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>
@@ -695,6 +700,7 @@ export default function HomeScreen() {
                     onChangeText={text => setNewAddress({ ...newAddress, state: text })}
                     autoCapitalize="characters"
                     maxLength={2}
+                    placeholderTextColor="#b3b3b3"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -703,6 +709,7 @@ export default function HomeScreen() {
                     placeholder="Zip"
                     value={newAddress.zip}
                     onChangeText={text => setNewAddress({ ...newAddress, zip: text })}
+                    placeholderTextColor="#b3b3b3"
                   />
                 </View>
               </View>
@@ -711,6 +718,7 @@ export default function HomeScreen() {
                 placeholder="Birthday (mm/dd/yyyy)"
                 value={newAddress.birthday}
                 onChangeText={text => setNewAddress({ ...newAddress, birthday: text })}
+                placeholderTextColor="#b3b3b3"
               />
               {addressValidationStatus === 'invalid' && addressValidationMessage ? (
                 <ThemedText style={{ color: '#dc3545', textAlign: 'center', marginBottom: 12 }}>
