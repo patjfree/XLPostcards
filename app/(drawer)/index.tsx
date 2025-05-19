@@ -363,8 +363,8 @@ export default function HomeScreen() {
   };
 
   const handleSaveNewAddress = async () => {
-    if (!newAddress.name || !newAddress.address || !newAddress.city || !newAddress.state || !newAddress.zip) {
-      Alert.alert('Please fill in all required fields');
+    if (!newAddress.name) {
+      Alert.alert('Please enter a name for the recipient.');
       return;
     }
     setShowValidationOptions(false);
@@ -485,11 +485,13 @@ export default function HomeScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
-      {/* Header image and hamburger menu, now edge-to-edge */}
-      <View style={[styles.scrollHeaderContainer, { width: '100%', marginLeft: 0, marginRight: 0, paddingHorizontal: 0 }]}>
+      {/* Spacer to prevent header image from being cut off by the status bar */}
+      <View style={{ height: (Constants.statusBarHeight || 32), backgroundColor: '#f28914', width: '100%' }} />
+      {/* Header image and hamburger menu, now edge-to-edge and not cut off */}
+      <View style={{ width: '100%', backgroundColor: '#f28914' }}>
         <Image
           source={require('@/assets/images/xlpostcards_1024x500.png')}
-          style={styles.scrollHeaderImage}
+          style={{ width: '100%', height: undefined, aspectRatio: 1024 / 500 }}
           resizeMode="cover"
         />
         <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 54 }]} onPress={() => navigation.openDrawer()}>
@@ -663,7 +665,7 @@ export default function HomeScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Address line #1 *"
+                placeholder="Address line #1"
                 value={newAddress.address}
                 onChangeText={text => setNewAddress({ ...newAddress, address: text })}
               />
@@ -675,35 +677,25 @@ export default function HomeScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="City *"
+                placeholder="City"
                 value={newAddress.city}
                 onChangeText={text => setNewAddress({ ...newAddress, city: text })}
               />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>
-                  <DropDownPicker
-                    open={stateDropdownOpen}
+                  <TextInput
+                    style={styles.input}
+                    placeholder="State"
                     value={newAddress.state}
-                    items={stateItems}
-                    setOpen={setStateDropdownOpen}
-                    setValue={valOrCallback =>
-                      setNewAddress(prev => ({
-                        ...prev,
-                        state: typeof valOrCallback === 'function' ? valOrCallback(prev.state) : valOrCallback
-                      }))
-                    }
-                    onOpen={() => Keyboard.dismiss()}
-                    placeholder="State *"
-                    style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', minHeight: 40, marginBottom: 0 }}
-                    dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914', maxHeight: 200, zIndex: 4000 }}
-                    zIndex={4000}
-                    zIndexInverse={1000}
+                    onChangeText={text => setNewAddress({ ...newAddress, state: text })}
+                    autoCapitalize="characters"
+                    maxLength={2}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <TextInput
                     style={styles.input}
-                    placeholder="Zip *"
+                    placeholder="Zip"
                     value={newAddress.zip}
                     onChangeText={text => setNewAddress({ ...newAddress, zip: text })}
                   />
