@@ -485,21 +485,21 @@ export default function HomeScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      {/* Header image and hamburger menu, now edge-to-edge */}
+      <View style={[styles.scrollHeaderContainer, { width: '100%', marginLeft: 0, marginRight: 0, paddingHorizontal: 0 }]}>
+        <Image
+          source={require('@/assets/images/xlpostcards_1024x500.png')}
+          style={styles.scrollHeaderImage}
+          resizeMode="cover"
+        />
+        <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 54 }]} onPress={() => navigation.openDrawer()}>
+          <Ionicons name="menu" size={28} color="#0a7ea4" />
+        </TouchableOpacity>
+      </View>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header image and hamburger inside scrollable area */}
-        <View style={[styles.scrollHeaderContainer, { width: '100%', marginLeft: 0, marginRight: 0, paddingHorizontal: 0 }]}>
-          <Image
-            source={require('@/assets/images/xlpostcards_1024x500.png')}
-            style={styles.scrollHeaderImage}
-            resizeMode="cover"
-          />
-          <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 54 }]} onPress={() => navigation.openDrawer()}>
-            <Ionicons name="menu" size={28} color="#0a7ea4" />
-          </TouchableOpacity>
-        </View>
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
