@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -490,19 +490,18 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header image and hamburger inside scrollable area */}
-        <View style={styles.scrollHeaderContainer}>
+        <View style={[styles.scrollHeaderContainer, { width: '100%', marginLeft: 0, marginRight: 0, paddingHorizontal: 0 }]}>
           <Image
             source={require('@/assets/images/xlpostcards_1024x500.png')}
             style={styles.scrollHeaderImage}
             resizeMode="cover"
           />
-          <TouchableOpacity style={styles.hamburgerInHeaderScroll} onPress={() => navigation.openDrawer()}>
+          <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 54 }]} onPress={() => navigation.openDrawer()}>
             <Ionicons name="menu" size={28} color="#0a7ea4" />
           </TouchableOpacity>
         </View>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="title" style={{ color: '#0a7ea4' }}>XLPostcards</ThemedText>
-        </ThemedView>
+        {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
+        <View style={{ height: 24 }} />
 
         <ThemedView style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.fullWidthButton} onPress={pickImage}>
@@ -586,7 +585,7 @@ export default function HomeScreen() {
               onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); }}
               multiline={true}
               numberOfLines={6}
-              placeholder="Write your message or give our AI assist some ideas on what you want your message to say."
+              placeholder="Write your message here or put in some ideas and hit the 'Write for me' button below."
               placeholderTextColor="#888"
               editable={!loading}
             />
@@ -595,19 +594,12 @@ export default function HomeScreen() {
                 <ActivityIndicator size="large" color="#A1CEDC" />
               </View>
             )}
-          </View>
-          <View style={styles.aiRow}>
-            <ThemedText style={styles.aiPrompt}>Not sure what to say? Try →</ThemedText>
             <TouchableOpacity 
-              style={[
-                styles.submitButton,
-                styles.aiButton,
-                (!image || loading) && { opacity: 0.5 }
-              ]}
+              style={[styles.submitButton, styles.aiButton, (!image || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }]}
               onPress={analyzeImage}
               disabled={!image || loading}
             >
-              <ThemedText style={styles.buttonText}>Write for Me</ThemedText>
+              <ThemedText style={styles.buttonText}>Write for me</ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -700,6 +692,7 @@ export default function HomeScreen() {
                         state: typeof valOrCallback === 'function' ? valOrCallback(prev.state) : valOrCallback
                       }))
                     }
+                    onOpen={() => Keyboard.dismiss()}
                     placeholder="State *"
                     style={{ borderColor: '#f28914', borderRadius: 8, backgroundColor: '#fff', minHeight: 40, marginBottom: 0 }}
                     dropDownContainerStyle={{ backgroundColor: '#fff', borderColor: '#f28914', maxHeight: 200, zIndex: 4000 }}
@@ -976,7 +969,7 @@ const styles = StyleSheet.create({
   },
   hamburgerInHeaderScroll: {
     position: 'absolute',
-    top: 44,
+    top: 54,
     left: 20,
     backgroundColor: '#f0e6c2',
     borderRadius: 8,

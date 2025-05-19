@@ -798,10 +798,16 @@ export default function PostcardPreviewScreen() {
     <ThemedView style={styles.container}>
       <StatusBar style="light" />
       
-      <ScrollView 
-        style={{ width: '100%' }} 
-        contentContainerStyle={styles.scrollContent}
+      <View
+        style={{
+          width: '100%',
+          paddingTop: Platform.OS === 'android' ? 32 : 40,
+          paddingBottom: 12,
+        }}
       >
+        {/* Spacer to create space above the postcard image */}
+        <View style={{ height: Platform.OS === 'android' ? 32 : 40, backgroundColor: '#22303C', width: '100%' }} />
+
         {/* Front of postcard */}
         <ViewShot 
           ref={viewShotFrontRef} 
@@ -935,7 +941,7 @@ export default function PostcardPreviewScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
       
       {/* Status indicators remain outside ScrollView */}
       {sending && (
@@ -960,10 +966,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     backgroundColor: '#22303C',
-  },
-  scrollContent: {
-    paddingTop: 40,
-    paddingBottom: 12,
   },
   postcardPreviewContainer: {
     alignSelf: 'center',

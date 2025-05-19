@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, View, Switch } from 'react-native';
+import { StyleSheet, TextInput, View, Switch, Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SETTINGS_KEYS = {
   EMAIL: 'settings_email',
@@ -58,8 +59,10 @@ export default function SettingsScreen() {
   }, [email, signature, returnAddress, includeReturnAddress]);
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Settings</ThemedText>
+    <SafeAreaView style={styles.container}>
+      <View style={{ paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 32) : 0 }}>
+        <ThemedText type="title" style={styles.title}>Settings</ThemedText>
+      </View>
       
       <View style={styles.section}>
         <ThemedText style={styles.label}>Email</ThemedText>
@@ -110,7 +113,7 @@ export default function SettingsScreen() {
           thumbColor={includeReturnAddress ? '#fff' : '#f4f3f4'}
         />
       </View>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 

@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { iapManager, clearStalePurchases } from '../utils/iapManager';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Slot } from 'expo-router';
@@ -28,6 +29,8 @@ export default function RootLayout() {
           console.error('[XLPOSTCARDS][IAP] Error initializing IAP manager:', error);
         });
       });
+      // Set navigation bar color to white to match app background
+      SystemUI.setBackgroundColorAsync('#fff');
     }
   }, [loaded]);
 
