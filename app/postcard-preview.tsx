@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -605,21 +605,31 @@ export default function PostcardPreviewScreen() {
     });
   };
   
-  // Calculate preview size based on screen width and 9:6 aspect ratio
-  const previewWidth = Dimensions.get('window').width - 16; // Account for padding
-  const previewHeight = previewWidth * POSTCARD_ASPECT_RATIO;
-  const previewScale = previewWidth / POSTCARD_WIDTH;
+  const windowHeight = Dimensions.get('window').height;
+  const windowWidth = Dimensions.get('window').width;
+  const designWidth = 700;
+  const designPreviewHeight = designWidth * POSTCARD_ASPECT_RATIO;
+  const designFooterHeight = 170;
+  const designTotalHeight = designPreviewHeight * 2 + designFooterHeight + 24 + (Platform.OS === 'android' ? 32 : 40);
+
+  const [containerWidth, setContainerWidth] = useState(windowWidth);
+  const [containerHeight, setContainerHeight] = useState(windowHeight);
+
+  // Calculate scale to fit both width and height
+  const scale = Math.min(
+    containerWidth / designWidth,
+    containerHeight / designTotalHeight,
+    1 // never scale up
+  );
 
   // Error Modal Component
   const ErrorModal = () => {
     const handleTryAgain = () => {
       setShowErrorModal(false);
-      // We only show retry for Stannp API errors, so we know we have a lastPurchase
       if (lastPurchase) {
         void retryWithExistingPurchase(lastPurchase);
       }
     };
-
     return (
       <Modal
         animationType="slide"
@@ -661,17 +671,12 @@ export default function PostcardPreviewScreen() {
 
   // Refund Modal Component
   const RefundModal = () => {
-    const [refundForm, setRefundForm] = useState({
-      name: '',
-      email: '',
-    });
+    const [refundForm, setRefundForm] = useState({ name: '', email: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const handleDismiss = () => {
       setShowRefundModal(false);
       router.replace('/');
     };
-
     const handleSubmitRefund = async () => {
       setIsSubmitting(true);
       try {
@@ -686,17 +691,12 @@ export default function PostcardPreviewScreen() {
           postcardMessage: message,
           imageUri: imageUri
         }));
-
-        // Use the same reporting endpoint as AIDisclaimer
-        const response = await fetch('https://script.google.com/macros/s/AKfycbwgPQTnYaApkceJFVOXh4bru-kT392o1RiDYJc4cp4_9UB9zANAX-XsfDXotu-JFwvJsg/exec', {
+        await fetch('https://script.google.com/macros/s/AKfycbwgPQTnYaApkceJFVOXh4bru-kT392o1RiDYJc4cp4_9UB9zANAX-XsfDXotu-JFwvJsg/exec', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: formData.toString(),
           mode: 'no-cors'
         });
-
         setShowRefundModal(false);
         setShowRefundSuccessModal(true);
       } catch (error) {
@@ -706,7 +706,6 @@ export default function PostcardPreviewScreen() {
         setIsSubmitting(false);
       }
     };
-
     return (
       <Modal
         animationType="slide"
@@ -726,7 +725,6 @@ export default function PostcardPreviewScreen() {
             <ThemedText style={styles.modalText}>
               Please provide your information for the refund request:
             </ThemedText>
-            
             <TextInput
               style={styles.refundInput}
               placeholder="Name *"
@@ -734,7 +732,6 @@ export default function PostcardPreviewScreen() {
               value={refundForm.name}
               onChangeText={(text) => setRefundForm(prev => ({ ...prev, name: text }))}
             />
-
             <TextInput
               style={styles.refundInput}
               placeholder="Email *"
@@ -744,7 +741,6 @@ export default function PostcardPreviewScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-
             <TouchableOpacity 
               style={[
                 styles.modalButton,
@@ -796,161 +792,159 @@ export default function PostcardPreviewScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <StatusBar style="light" />
-      
+      {/* Top SafeAreaView for status bar spacer */}
+      <SafeAreaView style={{ backgroundColor: '#22303C' }} />
       <View
-        style={{
-          width: '100%',
-          paddingTop: Platform.OS === 'android' ? 32 : 40,
-          paddingBottom: 12,
+        style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+        onLayout={e => {
+          setContainerWidth(e.nativeEvent.layout.width);
+          setContainerHeight(e.nativeEvent.layout.height);
         }}
       >
-        {/* Spacer to create space above the postcard image */}
-        <View style={{ height: Platform.OS === 'android' ? 32 : 40, backgroundColor: '#22303C', width: '100%' }} />
-
-        {/* Front of postcard */}
-        <ViewShot 
-          ref={viewShotFrontRef} 
-          style={[styles.postcardPreviewContainer, {
-            width: previewWidth,
-            height: previewHeight
-          }]}
-          options={{
-            width: POSTCARD_WIDTH,
-            height: POSTCARD_HEIGHT,
-            quality: 1,
-            format: "jpg"
+        <View
+          style={{
+            width: designWidth,
+            height: designTotalHeight,
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            transform: [{ scale }],
           }}
         >
-          <View style={{
-            width: POSTCARD_WIDTH,
-            height: POSTCARD_HEIGHT,
-            transform: [{ scale: previewScale }],
-            transformOrigin: 'top left',
-            backgroundColor: 'white',
-            overflow: 'hidden',
-          }}>
-            <Image 
-              source={{ uri: imageUri }}
-              style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
-              onError={(error: ImageErrorEvent) => {
-                console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
-                setImageLoadError(true);
-              }}
-              onLoad={() => {
-                console.log('Image loaded successfully');
-                setImageLoadError(false);
-              }}
-            />
-            {imageLoadError && (
-              <View style={styles.errorOverlay}>
-                <ThemedText style={styles.errorText}>
-                  Failed to load image.{"\n"}Please go back and try again.
+          {/* Spacer for status bar/header */}
+          <View style={{ height: Platform.OS === 'android' ? 32 : 40, backgroundColor: '#22303C', width: designWidth }} />
+          {/* Front of postcard */}
+          <ViewShot
+            ref={viewShotFrontRef}
+            style={[styles.postcardPreviewContainer, { width: designWidth, height: designPreviewHeight }]}
+            options={{
+              width: POSTCARD_WIDTH,
+              height: POSTCARD_HEIGHT,
+              quality: 1,
+              format: "jpg"
+            }}
+          >
+            <View style={{
+              width: POSTCARD_WIDTH,
+              height: POSTCARD_HEIGHT,
+              transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+              transformOrigin: 'top left',
+              backgroundColor: 'white',
+              overflow: 'hidden',
+            }}>
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
+                onError={(error: ImageErrorEvent) => {
+                  console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
+                  setImageLoadError(true);
+                }}
+                onLoad={() => {
+                  console.log('Image loaded successfully');
+                  setImageLoadError(false);
+                }}
+              />
+              {imageLoadError && (
+                <View style={styles.errorOverlay}>
+                  <ThemedText style={styles.errorText}>
+                    Failed to load image.{"\n"}Please go back and try again.
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          </ViewShot>
+          {/* Back of postcard */}
+          <ViewShot
+            ref={viewShotBackRef}
+            style={[styles.postcardPreviewContainer, styles.marginTop, { width: designWidth, height: designPreviewHeight }]}
+            options={{
+              width: POSTCARD_WIDTH,
+              height: POSTCARD_HEIGHT,
+              quality: 1,
+              format: "jpg",
+              fileName: "postcard-back"
+            }}
+          >
+            <View style={{
+              width: POSTCARD_WIDTH,
+              height: POSTCARD_HEIGHT,
+              transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+              transformOrigin: 'top left',
+              backgroundColor: 'white',
+              overflow: 'hidden',
+            }}>
+              <Image
+                source={require('@/assets/images/PostcardBackTemplate.jpg')}
+                style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
+              />
+              {/* Message Box (reasonable default: left half) */}
+              <View style={{
+                position: 'absolute',
+                top: 180,
+                left: 120,
+                width: 1200,
+                height: 1500,
+                padding: 40,
+                backgroundColor: 'transparent',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              }}>
+                <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
+                  {message}
                 </ThemedText>
               </View>
-            )}
-          </View>
-        </ViewShot>
-
-        {/* Back of postcard */}
-        <ViewShot 
-          ref={viewShotBackRef} 
-          style={[styles.postcardPreviewContainer, styles.marginTop, {
-            width: previewWidth,
-            height: previewHeight
-          }]}
-          options={{
-            width: POSTCARD_WIDTH,
-            height: POSTCARD_HEIGHT,
-            quality: 1,
-            format: "jpg",
-            fileName: "postcard-back"
-          }}
-        >
-          <View style={{
-            width: POSTCARD_WIDTH,
-            height: POSTCARD_HEIGHT,
-            transform: [{ scale: previewScale }],
-            transformOrigin: 'top left',
-            backgroundColor: 'white',
-            overflow: 'hidden',
-          }}>
-            <Image
-              source={require('@/assets/images/PostcardBackTemplate.jpg')}
-              style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
-            />
-            {/* Message Box (reasonable default: left half) */}
-            <View style={{
-              position: 'absolute',
-              top: 180,
-              left: 120,
-              width: 1200,
-              height: 1500,
-              padding: 40,
-              backgroundColor: 'transparent',
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start',
-            }}>
-              <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
-                {message}
-              </ThemedText>
+              {/* Address Box (lowered further) */}
+              <View style={{
+                position: 'absolute',
+                top: POSTCARD_HEIGHT - 600,
+                left: 1700,
+                width: 900,
+                height: 500,
+                padding: 0,
+                backgroundColor: 'transparent',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+              }}>
+                <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
+                  {recipientInfo.to}
+                </ThemedText>
+                <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
+                  {recipientInfo.addressLine1}
+                  {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
+                  {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+                </ThemedText>
+              </View>
             </View>
-            {/* Address Box (lowered further) */}
-            <View style={{
-              position: 'absolute',
-              top: POSTCARD_HEIGHT - 600, // Lowered further (was centered at (POSTCARD_HEIGHT / 2) - 250)
-              left: 1700,
-              width: 900,
-              height: 500,
-              padding: 0,
-              backgroundColor: 'transparent',
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start',
-            }}>
-              <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
-                {recipientInfo.to}
-              </ThemedText>
-              <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
-                {recipientInfo.addressLine1}
-                {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
-                {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
-              </ThemedText>
-            </View>
-          </View>
-        </ViewShot>
-
-        {/* Footer content */}
-        <View style={styles.footerContainer}>
-          {/* Disclaimer Text */}
-          <ThemedText style={styles.disclaimerText}>
-            By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
-          </ThemedText>
-
-          {/* Controls */}
-          <View style={styles.controls}>
-            <View style={styles.buttonRow}>
-              {!sendResult?.success ? (
-                <TouchableOpacity 
-                  style={styles.submitButton}
-                  onPress={() => void startNewPurchaseFlow()}
-                  disabled={sending}
-                >
-                  <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
-                </TouchableOpacity>
-              ) : null}
+          </ViewShot>
+          {/* Footer content */}
+          <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 
+            {/* Disclaimer Text */}
+            <ThemedText style={styles.disclaimerText}>
+              By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
+            </ThemedText>
+            {/* Controls */}
+            <View style={styles.controls}>
+              <View style={[styles.buttonRow, { justifyContent: 'center' }]}> 
+                {!sendResult?.success ? (
+                  <TouchableOpacity
+                    style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}
+                    onPress={() => void startNewPurchaseFlow()}
+                    disabled={sending}
+                  >
+                    <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           </View>
         </View>
       </View>
-      
-      {/* Status indicators remain outside ScrollView */}
+      {/* Status indicators remain outside main layout */}
       {sending && (
         <View style={styles.statusContainer}>
           <ActivityIndicator size="large" color="#A1CEDC" />
           <ThemedText style={styles.statusText}>Sending XLPostcards...</ThemedText>
         </View>
       )}
-      
       {/* Add the new modals */}
       <SuccessModal />
       <ErrorModal />
