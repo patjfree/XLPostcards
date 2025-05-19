@@ -707,6 +707,11 @@ export default function HomeScreen() {
                 value={newAddress.birthday}
                 onChangeText={text => setNewAddress({ ...newAddress, birthday: text })}
               />
+              {addressValidationStatus === 'invalid' && addressValidationMessage ? (
+                <ThemedText style={{ color: '#dc3545', textAlign: 'center', marginBottom: 12 }}>
+                  {addressValidationMessage}
+                </ThemedText>
+              ) : null}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f28914' }]}
