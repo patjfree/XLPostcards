@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -121,7 +122,7 @@ export default function HomeScreen() {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [3, 2],
+      aspect: [3, 2], // 3 wide, 2 high (2:3 ratio)
       quality: 1,
       mediaTypes: 'images',
       base64: true,
@@ -129,7 +130,14 @@ export default function HomeScreen() {
       allowsMultipleSelection: false,
     });
     if (!result.canceled) {
-      setImage(result.assets[0] as ImagePicker.ImagePickerAsset);
+      let asset = result.assets[0] as ImagePicker.ImagePickerAsset;
+      // Always crop/resize to 3:2 after picking (for iOS consistency)
+      const cropped = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1500, height: 1000 } }], // 3:2 ratio
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      setImage({ ...asset, uri: cropped.uri, base64: cropped.base64 });
     }
   };
 
@@ -137,14 +145,21 @@ export default function HomeScreen() {
   const takePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [3, 2],
+      aspect: [3, 2], // 3 wide, 2 high (2:3 ratio)
       quality: 0.7,
       base64: true,
       presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
       allowsMultipleSelection: false,
     });
     if (!result.canceled) {
-      setImage(result.assets[0] as ImagePicker.ImagePickerAsset);
+      let asset = result.assets[0] as ImagePicker.ImagePickerAsset;
+      // Always crop/resize to 3:2 after picking (for iOS consistency)
+      const cropped = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1500, height: 1000 } }], // 3:2 ratio
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      setImage({ ...asset, uri: cropped.uri, base64: cropped.base64 });
     }
   };
 
@@ -518,7 +533,11 @@ export default function HomeScreen() {
 
         {image && (
           <ThemedView style={styles.imagePreviewContainer}>
-            <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+            <Image 
+              source={{ uri: image.uri }} 
+              style={{ width: '100%', aspectRatio: 1.5, borderRadius: 8 }}
+              resizeMode="contain"
+            />
           </ThemedView>
         )}
 
