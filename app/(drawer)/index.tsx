@@ -108,6 +108,60 @@ export default function HomeScreen() {
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [showUSPSNote, setShowUSPSNote] = useState(false);
 
+  // Add logging for modal state changes
+  useEffect(() => {
+    console.log('[XLPOSTCARDS][MAIN] Modal states:', {
+      showAddressModal,
+      showCorrectionModal,
+      addressDropdownOpen,
+      stateDropdownOpen
+    });
+  }, [showAddressModal, showCorrectionModal, addressDropdownOpen, stateDropdownOpen]);
+
+  // Reset all modal states when screen mounts or receives reset param
+  useEffect(() => {
+    const resetAllModals = () => {
+      console.log('[XLPOSTCARDS][MAIN] Resetting modal states');
+      setShowAddressModal(false);
+      setShowCorrectionModal(false);
+      setAddressDropdownOpen(false);
+      setStateDropdownOpen(false);
+      setEditingAddressId(null);
+      setAddressValidationStatus('idle');
+      setAddressValidationMessage('');
+      setShowValidationOptions(false);
+      setCorrectedAddress(null);
+      setShowAddressCorrection(false);
+      setShowUSPSNote(false);
+    };
+
+    // Reset on mount
+    resetAllModals();
+
+    // Listen for navigation events
+    const unsubscribe = navigation.addListener('focus', (e) => {
+      console.log('[XLPOSTCARDS][MAIN] Screen focused');
+      // Check if we should reset modals
+      const target = e.target || '';
+      const params = target.split('?')[1];
+      if (params?.includes('resetModals=true')) {
+        console.log('[XLPOSTCARDS][MAIN] Reset modals param detected');
+        resetAllModals();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Add navigation logging
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('[XLPOSTCARDS][MAIN] Screen focused');
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   // Request permissions on component mount
   useEffect(() => {
     (async () => {
@@ -275,6 +329,7 @@ export default function HomeScreen() {
   };
 
   const handleAddressSelect = (value: string | null) => {
+    console.log('[XLPOSTCARDS][MAIN] Address selected:', value);
     if (value === 'add_new') {
       setShowAddressModal(true);
       setSelectedAddressId(null);
@@ -284,6 +339,7 @@ export default function HomeScreen() {
   };
 
   const handleEditAddress = (address: any) => {
+    console.log('[XLPOSTCARDS][MAIN] Editing address:', address.id);
     setNewAddress({
       name: address.name,
       salutation: address.salutation || '',
@@ -657,6 +713,7 @@ export default function HomeScreen() {
         animationType="slide"
         transparent
         onRequestClose={() => {
+          console.log('[XLPOSTCARDS][MAIN] Address modal closing');
           setShowAddressModal(false);
           setEditingAddressId(null);
           setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
@@ -772,7 +829,10 @@ export default function HomeScreen() {
         visible={showCorrectionModal}
         animationType="fade"
         transparent
-        onRequestClose={() => setShowCorrectionModal(false)}
+        onRequestClose={() => {
+          console.log('[XLPOSTCARDS][MAIN] Correction modal closing');
+          setShowCorrectionModal(false);
+        }}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <View style={{ width: '92%', backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>

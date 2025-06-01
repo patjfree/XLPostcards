@@ -367,9 +367,29 @@ export default function PostcardPreviewScreen() {
     }
   };
 
+  // Add logging for critical state changes
+  useEffect(() => {
+    console.log('[XLPOSTCARDS][PREVIEW] Critical states:', {
+      sending,
+      isCapturing,
+      showSuccessModal,
+      showErrorModal,
+      showRefundModal,
+      showRefundSuccessModal
+    });
+  }, [sending, isCapturing, showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
+
+  // Add navigation logging
+  useEffect(() => {
+    console.log('[XLPOSTCARDS][PREVIEW] Screen mounted');
+    return () => {
+      console.log('[XLPOSTCARDS][PREVIEW] Screen unmounting');
+    };
+  }, []);
+
   // Helper to reset all purchase-related state
   const resetPurchaseState = () => {
-    console.log('[XLPOSTCARDS][RESET] Starting state reset');
+    console.log('[XLPOSTCARDS][PREVIEW] Starting state reset');
     setLastPurchase(null);
     setSendResult(null);
     setStannpAttempts(0);
@@ -379,18 +399,150 @@ export default function PostcardPreviewScreen() {
     setShowRefundSuccessModal(false);
     setSending(false);
     setIsCapturing(false);
-    console.log('[XLPOSTCARDS][RESET] State reset complete');
+    console.log('[XLPOSTCARDS][PREVIEW] State reset complete');
   };
 
   const handleNavigation = () => {
-    console.log('[XLPOSTCARDS][NAV] Attempting navigation to index');
+    console.log('[XLPOSTCARDS][PREVIEW] Attempting navigation to index');
     try {
-      router.replace('/');
-      console.log('[XLPOSTCARDS][NAV] Navigation command executed');
+      // Reset state before navigation
+      resetPurchaseState();
+      // Add a small delay to ensure state is reset before navigation
+      setTimeout(() => {
+        router.replace({
+          pathname: '/',
+          params: { resetModals: 'true' } // Add a param to trigger modal reset
+        });
+        console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed');
+      }, 100);
     } catch (error) {
-      console.error('[XLPOSTCARDS][NAV] Navigation failed:', error);
+      console.error('[XLPOSTCARDS][PREVIEW] Navigation failed:', error);
     }
   };
+
+  // Add detailed logging for Stripe configuration
+  useEffect(() => {
+    const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+    const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
+    console.log('[XLPOSTCARDS][PREVIEW] Stripe Configuration:', {
+      isDev,
+      hasStripeKey: !!stripeKey,
+      keyLength: stripeKey?.length,
+      keyPrefix: stripeKey?.substring(0, 8),
+      appVariant: Constants.expoConfig?.extra?.APP_VARIANT,
+      allExtras: Object.keys(Constants.expoConfig?.extra || {}),
+    });
+
+    // Verify Stripe is properly initialized
+    if (Platform.OS === 'ios') {
+      console.log('[XLPOSTCARDS][PREVIEW] Stripe initialization:', {
+        hasStripeInstance: !!stripe
+      });
+    }
+  }, []);
+
+  // Function to start a new purchase flow
+  const startNewPurchaseFlow = async () => {
+    try {
+      console.log('[XLPOSTCARDS][PREVIEW] Continue button pressed');
+      setSending(true);
+      setSendResult(null);
+      setIsCapturing(true);
+
+      // Start the purchase flow
+      console.log('[XLPOSTCARDS][PREVIEW] Starting purchase flow');
+      let purchase;
+      
+      if (Platform.OS === 'ios') {
+        // Use Stripe Payment Sheet for iOS
+        try {
+          const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+          const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
+          
+          console.log('[XLPOSTCARDS][PREVIEW] Stripe Payment Details:', {
+            isDev,
+            hasStripeKey: !!stripeKey,
+            keyLength: stripeKey?.length,
+            hasStripeInstance: !!stripe
+          });
+
+          if (!stripeKey) {
+            throw new Error('Stripe configuration is missing. Please check your environment variables.');
+          }
+
+          if (!stripe) {
+            throw new Error('Stripe is not properly initialized. Please check your configuration.');
+          }
+
+          purchase = await iapManager.purchasePostcard(stripe);
+        } catch (error) {
+          const stripeError = error as Error;
+          console.error('[XLPOSTCARDS][PREVIEW] Stripe error details:', {
+            error: stripeError,
+            message: stripeError.message,
+            stack: stripeError.stack
+          });
+          throw new Error('Payment failed. Please try again or contact support if the issue persists.');
+        }
+      } else if (Platform.OS === 'android') {
+        // Use Google Pay for Android
+        try {
+          purchase = await iapManager.purchasePostcard();
+        } catch (googlePayError) {
+          console.error('[XLPOSTCARDS][PREVIEW] Google Pay error:', googlePayError);
+          throw new Error('Google Pay failed. Please try again or contact support if the issue persists.');
+        }
+      }
+      
+      console.log('[XLPOSTCARDS][PREVIEW] Purchase result:', purchase);
+      
+      // Check if purchase is valid
+      if (!purchase) {
+        console.error('[XLPOSTCARDS][PREVIEW] Invalid purchase received');
+        throw new Error('Invalid purchase received');
+      }
+      
+      setLastPurchase(purchase);
+      
+      // Send to Stannp
+      console.log('[XLPOSTCARDS][PREVIEW] Sending to Stannp');
+      await sendToStannp(purchase);
+      console.log('[XLPOSTCARDS][PREVIEW] sendToStannp finished');
+    } catch (error) {
+      console.error('[XLPOSTCARDS][PREVIEW] ERROR in purchase flow:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Show error modal with the specific error message
+      setStannpAttempts(prev => prev + 1);
+      setShowErrorModal(true);
+      setRefundData(prev => ({
+        ...prev,
+        stannpError: errorMessage,
+        transactionId: lastPurchase?.transactionId || ''
+      }));
+      
+      // Reset state
+      setLastPurchase(null);
+      setSendResult(null);
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
+      console.log('[XLPOSTCARDS][PREVIEW] Purchase flow finished');
+    }
+  };
+
+  // Update the fallback navigation effect
+  useEffect(() => {
+    console.log('[XLPOSTCARDS][PREVIEW] Navigation effect triggered:', {
+      showSuccessModal,
+      hasSuccessResult: !!sendResult?.success
+    });
+    
+    if (!showSuccessModal && sendResult?.success) {
+      console.log('[XLPOSTCARDS][PREVIEW] Success modal closed, forcing navigation to index');
+      handleNavigation();
+    }
+  }, [showSuccessModal, sendResult?.success]);
 
   // Success Modal Component
   const SuccessModal = () => (
@@ -399,7 +551,7 @@ export default function PostcardPreviewScreen() {
       transparent={true}
       visible={showSuccessModal}
       onRequestClose={() => {
-        console.log('[XLPOSTCARDS][SUCCESS_MODAL] onRequestClose called');
+        console.log('[XLPOSTCARDS][PREVIEW] Success modal closing');
         resetPurchaseState();
         handleNavigation();
       }}
@@ -423,7 +575,7 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
-              console.log('[XLPOSTCARDS][SUCCESS_MODAL] OK button pressed');
+              console.log('[XLPOSTCARDS][PREVIEW] Success modal OK button pressed');
               resetPurchaseState();
               handleNavigation();
             }}
@@ -434,75 +586,6 @@ export default function PostcardPreviewScreen() {
       </View>
     </Modal>
   );
-
-  // Update the fallback navigation effect
-  useEffect(() => {
-    console.log('[XLPOSTCARDS][NAV_DEBUG] Navigation effect triggered:', {
-      showSuccessModal,
-      hasSuccessResult: !!sendResult?.success
-    });
-    
-    if (!showSuccessModal && sendResult?.success) {
-      console.log('[XLPOSTCARDS][FALLBACK_NAV] Success modal closed, forcing navigation to index');
-      handleNavigation();
-    }
-  }, [showSuccessModal, sendResult?.success]);
-
-  // Function to start a new purchase flow
-  const startNewPurchaseFlow = async () => {
-    try {
-      console.log('[XLPOSTCARDS][CONTINUE] Continue button pressed');
-      setSending(true);
-      setSendResult(null);
-      setIsCapturing(true);
-
-      // Start the purchase flow
-      console.log('[XLPOSTCARDS][CONTINUE] Starting purchase flow');
-      let purchase;
-      if (Platform.OS === 'ios') {
-        // Use Stripe Payment Sheet
-        purchase = await iapManager.purchasePostcard(stripe);
-      } else {
-        purchase = await iapManager.purchasePostcard();
-      }
-      console.log('[XLPOSTCARDS][CONTINUE] Purchase result:', purchase);
-      
-      // Check if purchase is valid
-      if (!purchase) {
-        console.error('[XLPOSTCARDS][CONTINUE] Invalid purchase received');
-        throw new Error('Invalid purchase received');
-      }
-      
-      setLastPurchase(purchase);
-      
-      // Send to Stannp
-      console.log('[XLPOSTCARDS][CONTINUE] Sending to Stannp');
-      await sendToStannp(purchase);
-      console.log('[XLPOSTCARDS][CONTINUE] sendToStannp finished');
-    } catch (error) {
-      console.error('[XLPOSTCARDS][CONTINUE] ERROR in purchase flow:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Only show error modal if it's not a successful purchase
-      if (errorMessage !== 'Invalid purchase: missing purchase token') {
-        setStannpAttempts(prev => prev + 1);
-        setShowErrorModal(true);
-        setRefundData(prev => ({
-          ...prev,
-          stannpError: errorMessage,
-          transactionId: lastPurchase?.transactionId || ''
-        }));
-      }
-      
-      // Reset state
-      setLastPurchase(null);
-      setSendResult(null);
-    } finally {
-      setSending(false);
-      setIsCapturing(false);
-      console.log('[XLPOSTCARDS][CONTINUE] Purchase flow finished');
-    }
-  };
 
   // Function to retry with existing purchase
   const retryWithExistingPurchase = async (purchase: Purchase) => {
@@ -625,6 +708,7 @@ export default function PostcardPreviewScreen() {
   // Error Modal Component
   const ErrorModal = () => {
     const handleTryAgain = () => {
+      console.log('[XLPOSTCARDS][PREVIEW] Try again pressed');
       setShowErrorModal(false);
       if (lastPurchase) {
         void retryWithExistingPurchase(lastPurchase);
@@ -635,7 +719,10 @@ export default function PostcardPreviewScreen() {
         animationType="slide"
         transparent={true}
         visible={showErrorModal}
-        onRequestClose={() => setShowErrorModal(false)}
+        onRequestClose={() => {
+          console.log('[XLPOSTCARDS][PREVIEW] Error modal closing');
+          setShowErrorModal(false);
+        }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
