@@ -8,7 +8,25 @@ interface ViewShotMethods {
   capture: () => Promise<string>;
 }
 
-const PostcardBackGenerator = ({ message, recipientInfo, onGenerated }: { message: string; recipientInfo: { to: string; addressLine1: string; addressLine2?: string; city: string; state: string; zipcode: string; }; onGenerated: (uri: string) => void; }) => {
+interface RecipientInfo {
+  to: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipcode: string;
+  id?: string;
+}
+
+const PostcardBackGenerator = ({ 
+  message, 
+  recipientInfo, 
+  onGenerated 
+}: { 
+  message: string; 
+  recipientInfo: RecipientInfo | null; 
+  onGenerated: (uri: string, recipientData: RecipientInfo | null) => void; 
+}) => {
   const [error, setError] = useState<string | null>(null);
   const viewShotRef = useRef<ViewShot & ViewShotMethods>(null);
 
@@ -19,19 +37,32 @@ const PostcardBackGenerator = ({ message, recipientInfo, onGenerated }: { messag
           throw new Error('ViewShot ref not initialized');
         }
 
+        if (!recipientInfo) {
+          console.warn('[XLPOSTCARDS][GENERATOR] No recipient info available');
+          return;
+        }
+
         const uri = await viewShotRef.current.capture();
-        onGenerated(uri);
+        onGenerated(uri, recipientInfo);
       } catch (error) {
-        console.error('Error generating postcard back:', error);
+        console.error('[XLPOSTCARDS][GENERATOR] Error generating postcard back:', error);
         setError(error instanceof Error ? error.message : 'Failed to generate postcard back');
       }
     };
 
-    generatePostcardBack();
-  }, [message, recipientInfo]);
+    if (recipientInfo) {
+      void generatePostcardBack();
+    }
+  }, [message, recipientInfo, onGenerated]);
 
   if (error) {
-    console.error('PostcardBackGenerator error:', error);
+    console.error('[XLPOSTCARDS][GENERATOR] Error:', error);
+    return null;
+  }
+
+  if (!recipientInfo) {
+    console.warn('[XLPOSTCARDS][GENERATOR] No recipient info available, not rendering');
+    return null;
   }
 
   return (

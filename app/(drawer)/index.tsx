@@ -217,6 +217,7 @@ export default function HomeScreen() {
   const [correctedAddress, setCorrectedAddress] = useState<any>(null);
   const [showUSPSNote, setShowUSPSNote] = useState(false);
   const [cameFromSelectRecipient, setCameFromSelectRecipient] = useState(false);
+  const [recipientInfo, setRecipientInfo] = useState<any>(null);
 
   // Move resetAllModals outside useEffect so it can be called anywhere
   const resetAllModals = () => {
@@ -231,13 +232,95 @@ export default function HomeScreen() {
     setShowUSPSNote(false);
   };
 
-  // Add logging for modal state changes
+  // Update the useEffect that processes params
+  const processParams = React.useCallback(async () => {
+    if (!params) return;
+
+    console.log('[XLPOSTCARDS][MAIN] Processing navigation params:', params);
+    console.log('[XLPOSTCARDS][MAIN] Current selectedAddressId:', selectedAddressId);
+
+    // Process image URI
+    if (params.imageUri && (!image || image.uri !== params.imageUri)) {
+      console.log('[XLPOSTCARDS][MAIN] Setting image with URI:', params.imageUri);
+      setImage({ 
+        uri: params.imageUri as string,
+        width: 0,
+        height: 0,
+        type: 'image',
+        fileName: '',
+        fileSize: 0,
+        assetId: ''
+      });
+    }
+
+    // Process message
+    if (params.message && params.message !== postcardMessage) {
+      console.log('[XLPOSTCARDS][MAIN] Setting message:', params.message);
+      setPostcardMessage(params.message as string);
+    }
+
+    // Process recipient info
+    if (params.recipient) {
+      try {
+        const newRecipientInfo = JSON.parse(params.recipient as string);
+        if (JSON.stringify(newRecipientInfo) !== JSON.stringify(recipientInfo)) {
+          console.log('[XLPOSTCARDS][MAIN] Setting recipient info:', newRecipientInfo);
+          setRecipientInfo(newRecipientInfo);
+        }
+      } catch (error) {
+        console.error('[XLPOSTCARDS][MAIN] Error parsing recipient info:', error);
+      }
+    }
+
+    // Process selected recipient ID
+    let receivedRecipientId = params.selectedRecipientId as string | undefined;
+    if (!receivedRecipientId && params.recipient) {
+      try {
+        const recipientObj = JSON.parse(params.recipient as string);
+        if (recipientObj && recipientObj.id) {
+          receivedRecipientId = recipientObj.id;
+        }
+      } catch (e) {
+        // handle error
+      }
+    }
+    if (receivedRecipientId && receivedRecipientId !== selectedAddressId) {
+      console.log('[XLPOSTCARDS][MAIN] Setting selected recipient ID:', receivedRecipientId);
+      setSelectedAddressId(receivedRecipientId);
+    }
+  }, [params, image, postcardMessage, recipientInfo, selectedAddressId]);
+
+  // Update the useEffect that processes params
+  useEffect(() => {
+    void processParams();
+  }, [processParams]);
+
+  // Update the useEffect that handles focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('[XLPOSTCARDS][MAIN] Screen focused');
+      void loadAddresses();
+    });
+
+    return unsubscribe;
+  }, [navigation]); // Only depend on navigation
+
+  // Update the useEffect that handles cleanup
+  useEffect(() => {
+    return () => {
+      console.log('[XLPOSTCARDS][MAIN] Cleanup: resetting all modal state on unmount');
+      resetAllModals();
+      console.log('[XLPOSTCARDS][MAIN] HomeScreen unmounted');
+    };
+  }, []); // Empty dependency array since this is cleanup
+
+  // Update the useEffect that handles modal state logging
   useEffect(() => {
     console.log('[XLPOSTCARDS][MAIN] Modal states:', {
       showAddressModal,
       stateDropdownOpen
     });
-  }, [showAddressModal, stateDropdownOpen]);
+  }, [showAddressModal, stateDropdownOpen]); // Only depend on modal states
 
   // Reset all modal states when screen mounts or receives reset param
   useEffect(() => {
@@ -254,15 +337,6 @@ export default function HomeScreen() {
         console.log('[XLPOSTCARDS][MAIN] Reset modals param detected');
         resetAllModals();
       }
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
-  // Add navigation logging
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      console.log('[XLPOSTCARDS][MAIN] Screen focused');
     });
 
     return unsubscribe;
@@ -393,15 +467,6 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  // Cleanup effect to reset all modal state on unmount and log unmount
-  useEffect(() => {
-    return () => {
-      console.log('[XLPOSTCARDS][MAIN] Cleanup: resetting all modal state on unmount');
-      setShowAddressModal(false);
-      console.log('[XLPOSTCARDS][MAIN] HomeScreen unmounted');
-    };
-  }, []);
-
   // Update handleCreatePostcard to unmount recipient modal component before navigation
   const handleCreatePostcard = () => {
     if (!image) {
@@ -434,7 +499,9 @@ export default function HomeScreen() {
           state: selected.state,
           zipcode: selected.zip,
           country: 'United States',
+          id: selected.id,
         };
+        console.log('[XLPOSTCARDS][MAIN] handleCreatePostcard recipientInfo:', recipientInfo);
         router.push({
           pathname: '/postcard-preview',
           params: {
@@ -612,21 +679,7 @@ export default function HomeScreen() {
     handleAddressCorrection();
   }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress]);
 
-  // Fix linter error: when restoring image from params, setImage should use the previous image object and only update the uri if present, to preserve width/height/type if available.
-  useEffect(() => {
-    let imageUri = params.imageUri;
-    let message = params.message;
-    if (Array.isArray(imageUri)) imageUri = imageUri[0];
-    if (Array.isArray(message)) message = message[0];
-    if (imageUri) {
-      setImage(prev => prev ? { ...prev, uri: imageUri as string } : { uri: imageUri as string } as any);
-    }
-    if (message) {
-      setPostcardMessage(message as string);
-    }
-  }, [params.imageUri, params.message]);
-
-  // When editAddressId param is present, open the address modal and prefill the address
+  // Keep the editAddressId effect separate since it has different dependencies
   useEffect(() => {
     if (params.editAddressId) {
       const editId = Array.isArray(params.editAddressId) ? params.editAddressId[0] : params.editAddressId;
@@ -648,7 +701,7 @@ export default function HomeScreen() {
     }
   }, [params.editAddressId, addresses]);
 
-  // Only open the address modal if addNewAddress or editAddressId param is present
+  // Keep the addNewAddress effect separate since it has different dependencies
   useEffect(() => {
     let shouldShow = false;
     if (params.addNewAddress === 'true') shouldShow = true;
@@ -710,7 +763,9 @@ export default function HomeScreen() {
           pathname: '/address-correction',
           params: {
             originalAddress: JSON.stringify(addressToSave),
-            correctedAddress: JSON.stringify(corrected)
+            correctedAddress: JSON.stringify(corrected),
+            imageUri: image?.uri,
+            message: postcardMessage
           }
         });
         return;

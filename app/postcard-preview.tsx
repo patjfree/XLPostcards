@@ -67,6 +67,25 @@ const scaleImage = async (imageUri: string): Promise<string> => {
   }
 };
 
+interface RecipientInfo {
+  to: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipcode: string;
+  id?: string;
+}
+
+interface NavigationParams {
+  resetModals: string;
+  imageUri: string;
+  message: string;
+  recipient?: string;
+  selectedRecipientId?: string;
+  [key: string]: string | undefined;  // Add index signature to match UnknownInputParams
+}
+
 export default function PostcardPreviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -106,37 +125,59 @@ export default function PostcardPreviewScreen() {
   // Get data from route params
   const imageUri = params.imageUri as string;
   const message = params.message as string;
-  const recipientInfo = JSON.parse(params.recipient as string);
+  const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null>(null);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | undefined>(undefined);
   
   // Add a new state to hold the last error message
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
   
-  // Extract recipientId if present
-  const selectedRecipientId = recipientInfo?.id || recipientInfo?.recipientId;
-  
+  // Update the initial params effect
   useEffect(() => {
-    console.log('Image URI:', imageUri);
-    console.log('Message:', message);
-    console.log('Recipient info:', JSON.stringify(recipientInfo, null, 2));
+    console.log('[XLPOSTCARDS][PREVIEW] Initial params:', {
+      imageUri,
+      message,
+      recipientInfo,
+      selectedRecipientId,
+      allParams: params
+    });
+
+    // Parse recipient info from params
+    if (params.recipient) {
+      try {
+        const parsedRecipient = JSON.parse(params.recipient as string);
+        console.log('[XLPOSTCARDS][PREVIEW] Parsed recipient info:', parsedRecipient);
+        if (parsedRecipient && typeof parsedRecipient === 'object') {
+          setRecipientInfo(parsedRecipient);
+          // If the recipient has an ID, set it
+          if (parsedRecipient.id) {
+            setSelectedRecipientId(parsedRecipient.id);
+          }
+        } else {
+          console.warn('[XLPOSTCARDS][PREVIEW] Invalid recipient data format');
+        }
+      } catch (error) {
+        console.error('[XLPOSTCARDS][PREVIEW] Error parsing recipient info:', error);
+      }
+    }
 
     // Verify the image exists
     const checkImage = async () => {
       try {
         const imageInfo = await FileSystem.getInfoAsync(imageUri);
-        console.log('Image exists:', imageInfo.exists, 'Image info:', imageInfo);
+        console.log('[XLPOSTCARDS][PREVIEW] Image exists:', imageInfo.exists, 'Image info:', imageInfo);
         
         if (!imageInfo.exists) {
           setImageLoadError(true);
-          console.error('Image file does not exist at path:', imageUri);
+          console.error('[XLPOSTCARDS][PREVIEW] Image file does not exist at path:', imageUri);
         }
       } catch (error) {
-        console.error('Error checking image:', error);
+        console.error('[XLPOSTCARDS][PREVIEW] Error checking image:', error);
         setImageLoadError(true);
       }
     };
 
-    checkImage();
-  }, []);
+    void checkImage();
+  }, []); // Empty dependency array since this is initialization
   
   // Function to flip the postcard
   const flipPostcard = () => {
@@ -272,19 +313,19 @@ export default function PostcardPreviewScreen() {
       
       // Format recipient data
       console.log('[XLPOSTCARDS][STANNP] Adding recipient data to FormData');
-      const nameParts = recipientInfo.to.split(' ');
+      const nameParts = recipientInfo?.to.split(' ') || [];
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
       
       formData.append('recipient[firstname]', firstName);
       formData.append('recipient[lastname]', lastName);
-      formData.append('recipient[address1]', recipientInfo.addressLine1);
-      if (recipientInfo.addressLine2) {
+      formData.append('recipient[address1]', recipientInfo?.addressLine1 || '');
+      if (recipientInfo?.addressLine2) {
         formData.append('recipient[address2]', recipientInfo.addressLine2);
       }
-      formData.append('recipient[city]', recipientInfo.city);
-      formData.append('recipient[state]', recipientInfo.state);
-      formData.append('recipient[postcode]', recipientInfo.zipcode);
+      formData.append('recipient[city]', recipientInfo?.city || '');
+      formData.append('recipient[state]', recipientInfo?.state || '');
+      formData.append('recipient[postcode]', recipientInfo?.zipcode || '');
       formData.append('recipient[country]', 'US');
       
       formData.append('clearzone', 'true');
@@ -299,11 +340,11 @@ export default function PostcardPreviewScreen() {
         recipient: {
           firstname: firstName,
           lastname: lastName,
-          address1: recipientInfo.addressLine1,
-          address2: recipientInfo.addressLine2,
-          city: recipientInfo.city,
-          state: recipientInfo.state,
-          postcode: recipientInfo.zipcode,
+          address1: recipientInfo?.addressLine1 || '',
+          address2: recipientInfo?.addressLine2 || '',
+          city: recipientInfo?.city || '',
+          state: recipientInfo?.state || '',
+          postcode: recipientInfo?.zipcode || '',
           country: 'US'
         },
         frontImage: frontUri,
@@ -395,7 +436,7 @@ export default function PostcardPreviewScreen() {
     }
   };
 
-  // Add logging for critical state changes
+  // Update the critical states logging effect
   useEffect(() => {
     console.log('[XLPOSTCARDS][PREVIEW] Critical states:', {
       sending,
@@ -407,13 +448,13 @@ export default function PostcardPreviewScreen() {
     });
   }, [sending, isCapturing, showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
 
-  // Add navigation logging
+  // Update the navigation effect
   useEffect(() => {
     console.log('[XLPOSTCARDS][PREVIEW] Screen mounted');
     return () => {
       console.log('[XLPOSTCARDS][PREVIEW] Screen unmounting');
     };
-  }, []);
+  }, []); // Empty dependency array since this is mount/unmount logging
 
   // Fix resetPurchaseState so it doesn't show refund modal after success
   const resetPurchaseState = () => {
@@ -430,44 +471,141 @@ export default function PostcardPreviewScreen() {
     console.log('[XLPOSTCARDS][PREVIEW] State reset complete');
   };
 
-  const handleNavigation = () => {
+  const handleNavigation = React.useCallback(() => {
+    console.log('[XLPOSTCARDS][PREVIEW] About to navigate. recipientInfo:', recipientInfo, 'selectedRecipientId:', selectedRecipientId);
     console.log('[XLPOSTCARDS][PREVIEW] Attempting navigation to index');
+    console.log('[XLPOSTCARDS][PREVIEW] Current recipient info:', recipientInfo);
+    console.log('[XLPOSTCARDS][PREVIEW] Selected recipient ID:', selectedRecipientId);
+    console.log('[XLPOSTCARDS][PREVIEW] All params:', params);
     try {
       // Reset state before navigation
       resetPurchaseState();
       // Add a longer delay to ensure state is reset before navigation
       setTimeout(() => {
+        const navParams: NavigationParams = { 
+          resetModals: 'true', 
+          imageUri, 
+          message
+        };
+        if (recipientInfo) {
+          navParams.recipient = JSON.stringify({
+            ...recipientInfo,
+            id: selectedRecipientId || recipientInfo.id
+          });
+          navParams.selectedRecipientId = selectedRecipientId || recipientInfo.id;
+        }
+        console.log('[XLPOSTCARDS][PREVIEW] Navigation params:', navParams);
         router.replace({
           pathname: '/',
-          params: { resetModals: 'true', selectedRecipientId }
+          params: navParams
         });
         console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed');
       }, 700); // Increased delay to 700ms
     } catch (error) {
       console.error('[XLPOSTCARDS][PREVIEW] Navigation failed:', error);
     }
-  };
+  }, [imageUri, message, recipientInfo, selectedRecipientId, router]);
 
-  // Add detailed logging for Stripe configuration
-  useEffect(() => {
-    const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-    const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
-    console.log('[XLPOSTCARDS][PREVIEW] Stripe Configuration:', {
-      isDev,
-      hasStripeKey: !!stripeKey,
-      keyLength: stripeKey?.length,
-      keyPrefix: stripeKey?.substring(0, 8),
-      appVariant: Constants.expoConfig?.extra?.APP_VARIANT,
-      allExtras: Object.keys(Constants.expoConfig?.extra || {}),
-    });
-
-    // Verify Stripe is properly initialized
-    if (Platform.OS === 'ios') {
-      console.log('[XLPOSTCARDS][PREVIEW] Stripe initialization:', {
-        hasStripeInstance: !!stripe
+  // Update the back button press handler
+  const handleBackPress = React.useCallback(() => {
+    console.log('[XLPOSTCARDS][PREVIEW] Back button pressed');
+    console.log('[XLPOSTCARDS][PREVIEW] Current recipient info:', recipientInfo);
+    console.log('[XLPOSTCARDS][PREVIEW] Selected recipient ID:', selectedRecipientId);
+    console.log('[XLPOSTCARDS][PREVIEW] All params:', params);
+    
+    const navParams: NavigationParams = { 
+      imageUri, 
+      message, 
+      resetModals: 'true'
+    };
+    if (recipientInfo) {
+      navParams.recipient = JSON.stringify({
+        ...recipientInfo,
+        id: selectedRecipientId || recipientInfo.id
       });
+      navParams.selectedRecipientId = selectedRecipientId || recipientInfo.id;
     }
+    
+    router.replace({ 
+      pathname: '/', 
+      params: navParams
+    });
+  }, [imageUri, message, recipientInfo, selectedRecipientId, router]);
+
+  // Helper to show only one modal at a time
+  const showOnlyModal = React.useCallback((modal: 'success' | 'error' | 'refund' | 'refundSuccess') => {
+    setShowSuccessModal(modal === 'success');
+    setShowErrorModal(modal === 'error');
+    setShowRefundModal(modal === 'refund');
+    setShowRefundSuccessModal(modal === 'refundSuccess');
   }, []);
+
+  // Function to retry with existing purchase
+  const retryWithExistingPurchase = React.useCallback(async (purchase: Purchase) => {
+    try {
+      setSending(true);
+      setSendResult(null);
+      setIsCapturing(true);
+
+      // Send to Stannp using existing purchase
+      await sendToStannp(purchase);
+      
+    } catch (error) {
+      console.error('ERROR in retry:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      showOnlyModal('error');
+      setStannpAttempts(prev => prev + 1);
+      setRefundData(prev => ({
+        ...prev,
+        stannpError: errorMessage
+      }));
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
+    }
+  }, [showOnlyModal]);
+
+  // Update SuccessOverlay with full message and better centering
+  const SuccessOverlay = React.useCallback(() => {
+    if (!showSuccessModal) return null;
+    return (
+      <View style={styles.successOverlay} pointerEvents="auto">
+        <View style={styles.successContent}>
+          <ThemedText style={styles.successTitle}>Success!</ThemedText>
+          <ThemedText style={styles.successMessage}>
+            Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
+          </ThemedText>
+          <TouchableOpacity 
+            style={styles.successButton}
+            onPress={() => {
+              // Only reset success modal and navigate home
+              setShowSuccessModal(false);
+              handleNavigation();
+            }}
+          >
+            <ThemedText style={styles.successButtonText}>OK</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }, [showSuccessModal, handleNavigation]);
+
+  // Update the navigation effect for success modal
+  useEffect(() => {
+    if (!showSuccessModal && sendResult?.success) {
+      console.log('[XLPOSTCARDS][PREVIEW] Success modal closed, forcing navigation to index');
+      handleNavigation();
+    }
+  }, [showSuccessModal, sendResult?.success, handleNavigation]);
+
+  // Update the fallback effect for success modal
+  useEffect(() => {
+    if (sendResult?.success && !showSuccessModal) {
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] Forcing SuccessModal to show after Stannp confirmation.');
+      showOnlyModal('success');
+    }
+  }, [sendResult?.success, showSuccessModal, showOnlyModal]);
 
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
@@ -569,145 +707,6 @@ export default function PostcardPreviewScreen() {
     }
   };
 
-  // Update the fallback navigation effect
-  useEffect(() => {
-    console.log('[XLPOSTCARDS][PREVIEW] Navigation effect triggered:', {
-      showSuccessModal,
-      hasSuccessResult: !!sendResult?.success
-    });
-    
-    if (!showSuccessModal && sendResult?.success) {
-      console.log('[XLPOSTCARDS][PREVIEW] Success modal closed, forcing navigation to index');
-      handleNavigation();
-    }
-  }, [showSuccessModal, sendResult?.success]);
-
-  // Update SuccessOverlay with full message and better centering
-  const SuccessOverlay = () => {
-    if (!showSuccessModal) return null;
-    return (
-      <View style={styles.successOverlay} pointerEvents="auto">
-        <View style={styles.successContent}>
-          <ThemedText style={styles.successTitle}>Success!</ThemedText>
-          <ThemedText style={styles.successMessage}>
-            Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
-          </ThemedText>
-          <TouchableOpacity 
-            style={styles.successButton}
-            onPress={() => {
-              // Only reset success modal and navigate home
-              setShowSuccessModal(false);
-              handleNavigation();
-            }}
-          >
-            <ThemedText style={styles.successButtonText}>OK</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // Function to retry with existing purchase
-  const retryWithExistingPurchase = async (purchase: Purchase) => {
-    try {
-      setSending(true);
-      setSendResult(null);
-      setIsCapturing(true);
-
-      // Send to Stannp using existing purchase
-      await sendToStannp(purchase);
-      
-    } catch (error) {
-      console.error('ERROR in retry:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      showOnlyModal('error');
-      setStannpAttempts(prev => prev + 1);
-      setRefundData(prev => ({
-        ...prev,
-        stannpError: errorMessage
-      }));
-    } finally {
-      setSending(false);
-      setIsCapturing(false);
-    }
-  };
-
-  // Function to check status of a sent postcard
-  const fetchPostcardStatus = async (postcardId: number | string) => {
-    // Don't try to check status if we're in test mode with ID 0
-    if (postcardId === 0) {
-      console.log("Test mode postcard (ID: 0) - skipping status check");
-      return;
-    }
-    
-    try {
-      const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-      if (!apiKey) throw new Error('API key not found');
-      
-      const response = await fetch(`https://api-us1.stannp.com/v1/postcards/status/${postcardId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${apiKey}:`),
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Status check failed with code ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log("Status check result:", data);
-      
-      if (data.success) {
-        setSendResult((prev: SendResult | null) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            message: `${prev.message} Status: ${data.data.status}. Cost: ${data.data.cost || 'N/A'}.`
-          };
-        });
-      }
-    } catch (error) {
-      console.error("Error checking status:", error);
-      // Silently handle status check errors
-    }
-  };
-  
-  // Format recipient's full address
-  const formattedAddress = () => {
-    const parts = [];
-    
-    if (recipientInfo.addressLine1) {
-      parts.push(recipientInfo.addressLine1);
-    }
-    
-    if (recipientInfo.addressLine2) {
-      parts.push(recipientInfo.addressLine2);
-    }
-    
-    const cityStateZip = [
-      recipientInfo.city,
-      recipientInfo.state,
-      recipientInfo.zipcode
-    ].filter(Boolean).join(', ');
-    
-    if (cityStateZip) {
-      parts.push(cityStateZip);
-    }
-    
-    return parts.join('\n');
-  };
-  
-  // Add this test function at the same level as your other functions
-  const sendTestPostcard = () => {
-    setSendResult({
-      success: true,
-      message: "This is a test confirmation. In a real app, the postcard would be sent to Stannp."
-    });
-  };
-  
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
   const designWidth = 700;
@@ -897,27 +896,6 @@ export default function PostcardPreviewScreen() {
     </Modal>
   );
 
-  // Add logging to all modal state changes
-  useEffect(() => {
-    console.log('[XLPOSTCARDS][PREVIEW][MODAL STATE] showSuccessModal:', showSuccessModal, 'showErrorModal:', showErrorModal, 'showRefundModal:', showRefundModal, 'showRefundSuccessModal:', showRefundSuccessModal);
-  }, [showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
-
-  // Helper to show only one modal at a time
-  const showOnlyModal = (modal: 'success' | 'error' | 'refund' | 'refundSuccess') => {
-    setShowSuccessModal(modal === 'success');
-    setShowErrorModal(modal === 'error');
-    setShowRefundModal(modal === 'refund');
-    setShowRefundSuccessModal(modal === 'refundSuccess');
-  };
-
-  // Add a fallback effect to always show the success modal if sendResult.success is true
-  useEffect(() => {
-    if (sendResult?.success && !showSuccessModal) {
-      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] Forcing SuccessModal to show after Stannp confirmation.');
-      showOnlyModal('success');
-    }
-  }, [sendResult?.success, showSuccessModal]);
-
   return (
     <>
       {/* Existing SuccessModal and main content */}
@@ -1036,12 +1014,12 @@ export default function PostcardPreviewScreen() {
                   alignItems: 'flex-start',
                 }}>
                   <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
-                    {recipientInfo.to}
+                    {recipientInfo?.to}
                   </ThemedText>
                   <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
-                    {recipientInfo.addressLine1}
-                    {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
-                    {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+                    {recipientInfo?.addressLine1}
+                    {recipientInfo?.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
+                    {`\n${recipientInfo?.city}, ${recipientInfo?.state} ${recipientInfo?.zipcode}`}
                   </ThemedText>
                 </View>
               </View>
@@ -1059,7 +1037,7 @@ export default function PostcardPreviewScreen() {
                     <>
                       <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } })}
+                        onPress={handleBackPress}
                         accessibilityLabel="Go back"
                       >
                         <MaterialIcons name="arrow-back" size={24} color="#f28914" />

@@ -12,23 +12,59 @@ export default function AddressCorrectionScreen() {
   const originalAddress = params.originalAddress ? JSON.parse(params.originalAddress as string) : null;
   const correctedAddress = params.correctedAddress ? JSON.parse(params.correctedAddress as string) : null;
 
+  // Add logging for incoming params
+  React.useEffect(() => {
+    console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Received params:', {
+      imageUri: params.imageUri,
+      message: params.message,
+      originalAddress,
+      correctedAddress
+    });
+  }, [params]);
+
   const handleUseCorrected = () => {
+    console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Using corrected address, navigating back with params:', {
+      imageUri: params.imageUri,
+      message: params.message
+    });
     router.replace({
       pathname: '/',
       params: {
         useCorrectedAddress: 'true',
         correctedAddress: params.correctedAddress,
-        originalAddress: params.originalAddress
+        originalAddress: params.originalAddress,
+        imageUri: params.imageUri,
+        message: params.message
       }
     });
   };
 
   const handleUseOriginal = () => {
+    console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Using original address, navigating back with params:', {
+      imageUri: params.imageUri,
+      message: params.message
+    });
     router.replace({
       pathname: '/',
       params: {
         useOriginalAddress: 'true',
-        originalAddress: params.originalAddress
+        originalAddress: params.originalAddress,
+        imageUri: params.imageUri,
+        message: params.message
+      }
+    });
+  };
+
+  const handleCancel = () => {
+    console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Canceling, navigating back with params:', {
+      imageUri: params.imageUri,
+      message: params.message
+    });
+    router.replace({
+      pathname: '/',
+      params: {
+        imageUri: params.imageUri,
+        message: params.message
       }
     });
   };
@@ -108,7 +144,7 @@ export default function AddressCorrectionScreen() {
 
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => router.replace('/')}
+          onPress={handleCancel}
         >
           <ThemedText style={styles.cancelText}>Cancel</ThemedText>
         </TouchableOpacity>
