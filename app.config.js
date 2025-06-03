@@ -107,7 +107,9 @@ module.exports = {
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
-    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY_TEST,
+    stripePublishableKey: APP_VARIANT === 'development' 
+      ? process.env.STRIPE_PUBLISHABLE_KEY_TEST 
+      : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
     postcardPriceCents: 199,
