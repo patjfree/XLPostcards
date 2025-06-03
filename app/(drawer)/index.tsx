@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -84,15 +84,126 @@ type DrawerParamList = {
   Main: undefined;
 };
 
+// Add modal transition utility at the top of the file, after imports
+const transitionModal = (closeModal: () => void, openModal?: () => void, delay: number = 300) => {
+  console.log('[XLPOSTCARDS][MAIN] Starting modal transition');
+  closeModal();
+  if (openModal) {
+    setTimeout(() => {
+      console.log('[XLPOSTCARDS][MAIN] Opening next modal after delay');
+      openModal();
+    }, delay);
+  }
+};
+
+type RecipientModalProps = {
+  visible: boolean;
+  addresses: any[];
+  setShowRecipientModal: (v: boolean) => void;
+  setShowAddressModal: (v: boolean) => void;
+  setSelectedAddressId: (id: string | null) => void;
+};
+
+// Define the RecipientModal component
+function RecipientModal({
+  visible,
+  addresses,
+  setShowRecipientModal,
+  setShowAddressModal,
+  setSelectedAddressId,
+}: RecipientModalProps) {
+  useEffect(() => {
+    return () => {
+      console.log('[XLPOSTCARDS][MAIN] Recipient modal component unmounted (full dismount)');
+    };
+  }, []);
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      presentationStyle="overFullScreen"
+      onRequestClose={() => setShowRecipientModal(false)}
+    >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+        <View style={{ width: '90%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>
+          <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
+            Select Recipient
+          </ThemedText>
+          <FlatList
+            data={[...addresses, { id: 'add_new', name: '+ Add new address' }]}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                onPress={() => {
+                  setShowRecipientModal(false);
+                  if (item.id === 'add_new') {
+                    setShowAddressModal(true);
+                    setSelectedAddressId(null);
+                  } else {
+                    setSelectedAddressId(item.id);
+                  }
+                }}
+              >
+                <ThemedText style={{ fontSize: 18, color: item.id === 'add_new' ? '#222' : '#888', fontWeight: item.id === 'add_new' ? 'bold' : 'normal' }}>
+                  {item.name}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+          />
+          <TouchableOpacity
+            style={[styles.submitButton, { marginTop: 16, backgroundColor: '#f28914' }]}
+            onPress={() => setShowRecipientModal(false)}
+          >
+            <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Cancel</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// Add this function before the component
+const saveAddress = async (
+  address: any,
+  addresses: any[],
+  editingAddressId: string | null,
+  setSelectedAddressId: (id: string | null) => void,
+  setNewAddress: (addr: any) => void,
+  setEditingAddressId: (id: string | null) => void,
+  setAddressValidationStatus: (status: 'idle'|'loading'|'valid'|'invalid'|'error') => void,
+  setAddressValidationMessage: (msg: string) => void,
+  setCorrectedAddress: (addr: any) => void,
+  loadAddresses: () => void
+) => {
+  let updated;
+  if (editingAddressId) {
+    updated = addresses.map((a: any) => a.id === editingAddressId ? { ...address, id: editingAddressId, verified: true } : a);
+  } else {
+    const id = Date.now().toString();
+    updated = [...addresses, { ...address, id, verified: true }];
+    setSelectedAddressId(id);
+  }
+  await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+  setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+  setEditingAddressId(null);
+  setAddressValidationStatus('idle');
+  setAddressValidationMessage('');
+  setCorrectedAddress(null);
+  loadAddresses();
+};
+
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [postcardMessage, setPostcardMessage] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
+  const params = useLocalSearchParams();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
-  const [addressItems, setAddressItems] = useState<Array<{ label: string; value: string }>>([]);
+  const [showRecipientModal, setShowRecipientModal] = useState(false);
+  const [showRecipientModalComponent, setShowRecipientModalComponent] = useState(true);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
@@ -104,37 +215,32 @@ export default function HomeScreen() {
   const [addressValidationMessage, setAddressValidationMessage] = useState('');
   const [showValidationOptions, setShowValidationOptions] = useState(false);
   const [correctedAddress, setCorrectedAddress] = useState<any>(null);
-  const [showAddressCorrection, setShowAddressCorrection] = useState(false);
-  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [showUSPSNote, setShowUSPSNote] = useState(false);
+  const [cameFromSelectRecipient, setCameFromSelectRecipient] = useState(false);
+
+  // Move resetAllModals outside useEffect so it can be called anywhere
+  const resetAllModals = () => {
+    console.log('[XLPOSTCARDS][MAIN] Resetting modal states (global call)');
+    setShowAddressModal(false);
+    setStateDropdownOpen(false);
+    setEditingAddressId(null);
+    setAddressValidationStatus('idle');
+    setAddressValidationMessage('');
+    setShowValidationOptions(false);
+    setCorrectedAddress(null);
+    setShowUSPSNote(false);
+  };
 
   // Add logging for modal state changes
   useEffect(() => {
     console.log('[XLPOSTCARDS][MAIN] Modal states:', {
       showAddressModal,
-      showCorrectionModal,
-      addressDropdownOpen,
       stateDropdownOpen
     });
-  }, [showAddressModal, showCorrectionModal, addressDropdownOpen, stateDropdownOpen]);
+  }, [showAddressModal, stateDropdownOpen]);
 
   // Reset all modal states when screen mounts or receives reset param
   useEffect(() => {
-    const resetAllModals = () => {
-      console.log('[XLPOSTCARDS][MAIN] Resetting modal states');
-      setShowAddressModal(false);
-      setShowCorrectionModal(false);
-      setAddressDropdownOpen(false);
-      setStateDropdownOpen(false);
-      setEditingAddressId(null);
-      setAddressValidationStatus('idle');
-      setAddressValidationMessage('');
-      setShowValidationOptions(false);
-      setCorrectedAddress(null);
-      setShowAddressCorrection(false);
-      setShowUSPSNote(false);
-    };
-
     // Reset on mount
     resetAllModals();
 
@@ -278,7 +384,25 @@ export default function HomeScreen() {
     }
   };
 
-  // Function to handle the Create XLPostcard button (stub)
+  // Ensure all modals are closed when leaving the screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      console.log('[XLPOSTCARDS][MAIN] Screen blurred (navigating away), resetting all modals');
+      resetAllModals();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  // Cleanup effect to reset all modal state on unmount and log unmount
+  useEffect(() => {
+    return () => {
+      console.log('[XLPOSTCARDS][MAIN] Cleanup: resetting all modal state on unmount');
+      setShowAddressModal(false);
+      console.log('[XLPOSTCARDS][MAIN] HomeScreen unmounted');
+    };
+  }, []);
+
+  // Update handleCreatePostcard to unmount recipient modal component before navigation
   const handleCreatePostcard = () => {
     if (!image) {
       Alert.alert('No image', 'Please select a photo first.');
@@ -293,25 +417,52 @@ export default function HomeScreen() {
       Alert.alert('No address', 'Please select a recipient address.');
       return;
     }
-    // Prepare recipient info for preview screen
-    const recipientInfo = {
-      to: selected.name,
-      addressLine1: selected.address,
-      addressLine2: '',
-      city: selected.city,
-      state: selected.state,
-      zipcode: selected.zip,
-      country: 'United States',
-    };
-    router.push({
-      pathname: '/postcard-preview',
-      params: {
-        imageUri: image.uri,
-        message: postcardMessage,
-        recipient: JSON.stringify(recipientInfo),
-      },
-    });
+    // Close and unmount recipient modal before navigation
+    setShowRecipientModal(false);
+    setShowRecipientModalComponent(false);
+    setTimeout(() => {
+      console.log('[XLPOSTCARDS][MAIN] Modal states before navigation:', {
+        showAddressModal,
+        stateDropdownOpen,
+        editingAddressId,
+        addressValidationStatus,
+        showValidationOptions,
+        showUSPSNote
+      });
+      // Only navigate if all modals are closed
+      if (!showAddressModal && 
+          !stateDropdownOpen && 
+          !editingAddressId && 
+          !showValidationOptions && 
+          !showUSPSNote && !showRecipientModal) {
+        const recipientInfo = {
+          to: selected.name,
+          addressLine1: selected.address,
+          addressLine2: '',
+          city: selected.city,
+          state: selected.state,
+          zipcode: selected.zip,
+          country: 'United States',
+        };
+        console.log('[XLPOSTCARDS][MAIN] All modals closed, proceeding with navigation');
+        router.replace({
+          pathname: '/postcard-preview',
+          params: {
+            imageUri: image.uri,
+            message: postcardMessage,
+            recipient: JSON.stringify(recipientInfo),
+          },
+        });
+      } else {
+        console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
+      }
+    }, 700); // 700ms delay for robust iOS modal teardown
   };
+
+  // When returning to this screen, remount the recipient modal component
+  useEffect(() => {
+    setShowRecipientModalComponent(true);
+  }, [navigation]);
 
   // Load addresses from AsyncStorage
   useEffect(() => { loadAddresses(); }, []);
@@ -319,23 +470,6 @@ export default function HomeScreen() {
     const stored = await AsyncStorage.getItem('addresses');
     const parsed = stored ? JSON.parse(stored) : [];
     setAddresses(parsed);
-    setAddressItems([
-      ...parsed.map((a: any) => ({
-        label: a.name,
-        value: a.id,
-      })),
-      { label: '+ Add new address', value: 'add_new' }
-    ]);
-  };
-
-  const handleAddressSelect = (value: string | null) => {
-    console.log('[XLPOSTCARDS][MAIN] Address selected:', value);
-    if (value === 'add_new') {
-      setShowAddressModal(true);
-      setSelectedAddressId(null);
-    } else {
-      setSelectedAddressId(value);
-    }
   };
 
   const handleEditAddress = (address: any) => {
@@ -370,8 +504,6 @@ export default function HomeScreen() {
     setAddressValidationStatus('loading');
     setAddressValidationMessage('Please wait while we verify the address…');
     setCorrectedAddress(null);
-    setShowAddressCorrection(false);
-    setShowCorrectionModal(false);
     try {
       const formData = new URLSearchParams();
       formData.append('company', 'Stannp');
@@ -409,7 +541,6 @@ export default function HomeScreen() {
           corrected.zip !== address.zip;
         if (hasChanges) {
           setCorrectedAddress(corrected);
-          setShowCorrectionModal(true);
           setAddressValidationStatus('valid');
           setAddressValidationMessage('We found a suggested correction for your address.');
           return { isValid: true, corrected };
@@ -433,6 +564,113 @@ export default function HomeScreen() {
     }
   };
 
+  // Update the effect that handles address correction results
+  useEffect(() => {
+    const handleAddressCorrection = async () => {
+      // Always fetch the latest addresses from AsyncStorage before writing
+      const stored = await AsyncStorage.getItem('addresses');
+      const latestAddresses = stored ? JSON.parse(stored) : [];
+      if (params.useCorrectedAddress === 'true' && params.correctedAddress && params.originalAddress) {
+        const corrected = JSON.parse(params.correctedAddress as string);
+        const original = JSON.parse(params.originalAddress as string);
+        const merged = {
+          ...original,
+          address: corrected.address,
+          address2: corrected.address2,
+          city: corrected.city,
+          state: corrected.state,
+          zip: corrected.zip,
+        };
+        let updated;
+        let newId = editingAddressId;
+        if (editingAddressId) {
+          updated = latestAddresses.map((a: any) => a.id === editingAddressId ? { ...merged, id: editingAddressId, verified: true } : a);
+        } else {
+          newId = Date.now().toString() + Math.random().toString(36).slice(2); // unique
+          updated = [...latestAddresses, { ...merged, id: newId, verified: true }];
+        }
+        await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+        setEditingAddressId(null);
+        setAddressValidationStatus('idle');
+        setAddressValidationMessage('');
+        setCorrectedAddress(null);
+        await loadAddresses();
+        // Navigate to main screen with new/edited address selected
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+      } else if (params.useOriginalAddress === 'true' && params.originalAddress) {
+        const original = JSON.parse(params.originalAddress as string);
+        let updated;
+        let newId = editingAddressId;
+        if (editingAddressId) {
+          updated = latestAddresses.map((a: any) => a.id === editingAddressId ? { ...original, id: editingAddressId, verified: true } : a);
+        } else {
+          newId = Date.now().toString() + Math.random().toString(36).slice(2); // unique
+          updated = [...latestAddresses, { ...original, id: newId, verified: true }];
+        }
+        await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+        setEditingAddressId(null);
+        setAddressValidationStatus('idle');
+        setAddressValidationMessage('');
+        setCorrectedAddress(null);
+        await loadAddresses();
+        // Navigate to main screen with new/edited address selected
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+      }
+    };
+    handleAddressCorrection();
+  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress]);
+
+  // Fix linter error: when restoring image from params, setImage should use the previous image object and only update the uri if present, to preserve width/height/type if available.
+  useEffect(() => {
+    let imageUri = params.imageUri;
+    let message = params.message;
+    if (Array.isArray(imageUri)) imageUri = imageUri[0];
+    if (Array.isArray(message)) message = message[0];
+    if (imageUri) {
+      setImage(prev => prev ? { ...prev, uri: imageUri as string } : { uri: imageUri as string } as any);
+    }
+    if (message) {
+      setPostcardMessage(message as string);
+    }
+  }, [params.imageUri, params.message]);
+
+  // When editAddressId param is present, open the address modal and prefill the address
+  useEffect(() => {
+    if (params.editAddressId) {
+      const editId = Array.isArray(params.editAddressId) ? params.editAddressId[0] : params.editAddressId;
+      const address = addresses.find(a => a.id === editId);
+      if (address) {
+        setNewAddress({
+          name: address.name,
+          salutation: address.salutation || '',
+          address: address.address,
+          address2: address.address2 || '',
+          city: address.city,
+          state: address.state,
+          zip: address.zip,
+          birthday: address.birthday || '',
+        });
+        setEditingAddressId(editId);
+        setShowAddressModal(true);
+      }
+    }
+  }, [params.editAddressId, addresses]);
+
+  // Only open the address modal if addNewAddress or editAddressId param is present
+  useEffect(() => {
+    let shouldShow = false;
+    if (params.addNewAddress === 'true') shouldShow = true;
+    if (params.editAddressId) shouldShow = true;
+    setShowAddressModal(shouldShow);
+    if (!shouldShow) {
+      setEditingAddressId(null);
+      setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+    }
+  }, [params.addNewAddress, params.editAddressId]);
+
+  // In handleSaveNewAddress, always fetch the latest addresses from AsyncStorage before writing
   const handleSaveNewAddress = async () => {
     if (!newAddress.name) {
       Alert.alert('Please enter a name for the recipient.');
@@ -442,8 +680,10 @@ export default function HomeScreen() {
     setShowUSPSNote(false);
     const addressToSave = { ...newAddress };
     const { isValid, corrected } = await validateAddressWithStannp(addressToSave);
+    // Always fetch the latest addresses from AsyncStorage before writing
+    const stored = await AsyncStorage.getItem('addresses');
+    const latestAddresses = stored ? JSON.parse(stored) : [];
     if (isValid && corrected) {
-      // Check if material change
       if (!isMaterialAddressChange(addressToSave, corrected)) {
         // Auto-apply correction, show USPS note
         const merged = {
@@ -455,12 +695,12 @@ export default function HomeScreen() {
           zip: corrected.zip,
         };
         let updated;
+        let newId = editingAddressId;
         if (editingAddressId) {
-          updated = addresses.map(a => a.id === editingAddressId ? { ...merged, id: editingAddressId, verified: true } : a);
+          updated = latestAddresses.map((a: any) => a.id === editingAddressId ? { ...merged, id: editingAddressId, verified: true } : a);
         } else {
-          const id = Date.now().toString();
-          updated = [...addresses, { ...merged, id, verified: true }];
-          setSelectedAddressId(id);
+          newId = Date.now().toString() + Math.random().toString(36).slice(2); // unique
+          updated = [...latestAddresses, { ...merged, id: newId, verified: true }];
         }
         await AsyncStorage.setItem('addresses', JSON.stringify(updated));
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
@@ -469,24 +709,31 @@ export default function HomeScreen() {
         setAddressValidationStatus('idle');
         setAddressValidationMessage('');
         setCorrectedAddress(null);
-        setShowCorrectionModal(false);
         setShowUSPSNote(true);
-        loadAddresses();
+        await loadAddresses();
+        // Navigate to main screen with new/edited address selected
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
         return;
       } else {
-        setShowAddressModal(false); // Hide main modal before showing correction modal
-        setShowCorrectionModal(true);
+        // Navigate to address correction screen
+        router.push({
+          pathname: '/address-correction',
+          params: {
+            originalAddress: JSON.stringify(addressToSave),
+            correctedAddress: JSON.stringify(corrected)
+          }
+        });
         return;
       }
     }
     if (isValid) {
       let updated;
+      let newId = editingAddressId;
       if (editingAddressId) {
-        updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
+        updated = latestAddresses.map((a: any) => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
       } else {
-        const id = Date.now().toString();
-        updated = [...addresses, { ...addressToSave, id, verified: true }];
-        setSelectedAddressId(id);
+        newId = Date.now().toString() + Math.random().toString(36).slice(2); // unique
+        updated = [...latestAddresses, { ...addressToSave, id: newId, verified: true }];
       }
       await AsyncStorage.setItem('addresses', JSON.stringify(updated));
       setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
@@ -495,61 +742,22 @@ export default function HomeScreen() {
       setAddressValidationStatus('idle');
       setAddressValidationMessage('');
       setCorrectedAddress(null);
-      setShowCorrectionModal(false);
       setShowUSPSNote(false);
-      loadAddresses();
+      await loadAddresses();
+      // Navigate to main screen with new/edited address selected
+      router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
     }
   };
 
-  const handleUseOriginalAddress = async () => {
-    const addressToSave = { ...newAddress };
-    let updated;
-    if (editingAddressId) {
-      updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
-    } else {
-      const id = Date.now().toString();
-      updated = [...addresses, { ...addressToSave, id, verified: true }];
-      setSelectedAddressId(id);
+  // On mount or when params change, update selected recipient or open address modal
+  useEffect(() => {
+    if (params.selectedRecipientId) {
+      setSelectedAddressId(params.selectedRecipientId as string);
     }
-    await AsyncStorage.setItem('addresses', JSON.stringify(updated));
-    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
-    setShowAddressModal(false);
-    setEditingAddressId(null);
-    setAddressValidationStatus('idle');
-    setAddressValidationMessage('');
-    setCorrectedAddress(null);
-    setShowCorrectionModal(false);
-    loadAddresses();
-  };
-
-  const handleUseCorrectedAddress = async () => {
-    // Merge only address fields from correctedAddress, keep name/salutation/birthday
-    const addressToSave = {
-      ...newAddress,
-      address: correctedAddress.address,
-      address2: correctedAddress.address2,
-      city: correctedAddress.city,
-      state: correctedAddress.state,
-      zip: correctedAddress.zip,
-    };
-    let updated;
-    if (editingAddressId) {
-      updated = addresses.map(a => a.id === editingAddressId ? { ...addressToSave, id: editingAddressId, verified: true } : a);
-    } else {
-      const id = Date.now().toString();
-      updated = [...addresses, { ...addressToSave, id, verified: true }];
-      setSelectedAddressId(id);
+    if (params.addNewAddress === 'true') {
+      setShowAddressModal(true);
     }
-    await AsyncStorage.setItem('addresses', JSON.stringify(updated));
-    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
-    setShowAddressModal(false);
-    setEditingAddressId(null);
-    setAddressValidationStatus('idle');
-    setAddressValidationMessage('');
-    setCorrectedAddress(null);
-    setShowCorrectionModal(false);
-    loadAddresses();
-  };
+  }, [params]);
 
   return (
     <KeyboardAvoidingView
@@ -578,6 +786,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Remove the test modal button */}
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
@@ -600,61 +809,17 @@ export default function HomeScreen() {
         {/* Address Dropdown Section */}
         <ThemedView style={[styles.sectionBlock, { zIndex: 3000 }]}>
           <ThemedText style={styles.sectionLabel}>2) Select Recipient</ThemedText>
-          <View style={[styles.recipientRow, { zIndex: 3001 }]}>
-            <View style={{ flex: 1 }}>
-              <DropDownPicker
-                open={addressDropdownOpen}
-                value={selectedAddressId}
-                items={addressItems}
-                setOpen={setAddressDropdownOpen}
-                setValue={setSelectedAddressId}
-                setItems={setAddressItems}
-                placeholder="Select recipient"
-                style={styles.recipientDropdown}
-                dropDownContainerStyle={styles.recipientDropdownContainer}
-                listItemContainerStyle={styles.recipientDropdownItem}
-                textStyle={styles.recipientDropdownText}
-                onChangeValue={handleAddressSelect}
-                listMode="MODAL"
-                modalTitle="Select Recipient"
-                modalAnimationType="slide"
-                modalContentContainerStyle={{
-                  borderRadius: 16,
-                  margin: 24,
-                  backgroundColor: '#fff',
-                  maxHeight: 350,
-                  alignSelf: 'center',
-                  width: '90%',
-                }}
-                modalProps={{
-                  presentationStyle: 'pageSheet', // iOS only, but makes it look more native
-                  transparent: true,
-                }}
-                listItemLabelStyle={{
-                  fontSize: 18,
-                  color: '#222',
-                  fontWeight: '500',
-                }}
-                selectedItemLabelStyle={{
-                  color: '#f28914',
-                  fontWeight: 'bold',
-                }}
-                zIndex={3000}
-                zIndexInverse={1000}
-                dropDownDirection="AUTO"
-              />
-            </View>
-            {selectedAddressId && selectedAddressId !== 'add_new' && (
-              <View style={styles.recipientIcons}>
-                <TouchableOpacity onPress={() => handleEditAddress(addresses.find(a => a.id === selectedAddressId))}>
-                  <Ionicons name="pencil" size={20} color="#f28914" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteAddress(selectedAddressId)} style={{ marginLeft: 12 }}>
-                  <Ionicons name="trash" size={20} color="#f28914" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+          <TouchableOpacity
+            style={[styles.fullWidthButton, { marginBottom: 8 }]}
+            onPress={() => {
+              setCameFromSelectRecipient(true);
+              router.push({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage } });
+            }}
+          >
+            <ThemedText style={styles.buttonText}>
+              {selectedAddressId ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient') : 'Select Recipient'}
+            </ThemedText>
+          </TouchableOpacity>
         </ThemedView>
 
         {/* Message Block */}
@@ -712,11 +877,14 @@ export default function HomeScreen() {
         visible={showAddressModal}
         animationType="slide"
         transparent
+        presentationStyle="overFullScreen"
         onRequestClose={() => {
           console.log('[XLPOSTCARDS][MAIN] Address modal closing');
-          setShowAddressModal(false);
-          setEditingAddressId(null);
-          setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+          transitionModal(() => {
+            setShowAddressModal(false);
+            setEditingAddressId(null);
+            setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+          });
         }}
       >
         <KeyboardAvoidingView
@@ -808,6 +976,14 @@ export default function HomeScreen() {
                     setShowAddressModal(false);
                     setEditingAddressId(null);
                     setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+                    // Only navigate back to select-recipient if we actually came from there
+                    if (cameFromSelectRecipient) {
+                      setCameFromSelectRecipient(false);
+                      router.replace({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage } });
+                    } else {
+                      // Clear all params that would cause modal to reopen
+                      router.replace({ pathname: '/', params: { imageUri: image?.uri, message: postcardMessage } });
+                    }
                   }}
                 >
                   <ThemedText style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Cancel</ThemedText>
@@ -822,53 +998,6 @@ export default function HomeScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Address Correction Modal */}
-      <Modal
-        visible={showCorrectionModal}
-        animationType="fade"
-        transparent
-        onRequestClose={() => {
-          console.log('[XLPOSTCARDS][MAIN] Correction modal closing');
-          setShowCorrectionModal(false);
-        }}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <View style={{ width: '92%', backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>
-            <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
-              Address Correction
-            </ThemedText>
-            {correctedAddress && (
-              <View>
-                <ThemedText style={{ fontWeight: 'bold', color: '#888', marginBottom: 8 }}>Suggested Correction</ThemedText>
-                <ThemedText style={{ color: correctedAddress.address !== newAddress.address ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.address}</ThemedText>
-                <ThemedText style={{ color: correctedAddress.city !== newAddress.city ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.city}</ThemedText>
-                <ThemedText style={{ color: correctedAddress.state !== newAddress.state ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.state}</ThemedText>
-                <ThemedText style={{ color: correctedAddress.zip !== newAddress.zip ? '#f28914' : '#222', fontWeight: 'bold', fontSize: 16 }}>{correctedAddress.zip}</ThemedText>
-                <ThemedText style={{ fontWeight: 'bold', color: '#888', marginTop: 16, marginBottom: 8 }}>Your Entry</ThemedText>
-                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.address}</ThemedText>
-                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.city}</ThemedText>
-                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.state}</ThemedText>
-                <ThemedText style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>{newAddress.zip}</ThemedText>
-              </View>
-            )}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 }}>
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: '#f28914', borderWidth: 1, borderColor: '#f28914', flex: 1, marginRight: 8 }]}
-                onPress={handleUseCorrectedAddress}
-              >
-                <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Use Correction</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f28914', flex: 1, marginLeft: 8 }]}
-                onPress={handleUseOriginalAddress}
-              >
-                <ThemedText style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Use My Entry</ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
       </Modal>
     </KeyboardAvoidingView>
   );

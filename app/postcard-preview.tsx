@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -101,11 +101,15 @@ export default function PostcardPreviewScreen() {
   });
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const postcardPriceDollars = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
+  const [showTestModal, setShowTestModal] = useState(true);
   
   // Get data from route params
   const imageUri = params.imageUri as string;
   const message = params.message as string;
   const recipientInfo = JSON.parse(params.recipient as string);
+  
+  // Add a new state to hold the last error message
+  const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
   
   useEffect(() => {
     console.log('Image URI:', imageUri);
@@ -354,15 +358,36 @@ export default function PostcardPreviewScreen() {
           pdfUrl: pdfUrl
         });
         console.log('[XLPOSTCARDS][STANNP] Showing success modal now');
-        setShowSuccessModal(true);
+        showOnlyModal('success');
         setSending(false);
         setIsCapturing(false);
+
+        // Fallback: force navigation after 7 seconds if still on modal
+        setTimeout(() => {
+          if (showSuccessModal) {
+            console.log('[XLPOSTCARDS][PREVIEW] Fallback: Forcing navigation to index after timeout');
+            resetPurchaseState();
+            handleNavigation();
+          }
+        }, 7000);
       };
       await updates();
       console.log('[XLPOSTCARDS][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======');
     } catch (error) {
+      const err = error as Error;
       console.error('[XLPOSTCARDS][STANNP] ====== ERROR IN STANNP API CALL ======');
-      console.error('[XLPOSTCARDS][STANNP] Error details:', error);
+      console.error('[XLPOSTCARDS][STANNP] Error details:', {
+        error: err,
+        message: err.message,
+        stack: err.stack,
+        sendResult,
+        lastPurchase,
+        showSuccessModal,
+        showErrorModal,
+        showRefundModal,
+        showRefundSuccessModal
+      });
+      setLastErrorMessage(err.message);
       throw error;  // Re-throw to be handled by the calling function
     }
   };
@@ -387,7 +412,7 @@ export default function PostcardPreviewScreen() {
     };
   }, []);
 
-  // Helper to reset all purchase-related state
+  // Fix resetPurchaseState so it doesn't show refund modal after success
   const resetPurchaseState = () => {
     console.log('[XLPOSTCARDS][PREVIEW] Starting state reset');
     setLastPurchase(null);
@@ -407,14 +432,14 @@ export default function PostcardPreviewScreen() {
     try {
       // Reset state before navigation
       resetPurchaseState();
-      // Add a small delay to ensure state is reset before navigation
+      // Add a longer delay to ensure state is reset before navigation
       setTimeout(() => {
         router.replace({
           pathname: '/',
-          params: { resetModals: 'true' } // Add a param to trigger modal reset
+          params: { resetModals: 'true' }
         });
         console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed');
-      }, 100);
+      }, 700); // Increased delay to 700ms
     } catch (error) {
       console.error('[XLPOSTCARDS][PREVIEW] Navigation failed:', error);
     }
@@ -509,18 +534,28 @@ export default function PostcardPreviewScreen() {
       await sendToStannp(purchase);
       console.log('[XLPOSTCARDS][PREVIEW] sendToStannp finished');
     } catch (error) {
-      console.error('[XLPOSTCARDS][PREVIEW] ERROR in purchase flow:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+      const err = error as Error;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setLastErrorMessage(errorMessage);
+      console.error('[XLPOSTCARDS][PREVIEW] ERROR in purchase flow:', {
+        error: err,
+        message: err.message,
+        stack: err.stack,
+        sendResult,
+        lastPurchase,
+        showSuccessModal,
+        showErrorModal,
+        showRefundModal,
+        showRefundSuccessModal
+      });
       // Show error modal with the specific error message
+      showOnlyModal('error');
       setStannpAttempts(prev => prev + 1);
-      setShowErrorModal(true);
       setRefundData(prev => ({
         ...prev,
         stannpError: errorMessage,
         transactionId: lastPurchase?.transactionId || ''
       }));
-      
       // Reset state
       setLastPurchase(null);
       setSendResult(null);
@@ -544,48 +579,30 @@ export default function PostcardPreviewScreen() {
     }
   }, [showSuccessModal, sendResult?.success]);
 
-  // Success Modal Component
-  const SuccessModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showSuccessModal}
-      onRequestClose={() => {
-        console.log('[XLPOSTCARDS][PREVIEW] Success modal closing');
-        resetPurchaseState();
-        handleNavigation();
-      }}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Success!</ThemedText>
-          <ThemedText style={styles.modalText}>
-            Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.
+  // Update SuccessOverlay with full message and better centering
+  const SuccessOverlay = () => {
+    if (!showSuccessModal) return null;
+    return (
+      <View style={styles.successOverlay} pointerEvents="auto">
+        <View style={styles.successContent}>
+          <ThemedText style={styles.successTitle}>Success!</ThemedText>
+          <ThemedText style={styles.successMessage}>
+            Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
           </ThemedText>
-          {__DEV__ && sendResult?.pdfUrl && (
-            <TouchableOpacity 
-              style={[styles.modalButton, { marginBottom: 12 }]}
-              onPress={() => {
-                Linking.openURL(sendResult.pdfUrl as string);
-              }}
-            >
-              <ThemedText style={styles.modalButtonText}>View PDF Preview</ThemedText>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity 
-            style={styles.modalButton}
+            style={styles.successButton}
             onPress={() => {
-              console.log('[XLPOSTCARDS][PREVIEW] Success modal OK button pressed');
-              resetPurchaseState();
+              // Only reset success modal and navigate home
+              setShowSuccessModal(false);
               handleNavigation();
             }}
           >
-            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            <ThemedText style={styles.successButtonText}>OK</ThemedText>
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
-  );
+    );
+  };
 
   // Function to retry with existing purchase
   const retryWithExistingPurchase = async (purchase: Purchase) => {
@@ -601,8 +618,8 @@ export default function PostcardPreviewScreen() {
       console.error('ERROR in retry:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
+      showOnlyModal('error');
       setStannpAttempts(prev => prev + 1);
-      setShowErrorModal(true);
       setRefundData(prev => ({
         ...prev,
         stannpError: errorMessage
@@ -709,47 +726,48 @@ export default function PostcardPreviewScreen() {
   const ErrorModal = () => {
     const handleTryAgain = () => {
       console.log('[XLPOSTCARDS][PREVIEW] Try again pressed');
-      setShowErrorModal(false);
+      showOnlyModal('error');
       if (lastPurchase) {
         void retryWithExistingPurchase(lastPurchase);
       }
     };
+    const handleBackToHome = () => {
+      console.log('[XLPOSTCARDS][PREVIEW] Back to Home pressed from ErrorModal');
+      showOnlyModal('error');
+      resetPurchaseState();
+      router.replace('/');
+    };
+    // Determine if the error was a payment cancellation
+    const isPaymentCanceled = lastErrorMessage?.toLowerCase().includes('canceled');
     return (
       <Modal
         animationType="slide"
         transparent={true}
         visible={showErrorModal}
-        onRequestClose={() => {
-          console.log('[XLPOSTCARDS][PREVIEW] Error modal closing');
-          setShowErrorModal(false);
-        }}
+        onRequestClose={handleBackToHome}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
             <ThemedText style={styles.modalText}>
-              {stannpAttempts === 1 
-                ? "Oops, something went wrong sending your XLPostcards. Please Try Again."
-                : "Oops, something went wrong sending your XLPostcards. Let's request your Refund."}
+              {isPaymentCanceled
+                ? 'Payment was canceled. No charge was made. Please try again or return to the home screen.'
+                : lastErrorMessage || 'Oops, something went wrong sending your XLPostcards.'}
             </ThemedText>
-            {stannpAttempts === 1 ? (
+            {stannpAttempts === 1 && !isPaymentCanceled ? (
               <TouchableOpacity 
                 style={styles.modalButton}
                 onPress={handleTryAgain}
               >
                 <ThemedText style={styles.modalButtonText}>Try Again</ThemedText>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={styles.modalButton}
-                onPress={() => {
-                  setShowErrorModal(false);
-                  setShowRefundModal(true);
-                }}
-              >
-                <ThemedText style={styles.modalButtonText}>Request Refund</ThemedText>
-              </TouchableOpacity>
-            )}
+            ) : null}
+            <TouchableOpacity 
+              style={[styles.modalButton, { marginTop: 12, backgroundColor: '#2c5a68' }]}
+              onPress={handleBackToHome}
+            >
+              <ThemedText style={styles.modalButtonText}>Back to Home</ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -761,7 +779,7 @@ export default function PostcardPreviewScreen() {
     const [refundForm, setRefundForm] = useState({ name: '', email: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const handleDismiss = () => {
-      setShowRefundModal(false);
+      showOnlyModal('refund');
       router.replace('/');
     };
     const handleSubmitRefund = async () => {
@@ -784,8 +802,7 @@ export default function PostcardPreviewScreen() {
           body: formData.toString(),
           mode: 'no-cors'
         });
-        setShowRefundModal(false);
-        setShowRefundSuccessModal(true);
+        showOnlyModal('refundSuccess');
       } catch (error) {
         console.error('Error submitting refund request:', error);
         Alert.alert('Error', 'Failed to submit refund request. Please try again.');
@@ -853,7 +870,7 @@ export default function PostcardPreviewScreen() {
       transparent={true}
       visible={showRefundSuccessModal}
       onRequestClose={() => {
-        setShowRefundSuccessModal(false);
+        showOnlyModal('refundSuccess');
         router.replace('/');
       }}
     >
@@ -866,7 +883,7 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
-              setShowRefundSuccessModal(false);
+              showOnlyModal('refundSuccess');
               router.replace('/');
             }}
           >
@@ -877,167 +894,191 @@ export default function PostcardPreviewScreen() {
     </Modal>
   );
 
+  // Add logging to all modal state changes
+  useEffect(() => {
+    console.log('[XLPOSTCARDS][PREVIEW][MODAL STATE] showSuccessModal:', showSuccessModal, 'showErrorModal:', showErrorModal, 'showRefundModal:', showRefundModal, 'showRefundSuccessModal:', showRefundSuccessModal);
+  }, [showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
+
+  // Helper to show only one modal at a time
+  const showOnlyModal = (modal: 'success' | 'error' | 'refund' | 'refundSuccess') => {
+    setShowSuccessModal(modal === 'success');
+    setShowErrorModal(modal === 'error');
+    setShowRefundModal(modal === 'refund');
+    setShowRefundSuccessModal(modal === 'refundSuccess');
+  };
+
+  // Add a fallback effect to always show the success modal if sendResult.success is true
+  useEffect(() => {
+    if (sendResult?.success && !showSuccessModal) {
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] Forcing SuccessModal to show after Stannp confirmation.');
+      showOnlyModal('success');
+    }
+  }, [sendResult?.success, showSuccessModal]);
+
   return (
-    <ThemedView style={styles.container}>
-      {/* Top SafeAreaView for status bar spacer */}
-      <SafeAreaView style={{ backgroundColor: '#22303C' }} />
-      <View
-        style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
-        onLayout={e => {
-          setContainerWidth(e.nativeEvent.layout.width);
-          setContainerHeight(e.nativeEvent.layout.height);
-        }}
-      >
+    <>
+      {/* Existing SuccessModal and main content */}
+      <SuccessOverlay />
+      <ThemedView style={styles.container}>
+        {/* Top SafeAreaView for status bar spacer */}
+        <SafeAreaView style={{ backgroundColor: '#22303C' }} />
         <View
-          style={{
-            width: designWidth,
-            height: designTotalHeight,
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            transform: [{ scale }],
+          style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+          onLayout={e => {
+            setContainerWidth(e.nativeEvent.layout.width);
+            setContainerHeight(e.nativeEvent.layout.height);
           }}
         >
-          {/* Spacer for status bar/header */}
-          <View style={{ height: Platform.OS === 'android' ? 32 : 40, backgroundColor: '#22303C', width: designWidth }} />
-          {/* Front of postcard */}
-          <ViewShot
-            ref={viewShotFrontRef}
-            style={[styles.postcardPreviewContainer, { width: designWidth, height: designPreviewHeight }]}
-            options={{
-              width: POSTCARD_WIDTH,
-              height: POSTCARD_HEIGHT,
-              quality: 1,
-              format: "jpg"
+          <View
+            style={{
+              width: designWidth,
+              height: designTotalHeight,
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              transform: [{ scale }],
             }}
           >
-            <View style={{
-              width: POSTCARD_WIDTH,
-              height: POSTCARD_HEIGHT,
-              transform: [{ scale: designWidth / POSTCARD_WIDTH }],
-              transformOrigin: 'top left',
-              backgroundColor: 'white',
-              overflow: 'hidden',
-            }}>
-              <Image
-                source={{ uri: imageUri }}
-                style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
-                onError={(error: ImageErrorEvent) => {
-                  console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
-                  setImageLoadError(true);
-                }}
-                onLoad={() => {
-                  console.log('Image loaded successfully');
-                  setImageLoadError(false);
-                }}
-              />
-              {imageLoadError && (
-                <View style={styles.errorOverlay}>
-                  <ThemedText style={styles.errorText}>
-                    Failed to load image.{"\n"}Please go back and try again.
+            {/* Spacer for status bar/header */}
+            <View style={{ height: Platform.OS === 'android' ? 32 : 40, backgroundColor: '#22303C', width: designWidth }} />
+            {/* Front of postcard */}
+            <ViewShot
+              ref={viewShotFrontRef}
+              style={[styles.postcardPreviewContainer, { width: designWidth, height: designPreviewHeight }]}
+              options={{
+                width: POSTCARD_WIDTH,
+                height: POSTCARD_HEIGHT,
+                quality: 1,
+                format: "jpg"
+              }}
+            >
+              <View style={{
+                width: POSTCARD_WIDTH,
+                height: POSTCARD_HEIGHT,
+                transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+                transformOrigin: 'top left',
+                backgroundColor: 'white',
+                overflow: 'hidden',
+              }}>
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
+                  onError={(error: ImageErrorEvent) => {
+                    console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
+                    setImageLoadError(true);
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully');
+                    setImageLoadError(false);
+                  }}
+                />
+                {imageLoadError && (
+                  <View style={styles.errorOverlay}>
+                    <ThemedText style={styles.errorText}>
+                      Failed to load image.{"\n"}Please go back and try again.
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+            </ViewShot>
+            {/* Back of postcard */}
+            <ViewShot
+              ref={viewShotBackRef}
+              style={[styles.postcardPreviewContainer, styles.marginTop, { width: designWidth, height: designPreviewHeight }]}
+              options={{
+                width: POSTCARD_WIDTH,
+                height: POSTCARD_HEIGHT,
+                quality: 1,
+                format: "jpg",
+                fileName: "postcard-back"
+              }}
+            >
+              <View style={{
+                width: POSTCARD_WIDTH,
+                height: POSTCARD_HEIGHT,
+                transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+                transformOrigin: 'top left',
+                backgroundColor: 'white',
+                overflow: 'hidden',
+              }}>
+                <Image
+                  source={require('@/assets/images/PostcardBackTemplate.jpg')}
+                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
+                />
+                {/* Message Box (reasonable default: left half) */}
+                <View style={{
+                  position: 'absolute',
+                  top: 180,
+                  left: 120,
+                  width: 1200,
+                  height: 1500,
+                  padding: 40,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'flex-start',
+                  alignItems: 'flex-start',
+                }}>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
+                    {message}
                   </ThemedText>
                 </View>
-              )}
-            </View>
-          </ViewShot>
-          {/* Back of postcard */}
-          <ViewShot
-            ref={viewShotBackRef}
-            style={[styles.postcardPreviewContainer, styles.marginTop, { width: designWidth, height: designPreviewHeight }]}
-            options={{
-              width: POSTCARD_WIDTH,
-              height: POSTCARD_HEIGHT,
-              quality: 1,
-              format: "jpg",
-              fileName: "postcard-back"
-            }}
-          >
-            <View style={{
-              width: POSTCARD_WIDTH,
-              height: POSTCARD_HEIGHT,
-              transform: [{ scale: designWidth / POSTCARD_WIDTH }],
-              transformOrigin: 'top left',
-              backgroundColor: 'white',
-              overflow: 'hidden',
-            }}>
-              <Image
-                source={require('@/assets/images/PostcardBackTemplate.jpg')}
-                style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
-              />
-              {/* Message Box (reasonable default: left half) */}
-              <View style={{
-                position: 'absolute',
-                top: 180,
-                left: 120,
-                width: 1200,
-                height: 1500,
-                padding: 40,
-                backgroundColor: 'transparent',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
-              }}>
-                <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
-                  {message}
-                </ThemedText>
+                {/* Address Box (lowered further) */}
+                <View style={{
+                  position: 'absolute',
+                  top: POSTCARD_HEIGHT - 600,
+                  left: 1700,
+                  width: 900,
+                  height: 500,
+                  padding: 0,
+                  backgroundColor: 'transparent',
+                  justifyContent: 'flex-start',
+                  alignItems: 'flex-start',
+                }}>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
+                    {recipientInfo.to}
+                  </ThemedText>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
+                    {recipientInfo.addressLine1}
+                    {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
+                    {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+                  </ThemedText>
+                </View>
               </View>
-              {/* Address Box (lowered further) */}
-              <View style={{
-                position: 'absolute',
-                top: POSTCARD_HEIGHT - 600,
-                left: 1700,
-                width: 900,
-                height: 500,
-                padding: 0,
-                backgroundColor: 'transparent',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
-              }}>
-                <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
-                  {recipientInfo.to}
-                </ThemedText>
-                <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
-                  {recipientInfo.addressLine1}
-                  {recipientInfo.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
-                  {`\n${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
-                </ThemedText>
-              </View>
-            </View>
-          </ViewShot>
-          {/* Footer content */}
-          <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 
-            {/* Disclaimer Text */}
-            <ThemedText style={styles.disclaimerText}>
-              By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
-            </ThemedText>
-            {/* Controls */}
-            <View style={styles.controls}>
-              <View style={[styles.buttonRow, { justifyContent: 'center' }]}> 
-                {!sendResult?.success ? (
-                  <TouchableOpacity
-                    style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}
-                    onPress={() => void startNewPurchaseFlow()}
-                    disabled={sending}
-                  >
-                    <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
-                  </TouchableOpacity>
-                ) : null}
+            </ViewShot>
+            {/* Footer content */}
+            <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 
+              {/* Disclaimer Text */}
+              <ThemedText style={styles.disclaimerText}>
+                By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
+              </ThemedText>
+              {/* Controls */}
+              <View style={styles.controls}>
+                <View style={[styles.buttonRow, { justifyContent: 'center' }]}> 
+                  {!sendResult?.success ? (
+                    <TouchableOpacity
+                      style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}
+                      onPress={() => void startNewPurchaseFlow()}
+                      disabled={sending}
+                    >
+                      <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             </View>
           </View>
         </View>
-      </View>
-      {/* Status indicators remain outside main layout */}
-      {sending && (
-        <View style={styles.statusContainer}>
-          <ActivityIndicator size="large" color="#A1CEDC" />
-          <ThemedText style={styles.statusText}>Sending XLPostcards...</ThemedText>
-        </View>
-      )}
-      {/* Add the new modals */}
-      <SuccessModal />
-      <ErrorModal />
-      <RefundModal />
-      <RefundSuccessModal />
-    </ThemedView>
+        {/* Status indicators remain outside main layout */}
+        {sending && (
+          <View style={styles.statusContainer}>
+            <ActivityIndicator size="large" color="#A1CEDC" />
+            <ThemedText style={styles.statusText}>Sending XLPostcards...</ThemedText>
+          </View>
+        )}
+        {/* Add the new modals */}
+        <ErrorModal />
+        <RefundModal />
+        <RefundSuccessModal />
+      </ThemedView>
+    </>
   );
 }
 
@@ -1293,5 +1334,56 @@ const styles = StyleSheet.create({
     top: 10,
     padding: 8,
     zIndex: 1,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  successContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    paddingVertical: 40,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    minWidth: 300,
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  successTitle: {
+    color: '#f28914',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 18,
+    textAlign: 'center',
+  },
+  successMessage: {
+    color: '#333',
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 26,
+  },
+  successButton: {
+    backgroundColor: '#f28914',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    marginTop: 8,
+  },
+  successButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 22,
   },
 }); 

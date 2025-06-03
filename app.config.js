@@ -2,7 +2,7 @@ import 'dotenv/config';
 //require("dotenv").config(); - comment out for now
 
 // ✅ Use APP_VARIANT directly (not EAS_BUILD_PROFILE)
-const APP_VARIANT = process.env.EAS_BUILD_PROFILE || process.env.APP_VARIANT || 'production';
+const APP_VARIANT = process.env.EAS_BUILD_PROFILE || process.env.APP_VARIANT || 'development';
 
 const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';
@@ -107,9 +107,7 @@ module.exports = {
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
-    stripePublishableKey: IS_DEV
-      ? process.env.STRIPE_PUBLISHABLE_KEY_TEST
-      : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY_TEST,
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
     postcardPriceCents: 199,

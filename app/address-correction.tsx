@@ -1,0 +1,195 @@
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ThemedText } from '@/components/ThemedText';
+
+export default function AddressCorrectionScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Parse the addresses from params
+  const originalAddress = params.originalAddress ? JSON.parse(params.originalAddress as string) : null;
+  const correctedAddress = params.correctedAddress ? JSON.parse(params.correctedAddress as string) : null;
+
+  const handleUseCorrected = () => {
+    router.replace({
+      pathname: '/',
+      params: {
+        useCorrectedAddress: 'true',
+        correctedAddress: params.correctedAddress,
+        originalAddress: params.originalAddress
+      }
+    });
+  };
+
+  const handleUseOriginal = () => {
+    router.replace({
+      pathname: '/',
+      params: {
+        useOriginalAddress: 'true',
+        originalAddress: params.originalAddress
+      }
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <ThemedText style={styles.title}>Address Correction</ThemedText>
+      
+      {correctedAddress && (
+        <View style={styles.addressSection}>
+          <ThemedText style={styles.sectionTitle}>Suggested Correction</ThemedText>
+          <View style={styles.addressBox}>
+            <ThemedText style={[
+              styles.addressText,
+              correctedAddress.address !== originalAddress.address && styles.changedText
+            ]}>
+              {correctedAddress.address}
+            </ThemedText>
+            {correctedAddress.address2 && (
+              <ThemedText style={[
+                styles.addressText,
+                correctedAddress.address2 !== originalAddress.address2 && styles.changedText
+              ]}>
+                {correctedAddress.address2}
+              </ThemedText>
+            )}
+            <ThemedText style={[
+              styles.addressText,
+              correctedAddress.city !== originalAddress.city && styles.changedText
+            ]}>
+              {correctedAddress.city}
+            </ThemedText>
+            <ThemedText style={[
+              styles.addressText,
+              correctedAddress.state !== originalAddress.state && styles.changedText
+            ]}>
+              {correctedAddress.state}
+            </ThemedText>
+            <ThemedText style={[
+              styles.addressText,
+              correctedAddress.zip !== originalAddress.zip && styles.changedText
+            ]}>
+              {correctedAddress.zip}
+            </ThemedText>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.addressSection}>
+        <ThemedText style={styles.sectionTitle}>Your Entry</ThemedText>
+        <View style={styles.addressBox}>
+          <ThemedText style={styles.addressText}>{originalAddress.address}</ThemedText>
+          {originalAddress.address2 && (
+            <ThemedText style={styles.addressText}>{originalAddress.address2}</ThemedText>
+          )}
+          <ThemedText style={styles.addressText}>{originalAddress.city}</ThemedText>
+          <ThemedText style={styles.addressText}>{originalAddress.state}</ThemedText>
+          <ThemedText style={styles.addressText}>{originalAddress.zip}</ThemedText>
+        </View>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.correctedButton]}
+          onPress={handleUseCorrected}
+        >
+          <ThemedText style={styles.buttonText}>Use Correction</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.originalButton]}
+          onPress={handleUseOriginal}
+        >
+          <ThemedText style={[styles.buttonText, styles.originalButtonText]}>Use My Entry</ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.cancelButton}
+        onPress={() => router.replace('/')}
+      >
+        <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#f28914',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  addressSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#888',
+    marginBottom: 8,
+  },
+  addressBox: {
+    backgroundColor: '#f8f8f8',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  addressText: {
+    fontSize: 16,
+    color: '#222',
+    marginBottom: 4,
+  },
+  changedText: {
+    color: '#f28914',
+    fontWeight: 'bold',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  button: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  correctedButton: {
+    backgroundColor: '#f28914',
+  },
+  originalButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#f28914',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  originalButtonText: {
+    color: '#f28914',
+  },
+  cancelButton: {
+    backgroundColor: '#f28914',
+    borderRadius: 8,
+    alignItems: 'center',
+    padding: 16,
+  },
+  cancelText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 20,
+  },
+}); 
