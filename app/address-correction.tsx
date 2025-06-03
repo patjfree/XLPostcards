@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AddressCorrectionScreen() {
   const router = useRouter();
@@ -33,84 +34,93 @@ export default function AddressCorrectionScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ThemedText style={styles.title}>Address Correction</ThemedText>
-      
-      {correctedAddress && (
-        <View style={styles.addressSection}>
-          <ThemedText style={styles.sectionTitle}>Suggested Correction</ThemedText>
-          <View style={styles.addressBox}>
-            <ThemedText style={[
-              styles.addressText,
-              correctedAddress.address !== originalAddress.address && styles.changedText
-            ]}>
-              {correctedAddress.address}
-            </ThemedText>
-            {correctedAddress.address2 && (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={styles.container}>
+        <ThemedText style={styles.title}>Address Correction</ThemedText>
+        
+        {correctedAddress && (
+          <View style={styles.addressSection}>
+            <ThemedText style={styles.sectionTitle}>Suggested Correction</ThemedText>
+            <View style={styles.addressBox}>
               <ThemedText style={[
                 styles.addressText,
-                correctedAddress.address2 !== originalAddress.address2 && styles.changedText
+                correctedAddress.address !== originalAddress.address && styles.changedText
               ]}>
-                {correctedAddress.address2}
+                {correctedAddress.address}
               </ThemedText>
+              {correctedAddress.address2 && (
+                <ThemedText style={[
+                  styles.addressText,
+                  correctedAddress.address2 !== originalAddress.address2 && styles.changedText
+                ]}>
+                  {correctedAddress.address2}
+                </ThemedText>
+              )}
+              <ThemedText style={[
+                styles.addressText,
+                correctedAddress.city !== originalAddress.city && styles.changedText
+              ]}>
+                {correctedAddress.city}
+              </ThemedText>
+              <ThemedText style={[
+                styles.addressText,
+                correctedAddress.state !== originalAddress.state && styles.changedText
+              ]}>
+                {correctedAddress.state}
+              </ThemedText>
+              <ThemedText style={[
+                styles.addressText,
+                correctedAddress.zip !== originalAddress.zip && styles.changedText
+              ]}>
+                {correctedAddress.zip}
+              </ThemedText>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.addressSection}>
+          <ThemedText style={styles.sectionTitle}>Your Entry</ThemedText>
+          <View style={styles.addressBox}>
+            <ThemedText style={styles.addressText}>{originalAddress.address}</ThemedText>
+            {originalAddress.address2 && (
+              <ThemedText style={styles.addressText}>{originalAddress.address2}</ThemedText>
             )}
-            <ThemedText style={[
-              styles.addressText,
-              correctedAddress.city !== originalAddress.city && styles.changedText
-            ]}>
-              {correctedAddress.city}
-            </ThemedText>
-            <ThemedText style={[
-              styles.addressText,
-              correctedAddress.state !== originalAddress.state && styles.changedText
-            ]}>
-              {correctedAddress.state}
-            </ThemedText>
-            <ThemedText style={[
-              styles.addressText,
-              correctedAddress.zip !== originalAddress.zip && styles.changedText
-            ]}>
-              {correctedAddress.zip}
-            </ThemedText>
+            <ThemedText style={styles.addressText}>{originalAddress.city}</ThemedText>
+            <ThemedText style={styles.addressText}>{originalAddress.state}</ThemedText>
+            <ThemedText style={styles.addressText}>{originalAddress.zip}</ThemedText>
           </View>
         </View>
-      )}
 
-      <View style={styles.addressSection}>
-        <ThemedText style={styles.sectionTitle}>Your Entry</ThemedText>
-        <View style={styles.addressBox}>
-          <ThemedText style={styles.addressText}>{originalAddress.address}</ThemedText>
-          {originalAddress.address2 && (
-            <ThemedText style={styles.addressText}>{originalAddress.address2}</ThemedText>
-          )}
-          <ThemedText style={styles.addressText}>{originalAddress.city}</ThemedText>
-          <ThemedText style={styles.addressText}>{originalAddress.state}</ThemedText>
-          <ThemedText style={styles.addressText}>{originalAddress.zip}</ThemedText>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.iconButton, { marginRight: 8, alignSelf: 'center' }]}
+            onPress={() => router.back()}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={28} color="#f28914" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.correctedButton]}
+            onPress={handleUseCorrected}
+          >
+            <ThemedText style={styles.buttonText}>Use Correction</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.originalButton]}
+            onPress={handleUseOriginal}
+          >
+            <ThemedText style={[styles.buttonText, styles.originalButtonText]}>Use My Entry</ThemedText>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, styles.correctedButton]}
-          onPress={handleUseCorrected}
+          style={styles.cancelButton}
+          onPress={() => router.replace('/')}
         >
-          <ThemedText style={styles.buttonText}>Use Correction</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.originalButton]}
-          onPress={handleUseOriginal}
-        >
-          <ThemedText style={[styles.buttonText, styles.originalButtonText]}>Use My Entry</ThemedText>
+          <ThemedText style={styles.cancelText}>Cancel</ThemedText>
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => router.replace('/')}
-      >
-        <ThemedText style={styles.cancelText}>Cancel</ThemedText>
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -118,7 +128,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 60,
+    paddingTop: 48,
     paddingHorizontal: 20,
   },
   title: {
@@ -156,7 +166,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   button: {
     flex: 1,
@@ -191,5 +201,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 20,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#f28914',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

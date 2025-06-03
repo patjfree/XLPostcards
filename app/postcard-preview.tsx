@@ -1053,13 +1053,22 @@ export default function PostcardPreviewScreen() {
               <View style={styles.controls}>
                 <View style={[styles.buttonRow, { justifyContent: 'center' }]}> 
                   {!sendResult?.success ? (
-                    <TouchableOpacity
-                      style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}
-                      onPress={() => void startNewPurchaseFlow()}
-                      disabled={sending}
-                    >
-                      <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
-                    </TouchableOpacity>
+                    <>
+                      <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                        accessibilityLabel="Go back"
+                      >
+                        <MaterialIcons name="arrow-back" size={24} color="#f28914" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}
+                        onPress={() => void startNewPurchaseFlow()}
+                        disabled={sending}
+                      >
+                        <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
+                      </TouchableOpacity>
+                    </>
                   ) : null}
                 </View>
               </View>
@@ -1385,5 +1394,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 22,
+  },
+  backButton: {
+    backgroundColor: '#fff',
+    borderColor: '#f28914',
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+    height: 56,
+    flexDirection: 'row',
   },
 }); 

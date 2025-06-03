@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { SafeAreaView, View, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { useLocalSearchParams } from 'expo-router';
@@ -31,51 +31,52 @@ export default function SelectRecipientScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={{ height: 32 }} />
-      <ThemedText style={styles.title}>Select Recipient</ThemedText>
-      <FlatList
-        data={[...addresses, { id: 'add_new', name: '+ Add new address' }]}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.itemRow}>
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() => {
-                if (item.id === 'add_new') {
-                  router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message } });
-                } else {
-                  router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message } });
-                }
-              }}
-            >
-              <ThemedText style={[styles.itemText, item.id === 'add_new' && styles.addNew]}>{item.name}</ThemedText>
-            </TouchableOpacity>
-            {item.id !== 'add_new' && (
-              <View style={styles.iconRow}>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => router.replace({ pathname: '/', params: { editAddressId: item.id } })}
-                >
-                  <Ionicons name="create-outline" size={22} color="#0a7ea4" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => handleDelete(item.id)}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#f44336" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-      />
-      <View style={{ height: 32 }} />
-      <TouchableOpacity style={styles.cancelButton} onPress={() => router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message } })}>
-        <ThemedText style={styles.cancelText}>Cancel</ThemedText>
-      </TouchableOpacity>
-      <View style={{ height: 32 }} />
-    </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={styles.container}>
+        <ThemedText style={styles.title}>Select Recipient</ThemedText>
+        <FlatList
+          data={[...addresses, { id: 'add_new', name: '+ Add new address' }]}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.itemRow}>
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() => {
+                  if (item.id === 'add_new') {
+                    router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message } });
+                  } else {
+                    router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message } });
+                  }
+                }}
+              >
+                <ThemedText style={[styles.itemText, item.id === 'add_new' && styles.addNew]}>{item.name}</ThemedText>
+              </TouchableOpacity>
+              {item.id !== 'add_new' && (
+                <View style={styles.iconRow}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => router.replace({ pathname: '/', params: { editAddressId: item.id } })}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#0a7ea4" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#f44336" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        />
+        <View style={{ height: 32 }} />
+        <TouchableOpacity style={styles.cancelButton} onPress={() => router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message } })}>
+          <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+        </TouchableOpacity>
+        <View style={{ height: 32 }} />
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 0,
+    paddingTop: 48,
     paddingHorizontal: 20,
   },
   title: {

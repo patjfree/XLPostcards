@@ -421,15 +421,6 @@ export default function HomeScreen() {
     setShowRecipientModal(false);
     setShowRecipientModalComponent(false);
     setTimeout(() => {
-      console.log('[XLPOSTCARDS][MAIN] Modal states before navigation:', {
-        showAddressModal,
-        stateDropdownOpen,
-        editingAddressId,
-        addressValidationStatus,
-        showValidationOptions,
-        showUSPSNote
-      });
-      // Only navigate if all modals are closed
       if (!showAddressModal && 
           !stateDropdownOpen && 
           !editingAddressId && 
@@ -444,8 +435,7 @@ export default function HomeScreen() {
           zipcode: selected.zip,
           country: 'United States',
         };
-        console.log('[XLPOSTCARDS][MAIN] All modals closed, proceeding with navigation');
-        router.replace({
+        router.push({
           pathname: '/postcard-preview',
           params: {
             imageUri: image.uri,
