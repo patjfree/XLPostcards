@@ -43,9 +43,9 @@ export default function SelectRecipientScreen() {
                 style={styles.item}
                 onPress={() => {
                   if (item.id === 'add_new') {
-                    router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message } });
+                    router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } });
                   } else {
-                    router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message } });
+                    router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } });
                   }
                 }}
               >
@@ -71,7 +71,7 @@ export default function SelectRecipientScreen() {
           )}
         />
         <View style={{ height: 32 }} />
-        <TouchableOpacity style={styles.cancelButton} onPress={() => router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message } })}>
+        <TouchableOpacity style={styles.cancelButton} onPress={() => router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } })}>
           <ThemedText style={styles.cancelText}>Cancel</ThemedText>
         </TouchableOpacity>
         <View style={{ height: 32 }} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList, Pressable } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -220,6 +220,9 @@ export default function HomeScreen() {
   const [recipientInfo, setRecipientInfo] = useState<any>(null);
   const [hasUserEditedMessage, setHasUserEditedMessage] = useState(false);
   const imageSetFromParams = React.useRef(false);
+  const postcardSizeSetFromParams = React.useRef(false);
+  const [postcardSize, setPostcardSize] = useState<'regular' | 'xl'>('xl');
+  const hasMounted = React.useRef(false);
 
   // Move resetAllModals outside useEffect so it can be called anywhere
   const resetAllModals = () => {
@@ -291,6 +294,16 @@ export default function HomeScreen() {
       console.log('[XLPOSTCARDS][MAIN] Setting selected recipient ID:', receivedRecipientId);
       setSelectedAddressId(receivedRecipientId);
     }
+
+    console.log('[XLPOSTCARDS][DEBUG] processParams called. postcardSize:', postcardSize, 'params:', params, 'hasMounted:', hasMounted.current);
+    if (!postcardSizeSetFromParams.current) {
+      if (params.postcardSize && (params.postcardSize === 'regular' || params.postcardSize === 'xl') && params.postcardSize !== postcardSize) {
+        console.log('[XLPOSTCARDS][DEBUG] Setting postcardSize from params on first mount:', params.postcardSize);
+        setPostcardSize(params.postcardSize);
+      }
+      postcardSizeSetFromParams.current = true;
+    }
+    console.log('[XLPOSTCARDS][DEBUG] postcardSize after processParams:', postcardSize);
   }, [params, image, postcardMessage, recipientInfo, selectedAddressId, hasUserEditedMessage]);
 
   // Update the useEffect that processes params
@@ -409,7 +422,7 @@ export default function HomeScreen() {
       let base64Image = image.base64 ? `data:image/jpeg;base64,${image.base64}` : undefined;
       // Compose prompt
       let promptText =
-        `Write a friendly, engaging postcard message (max 100 words) based on the attached photo.` +
+        `Write a friendly, engaging postcard message (max ${postcardSize === 'regular' ? 60 : 100} words) based on the attached photo.` +
         (salutation ? ` Start the message with: "${salutation}".` : '') +
         (postcardMessage ? ` Here are some hints or ideas: ${postcardMessage}` : '') +
         ` Write it in a casual, personal tone, like a real postcard.`;
@@ -506,6 +519,7 @@ export default function HomeScreen() {
             imageUri: image.uri,
             message: postcardMessage,
             recipient: JSON.stringify(recipientInfo),
+            postcardSize,
           },
         });
       } else {
@@ -849,6 +863,25 @@ export default function HomeScreen() {
           </ThemedView>
         )}
 
+        <ThemedView style={styles.sectionBlock}>
+          <ThemedText style={styles.sectionLabel}>Select Postcard Size</ThemedText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
+            <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+              <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
+                {postcardSize === 'regular' && <View style={styles.radioInner} />}
+              </View>
+              <ThemedText style={styles.radioLabel}>Regular (4"x6")</ThemedText>
+            </Pressable>
+            <Pressable onPress={() => setPostcardSize('xl')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.radioOuter, postcardSize === 'xl' && styles.radioOuterSelected]}>
+                {postcardSize === 'xl' && <View style={styles.radioInner} />}
+              </View>
+              <ThemedText style={styles.radioLabel}>XL (6"x9")</ThemedText>
+            </Pressable>
+            <ThemedText style={{ marginLeft: 16, color: '#888', fontSize: 14 }}>(Both $1.99 + tax)</ThemedText>
+          </View>
+        </ThemedView>
+
         {/* Address Dropdown Section */}
         <ThemedView style={[styles.sectionBlock, { zIndex: 3000 }]}>
           <ThemedText style={styles.sectionLabel}>2) Select Recipient</ThemedText>
@@ -856,7 +889,7 @@ export default function HomeScreen() {
             style={[styles.fullWidthButton, { marginBottom: 8 }]}
             onPress={() => {
               setCameFromSelectRecipient(true);
-              router.push({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage } });
+              router.push({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage, postcardSize } });
             }}
           >
             <ThemedText style={styles.buttonText}>
@@ -904,7 +937,7 @@ export default function HomeScreen() {
           onPress={handleCreatePostcard}
           disabled={!image || !postcardMessage}
         >
-          <ThemedText style={styles.createButtonText}>Create XLPostcard</ThemedText>
+          <ThemedText style={styles.createButtonText}>Create Postcard</ThemedText>
         </TouchableOpacity>
 
         <ThemedView style={styles.formContainer}>
@@ -1022,7 +1055,7 @@ export default function HomeScreen() {
                     // Only navigate back to select-recipient if we actually came from there
                     if (cameFromSelectRecipient) {
                       setCameFromSelectRecipient(false);
-                      router.replace({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage } });
+                      router.replace({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage, postcardSize } });
                     } else {
                       // Clear all params that would cause modal to reopen
                       router.replace({ pathname: '/', params: { imageUri: image?.uri, message: postcardMessage } });
@@ -1334,5 +1367,30 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     textAlign: 'center',
+  },
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#f28914',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  radioOuterSelected: {
+    borderColor: '#f28914',
+    backgroundColor: '#f28914',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+  },
+  radioLabel: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '500',
   },
 });

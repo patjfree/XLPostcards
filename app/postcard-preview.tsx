@@ -83,6 +83,7 @@ interface NavigationParams {
   message: string;
   recipient?: string;
   selectedRecipientId?: string;
+  postcardSize: string;
   [key: string]: string | undefined;  // Add index signature to match UnknownInputParams
 }
 
@@ -121,6 +122,7 @@ export default function PostcardPreviewScreen() {
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const postcardPriceDollars = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
   const [showTestModal, setShowTestModal] = useState(true);
+  const [postcardSize, setPostcardSize] = useState<'regular' | 'xl'>(params.postcardSize === 'regular' ? 'regular' : 'xl');
   
   // Get data from route params
   const imageUri = params.imageUri as string;
@@ -292,7 +294,7 @@ export default function PostcardPreviewScreen() {
       const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
       console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
-      formData.append('size', '6x9');
+      formData.append('size', postcardSize === 'regular' ? '4x6' : '6x9');
       formData.append('padding', '0');
       
       // Add scaled front and back images
@@ -336,7 +338,7 @@ export default function PostcardPreviewScreen() {
       // Log the complete FormData for debugging
       console.log('[XLPOSTCARDS][STANNP] FormData contents:', {
         test: isTestMode ? 'true' : 'false',
-        size: '6x9',
+        size: postcardSize === 'regular' ? '4x6' : '6x9',
         recipient: {
           firstname: firstName,
           lastname: lastName,
@@ -485,7 +487,8 @@ export default function PostcardPreviewScreen() {
         const navParams: NavigationParams = { 
           resetModals: 'true', 
           imageUri, 
-          message
+          message,
+          postcardSize,
         };
         if (recipientInfo) {
           navParams.recipient = JSON.stringify({
@@ -516,7 +519,8 @@ export default function PostcardPreviewScreen() {
     const navParams: NavigationParams = { 
       imageUri, 
       message, 
-      resetModals: 'true'
+      resetModals: 'true',
+      postcardSize,
     };
     if (recipientInfo) {
       navParams.recipient = JSON.stringify({
@@ -896,6 +900,13 @@ export default function PostcardPreviewScreen() {
     </Modal>
   );
 
+  // In useEffect, restore postcardSize from params if present
+  useEffect(() => {
+    if (params.postcardSize && (params.postcardSize === 'regular' || params.postcardSize === 'xl')) {
+      setPostcardSize(params.postcardSize);
+    }
+  }, []);
+
   return (
     <>
       {/* Existing SuccessModal and main content */}
@@ -1047,7 +1058,9 @@ export default function PostcardPreviewScreen() {
                         onPress={() => void startNewPurchaseFlow()}
                         disabled={sending}
                       >
-                        <ThemedText style={styles.buttonText}>Continue & Pay ${postcardPriceDollars.toFixed(2)}</ThemedText>
+                        <ThemedText style={styles.buttonText}>
+                          Continue for your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} postcard
+                        </ThemedText>
                       </TouchableOpacity>
                     </>
                   ) : null}
