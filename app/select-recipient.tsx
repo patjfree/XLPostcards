@@ -35,7 +35,7 @@ export default function SelectRecipientScreen() {
       <View style={styles.container}>
         <ThemedText style={styles.title}>Select Recipient</ThemedText>
         <FlatList
-          data={[...addresses, { id: 'add_new', name: '+ Add new address' }]}
+          data={[{ id: 'add_new', name: '+ Add new address' }, ...addresses]}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.itemRow}>

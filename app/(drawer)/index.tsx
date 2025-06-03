@@ -218,6 +218,8 @@ export default function HomeScreen() {
   const [showUSPSNote, setShowUSPSNote] = useState(false);
   const [cameFromSelectRecipient, setCameFromSelectRecipient] = useState(false);
   const [recipientInfo, setRecipientInfo] = useState<any>(null);
+  const [hasUserEditedMessage, setHasUserEditedMessage] = useState(false);
+  const imageSetFromParams = React.useRef(false);
 
   // Move resetAllModals outside useEffect so it can be called anywhere
   const resetAllModals = () => {
@@ -239,8 +241,8 @@ export default function HomeScreen() {
     console.log('[XLPOSTCARDS][MAIN] Processing navigation params:', params);
     console.log('[XLPOSTCARDS][MAIN] Current selectedAddressId:', selectedAddressId);
 
-    // Process image URI
-    if (params.imageUri && (!image || image.uri !== params.imageUri)) {
+    // Only set image from params if we haven't already set it from params
+    if (params.imageUri && !imageSetFromParams.current) {
       console.log('[XLPOSTCARDS][MAIN] Setting image with URI:', params.imageUri);
       setImage({ 
         uri: params.imageUri as string,
@@ -251,10 +253,11 @@ export default function HomeScreen() {
         fileSize: 0,
         assetId: ''
       });
+      imageSetFromParams.current = true;
     }
 
     // Process message
-    if (params.message && params.message !== postcardMessage) {
+    if (params.message && !hasUserEditedMessage) {
       console.log('[XLPOSTCARDS][MAIN] Setting message:', params.message);
       setPostcardMessage(params.message as string);
     }
@@ -288,7 +291,7 @@ export default function HomeScreen() {
       console.log('[XLPOSTCARDS][MAIN] Setting selected recipient ID:', receivedRecipientId);
       setSelectedAddressId(receivedRecipientId);
     }
-  }, [params, image, postcardMessage, recipientInfo, selectedAddressId]);
+  }, [params, image, postcardMessage, recipientInfo, selectedAddressId, hasUserEditedMessage]);
 
   // Update the useEffect that processes params
   useEffect(() => {
@@ -356,7 +359,7 @@ export default function HomeScreen() {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
-      aspect: [3, 2], // 3 wide, 2 high (2:3 ratio)
+      aspect: [3, 2],
       quality: 1,
       mediaTypes: 'images',
       base64: true,
@@ -364,14 +367,9 @@ export default function HomeScreen() {
       allowsMultipleSelection: false,
     });
     if (!result.canceled) {
-      let asset = result.assets[0] as ImagePicker.ImagePickerAsset;
-      // Always crop/resize to 3:2 after picking (for iOS consistency)
-      const cropped = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        [{ resize: { width: 1500, height: 1000 } }], // 3:2 ratio
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-      );
-      setImage({ ...asset, uri: cropped.uri, base64: cropped.base64 });
+      let asset = result.assets[0];
+      setImage(asset);
+      imageSetFromParams.current = true; // Prevent future overwrites from params
     }
   };
 
@@ -837,7 +835,7 @@ export default function HomeScreen() {
 
         <ThemedView style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.fullWidthButton} onPress={pickImage}>
-            <ThemedText style={styles.buttonText}>1) Select Photo</ThemedText>
+            <ThemedText style={styles.buttonText}>{image ? 'Change Photo' : '1) Select Photo'}</ThemedText>
           </TouchableOpacity>
         </ThemedView>
 
@@ -874,7 +872,7 @@ export default function HomeScreen() {
             <TextInput
               style={[styles.input, styles.messageInput]}
               value={postcardMessage}
-              onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); }}
+              onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); setHasUserEditedMessage(true); }}
               multiline={true}
               numberOfLines={6}
               placeholder="Write your message here or put in some ideas and hit the 'Write for me' button below."
