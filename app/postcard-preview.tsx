@@ -111,6 +111,9 @@ export default function PostcardPreviewScreen() {
   // Add a new state to hold the last error message
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
   
+  // Extract recipientId if present
+  const selectedRecipientId = recipientInfo?.id || recipientInfo?.recipientId;
+  
   useEffect(() => {
     console.log('Image URI:', imageUri);
     console.log('Message:', message);
@@ -436,7 +439,7 @@ export default function PostcardPreviewScreen() {
       setTimeout(() => {
         router.replace({
           pathname: '/',
-          params: { resetModals: 'true' }
+          params: { resetModals: 'true', selectedRecipientId }
         });
         console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed');
       }, 700); // Increased delay to 700ms
@@ -735,7 +738,7 @@ export default function PostcardPreviewScreen() {
       console.log('[XLPOSTCARDS][PREVIEW] Back to Home pressed from ErrorModal');
       showOnlyModal('error');
       resetPurchaseState();
-      router.replace('/');
+      router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
     };
     // Determine if the error was a payment cancellation
     const isPaymentCanceled = lastErrorMessage?.toLowerCase().includes('canceled');
@@ -780,7 +783,7 @@ export default function PostcardPreviewScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const handleDismiss = () => {
       showOnlyModal('refund');
-      router.replace('/');
+      router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
     };
     const handleSubmitRefund = async () => {
       setIsSubmitting(true);
@@ -871,7 +874,7 @@ export default function PostcardPreviewScreen() {
       visible={showRefundSuccessModal}
       onRequestClose={() => {
         showOnlyModal('refundSuccess');
-        router.replace('/');
+        router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
       }}
     >
       <View style={styles.modalContainer}>
@@ -884,7 +887,7 @@ export default function PostcardPreviewScreen() {
             style={styles.modalButton}
             onPress={() => {
               showOnlyModal('refundSuccess');
-              router.replace('/');
+              router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
             }}
           >
             <ThemedText style={styles.modalButtonText}>OK</ThemedText>
@@ -1056,7 +1059,7 @@ export default function PostcardPreviewScreen() {
                     <>
                       <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => router.back()}
+                        onPress={() => router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } })}
                         accessibilityLabel="Go back"
                       >
                         <MaterialIcons name="arrow-back" size={24} color="#f28914" />

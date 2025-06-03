@@ -88,11 +88,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#f28914',
     textAlign: 'center',
     marginBottom: 24,
+    paddingTop: 8,
   },
   itemRow: {
     flexDirection: 'row',
@@ -131,6 +132,6 @@ const styles = StyleSheet.create({
   cancelText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 16,
   },
 }); 

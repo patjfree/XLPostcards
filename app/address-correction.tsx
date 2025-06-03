@@ -93,13 +93,6 @@ export default function AddressCorrectionScreen() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.iconButton, { marginRight: 8, alignSelf: 'center' }]}
-            onPress={() => router.back()}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={28} color="#f28914" />
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[styles.button, styles.correctedButton]}
             onPress={handleUseCorrected}
           >
@@ -128,18 +121,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 48,
+    paddingTop: 24,
     paddingHorizontal: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#f28914',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+    paddingTop: 4,
   },
   addressSection: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -165,50 +159,66 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: 12,
+    alignItems: 'center',
+    gap: 16,
   },
   button: {
-    flex: 1,
-    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
+    paddingVertical: 16,
   },
   correctedButton: {
     backgroundColor: '#f28914',
+    minWidth: 160,
+    maxWidth: 200,
+    marginRight: 0,
   },
   originalButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#f28914',
+    minWidth: 120,
+    maxWidth: 140,
+    marginLeft: 0,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 15,
+    textAlign: 'center',
   },
   originalButtonText: {
     color: '#f28914',
+    fontSize: 15,
+    textAlign: 'center',
   },
   cancelButton: {
     backgroundColor: '#f28914',
     borderRadius: 8,
     alignItems: 'center',
     padding: 16,
+    marginTop: 16,
+    marginBottom: 32,
   },
   cancelText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 16,
   },
   iconButton: {
-    padding: 8,
+    padding: 0,
     borderRadius: 8,
     backgroundColor: '#fff',
     borderWidth: 2,
     borderColor: '#f28914',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 56,
+    width: 56,
+    marginRight: 8,
+    alignSelf: 'center',
   },
 }); 
