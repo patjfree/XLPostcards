@@ -953,7 +953,7 @@ export default function HomeScreen() {
           </View>
         </ThemedView>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 12, marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
           <TouchableOpacity
             style={{
               backgroundColor: '#fff',
@@ -982,7 +982,7 @@ export default function HomeScreen() {
               styles.submitButton,
               styles.createButton,
               (!image || !postcardMessage) && { opacity: 0.5 },
-              { zIndex: 1, height: 56, minHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }
+              { zIndex: 1, height: 56, minHeight: 56, maxHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, marginTop: 0, marginBottom: 0 }
             ]}
             onPress={handleCreatePostcard}
             disabled={!image || !postcardMessage}
