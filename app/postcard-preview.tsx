@@ -728,8 +728,8 @@ export default function PostcardPreviewScreen() {
     1 // never scale up
   );
 
-  // Set the font size for 4x6 (regular) postcards to 66
-  const messageFontSize = postcardSize === 'regular' ? 66 : 32; // 66 for 4x6, 32 for xl
+  // Set the font size for both 4x6 (regular) and 6x9 (xl) postcards to 50
+  const messageFontSize = 50;
 
   // Error Modal Component
   const ErrorModal = () => {
