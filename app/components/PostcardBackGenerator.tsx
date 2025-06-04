@@ -21,14 +21,31 @@ interface RecipientInfo {
 const PostcardBackGenerator = ({ 
   message, 
   recipientInfo, 
-  onGenerated 
+  onGenerated, 
+  postcardSize = 'xl'
 }: { 
   message: string; 
   recipientInfo: RecipientInfo | null; 
   onGenerated: (uri: string, recipientData: RecipientInfo | null) => void; 
+  postcardSize?: 'regular' | 'xl';
 }) => {
   const [error, setError] = useState<string | null>(null);
   const viewShotRef = useRef<ViewShot & ViewShotMethods>(null);
+
+  const isRegular = postcardSize === 'regular';
+  const WIDTH = isRegular ? 1871 : 2771;
+  const HEIGHT = isRegular ? 1271 : 1871;
+  const MESSAGE_FONT = isRegular ? 32 : 48;
+  const ADDRESS_FONT = isRegular ? 32 : 48;
+  const LOGO_SIZE = isRegular ? 180 : 260;
+  const STAMP_FONT = isRegular ? 20 : 32;
+  const PADDING = isRegular ? 32 : 50;
+  const ADDRESS_BOTTOM = isRegular ? 60 : 100;
+  const LOGO_RIGHT = isRegular ? 32 : 50;
+  const LOGO_BOTTOM = isRegular ? 32 : 50;
+  const STAMP_SIZE = isRegular ? 100 : 200;
+  const STAMP_TOP = isRegular ? 20 : 50;
+  const STAMP_RIGHT = isRegular ? 20 : 50;
 
   useEffect(() => {
     const generatePostcardBack = async () => {
@@ -73,26 +90,25 @@ const PostcardBackGenerator = ({
         options={{
           format: 'jpg',
           quality: 0.9,
-          width: 1872,
-          height: 2772,
+          width: WIDTH,
+          height: HEIGHT,
         }}
       >
         <View style={{flex:1, backgroundColor: 'white'}}>
-          <View style={{width: '50%', borderRightWidth: 2, borderRightColor: 'black', paddingRight: 50}}>
+          <View style={{position: 'absolute', top: PADDING, left: PADDING, width: WIDTH * 0.55 - PADDING, height: HEIGHT - 2 * PADDING}}>
+            <Text style={{fontSize: MESSAGE_FONT, color: '#222'}}>{message}</Text>
           </View>
-          <View style={{width: '50%', paddingLeft: 50}}>
-            <View style={{position: 'absolute', top: 50, left: 50}}>
-              <Text style={{fontSize: 48}}>{message}</Text>
-            </View>
-            <View style={{position: 'absolute', bottom: 100, left: 0}}>
-              <Text style={{fontSize: 48}}>{recipientInfo.to}</Text>
-              <Text style={{fontSize: 48, marginTop: 20}}>{recipientInfo.addressLine1}</Text>
-              {recipientInfo.addressLine2 && <Text style={{fontSize: 48, marginTop: 20}}>{recipientInfo.addressLine2}</Text>}
-              <Text style={{fontSize: 48, marginTop: 20}}>{`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}</Text>
-            </View>
-            <View style={{position: 'absolute', top: 50, right: 50, width: 200, height: 200, borderColor: '#cccccc', borderWidth: 1, borderStyle: 'solid'}}>
-              <Text style={{fontSize: 32, position: 'absolute', top: '50%', left: '50%', transform: [{translateX: '-50%'}, {translateY: '-50%'}]}}>STAMP</Text>
-            </View>
+          <View style={{position: 'absolute', bottom: ADDRESS_BOTTOM, left: WIDTH * 0.55 + PADDING, width: WIDTH * 0.4 - 2 * PADDING}}>
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222'}}>{recipientInfo.to}</Text>
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{recipientInfo.addressLine1}</Text>
+            {recipientInfo.addressLine2 && <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{recipientInfo.addressLine2}</Text>}
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}</Text>
+          </View>
+          <View style={{position: 'absolute', right: LOGO_RIGHT, bottom: LOGO_BOTTOM}}>
+            <Text style={{fontSize: LOGO_SIZE}}>📬</Text>
+          </View>
+          <View style={{position: 'absolute', top: STAMP_TOP, right: STAMP_RIGHT, width: STAMP_SIZE, height: STAMP_SIZE, borderColor: '#cccccc', borderWidth: 1, borderStyle: 'solid', alignItems: 'center', justifyContent: 'center'}}>
+            <Text style={{fontSize: STAMP_FONT}}>STAMP</Text>
           </View>
         </View>
       </ViewShot>

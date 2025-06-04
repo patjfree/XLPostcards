@@ -18,6 +18,7 @@ import AIDisclaimer from './components/AIDisclaimer';
 import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
 import { stripeManager } from '@/utils/stripeManager';
+import PostcardBackLayout from './components/PostcardBackLayout';
 
 // Postcard dimensions at 300 DPI (landscape 9x6)
 const POSTCARD_WIDTH = 2772;
@@ -981,62 +982,28 @@ export default function PostcardPreviewScreen() {
               ref={viewShotBackRef}
               style={[styles.postcardPreviewContainer, styles.marginTop, { width: designWidth, height: designPreviewHeight }]}
               options={{
-                width: POSTCARD_WIDTH,
-                height: POSTCARD_HEIGHT,
+                width: postcardSize === 'regular' ? 1871 : 2771,
+                height: postcardSize === 'regular' ? 1271 : 1871,
                 quality: 1,
                 format: "jpg",
                 fileName: "postcard-back"
               }}
             >
               <View style={{
-                width: POSTCARD_WIDTH,
-                height: POSTCARD_HEIGHT,
-                transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+                width: postcardSize === 'regular' ? 1871 : 2771,
+                height: postcardSize === 'regular' ? 1271 : 1871,
+                transform: [{ scale: designWidth / (postcardSize === 'regular' ? 1871 : 2771) }],
                 transformOrigin: 'top left',
                 backgroundColor: 'white',
                 overflow: 'hidden',
               }}>
-                <Image
-                  source={require('@/assets/images/PostcardBackTemplate.jpg')}
-                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, position: 'absolute', top: 0, left: 0, resizeMode: 'cover' }}
+                <PostcardBackLayout
+                  width={postcardSize === 'regular' ? 1871 : 2771}
+                  height={postcardSize === 'regular' ? 1271 : 1871}
+                  message={message}
+                  recipientInfo={recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' }}
+                  postcardSize={postcardSize}
                 />
-                {/* Message Box (reasonable default: left half) */}
-                <View style={{
-                  position: 'absolute',
-                  top: 180,
-                  left: 120,
-                  width: 1200,
-                  height: 1500,
-                  padding: 40,
-                  backgroundColor: 'transparent',
-                  justifyContent: 'flex-start',
-                  alignItems: 'flex-start',
-                }}>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: messageFontSize, color: '#333', lineHeight: messageFontSize * 1.3 }}>
-                    {message}
-                  </ThemedText>
-                </View>
-                {/* Address Box (lowered further) */}
-                <View style={{
-                  position: 'absolute',
-                  top: POSTCARD_HEIGHT - 600,
-                  left: 1700,
-                  width: 900,
-                  height: 500,
-                  padding: 0,
-                  backgroundColor: 'transparent',
-                  justifyContent: 'flex-start',
-                  alignItems: 'flex-start',
-                }}>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 66, color: '#333', marginBottom: 10, lineHeight: 76 }}>
-                    {recipientInfo?.to}
-                  </ThemedText>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 66, color: '#333', lineHeight: 76 }}>
-                    {recipientInfo?.addressLine1}
-                    {recipientInfo?.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
-                    {`\n${recipientInfo?.city}, ${recipientInfo?.state} ${recipientInfo?.zipcode}`}
-                  </ThemedText>
-                </View>
               </View>
             </ViewShot>
             {/* Footer content */}
