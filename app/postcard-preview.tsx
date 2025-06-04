@@ -728,7 +728,8 @@ export default function PostcardPreviewScreen() {
     1 // never scale up
   );
 
-  const messageFontSize = postcardSize === 'regular' ? 44 : 32; // visually balanced, adjust as needed
+  // Set the font size for 4x6 (regular) postcards to 66
+  const messageFontSize = postcardSize === 'regular' ? 66 : 32; // 66 for 4x6, 32 for xl
 
   // Error Modal Component
   const ErrorModal = () => {
@@ -1026,10 +1027,10 @@ export default function PostcardPreviewScreen() {
                   justifyContent: 'flex-start',
                   alignItems: 'flex-start',
                 }}>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', marginBottom: 10, lineHeight: 64 }}>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 66, color: '#333', marginBottom: 10, lineHeight: 76 }}>
                     {recipientInfo?.to}
                   </ThemedText>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 54, color: '#333', lineHeight: 64 }}>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 66, color: '#333', lineHeight: 76 }}>
                     {recipientInfo?.addressLine1}
                     {recipientInfo?.addressLine2 ? `\n${recipientInfo.addressLine2}` : ''}
                     {`\n${recipientInfo?.city}, ${recipientInfo?.state} ${recipientInfo?.zipcode}`}
