@@ -17,24 +17,16 @@ interface PostcardBackLayoutProps {
   message: string;
   recipientInfo: RecipientInfo;
   postcardSize: 'regular' | 'xl';
-  // Optional overrides for images
-  templateImage?: any;
   postageImage?: any;
-  logoImage?: any;
   stampImage?: any;
 }
 
-const templates = {
-  regular: require('../assets/images/4x6_Front_Template.png'),
-  xl: require('../assets/images/6x9_Template_Back.png'),
-};
-const postageIndicia = require('../assets/images/TruePostage.jpeg');
-const logoImage = require('../assets/images/foreground.png');
-const stampImage = require('../assets/images/stamp.png');
+const postageIndicia = require('../../assets/images/TruePostage.jpeg');
+const stampImage = require('../../assets/images/stamp.png');
 
-// Address box positions (example values, adjust as needed)
+// Address box positions (further adjusted for 4x6)
 const addressBox = {
-  regular: { left: 1100, top: 800, width: 600, height: 300 },
+  regular: { left: 950, top: 780, width: 700, height: 320 }, // more top margin, slightly narrower
   xl: { left: 1700, top: 1200, width: 800, height: 400 },
 };
 
@@ -44,26 +36,30 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
   message,
   recipientInfo,
   postcardSize,
-  templateImage,
   postageImage,
-  logoImage: logoOverride,
   stampImage: stampOverride,
 }) => {
-  const template = templateImage || templates[postcardSize];
   const box = addressBox[postcardSize];
   const MESSAGE_FONT = postcardSize === 'regular' ? 32 : 48;
   const ADDRESS_FONT = postcardSize === 'regular' ? 32 : 48;
+  // Make stamp and postage indicia 4x larger (not 16x)
+  const STAMP_SIZE = postcardSize === 'regular' ? 400 : 400; // 100*4
+  const POSTAGE_HEIGHT = postcardSize === 'regular' ? 240 : 240; // 60*4
+
+  // For 4x6, move message block further left and down, and make it narrower
+  const messageBlockStyle = postcardSize === 'regular'
+    ? { position: 'absolute' as const, left: 60, top: 60, width: width * 0.38, height: height - 120 }
+    : { position: 'absolute' as const, left: 60, top: 60, width: width * 0.5, height: height - 120 };
+
+  // For 4x6, move stamp further in from the edge
+  const stampStyle = postcardSize === 'regular'
+    ? { position: 'absolute' as const, top: 80, right: 80, width: STAMP_SIZE, height: STAMP_SIZE }
+    : { position: 'absolute' as const, top: 40, right: 40, width: STAMP_SIZE, height: STAMP_SIZE };
 
   return (
-    <View style={{ width, height }}>
-      {/* Template background */}
-      <Image
-        source={template}
-        style={{ position: 'absolute', width, height, top: 0, left: 0 }}
-        resizeMode="stretch"
-      />
+    <View style={{ width, height, backgroundColor: 'white' }}>
       {/* Message block */}
-      <View style={{ position: 'absolute', left: 60, top: 60, width: width * 0.5, height: height - 120 }}>
+      <View style={messageBlockStyle}>
         <Text style={{ fontSize: MESSAGE_FONT, color: '#222' }}>{message}</Text>
       </View>
       {/* Address box overlay */}
@@ -75,32 +71,23 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
         height: box.height,
         justifyContent: 'flex-start',
       }}>
-        {/* Postage indicia at top of address box */}
+        {/* Postage indicia at top of address box, 4x larger */}
         <Image
           source={postageImage || postageIndicia}
-          style={{ width: box.width, height: 60, resizeMode: 'contain', marginBottom: 8 }}
+          style={{ width: box.width, height: POSTAGE_HEIGHT, marginBottom: 8 }}
+          resizeMode="contain"
         />
         {/* Address text */}
         <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.to}</Text>
         <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.addressLine1}</Text>
         {recipientInfo.addressLine2 && <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.addressLine2}</Text>}
         <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}</Text>
-        {/* Logo in address box (bottom right) */}
-        <Image
-          source={logoOverride || logoImage}
-          style={{ width: 80, height: 80, position: 'absolute', right: 0, bottom: 0, resizeMode: 'contain' }}
-        />
       </View>
-      {/* Stamp in stamp area (top right) */}
+      {/* Stamp in stamp area (top right), 4x larger */}
       <Image
         source={stampOverride || stampImage}
-        style={{ position: 'absolute', top: 40, right: 40, width: 100, height: 100, resizeMode: 'contain' }}
-      />
-      {/* DEBUG: Overlay template for visual alignment (remove for production) */}
-      <Image
-        source={template}
-        style={{ position: 'absolute', width, height, top: 0, left: 0, opacity: 0.4 }}
-        resizeMode="stretch"
+        style={stampStyle}
+        resizeMode="contain"
       />
     </View>
   );
