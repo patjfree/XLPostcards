@@ -728,6 +728,8 @@ export default function PostcardPreviewScreen() {
     1 // never scale up
   );
 
+  const messageFontSize = postcardSize === 'regular' ? 44 : 32; // visually balanced, adjust as needed
+
   // Error Modal Component
   const ErrorModal = () => {
     const handleTryAgain = () => {
@@ -1008,7 +1010,7 @@ export default function PostcardPreviewScreen() {
                   justifyContent: 'flex-start',
                   alignItems: 'flex-start',
                 }}>
-                  <ThemedText style={{ fontFamily: 'Arial', fontSize: 60, color: '#333', lineHeight: 80 }}>
+                  <ThemedText style={{ fontFamily: 'Arial', fontSize: messageFontSize, color: '#333', lineHeight: messageFontSize * 1.3 }}>
                     {message}
                   </ThemedText>
                 </View>
@@ -1059,7 +1061,7 @@ export default function PostcardPreviewScreen() {
                         disabled={sending}
                       >
                         <ThemedText style={styles.buttonText}>
-                          Continue for your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} postcard
+                          Send Your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} Postcard
                         </ThemedText>
                       </TouchableOpacity>
                     </>

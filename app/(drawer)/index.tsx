@@ -816,6 +816,32 @@ export default function HomeScreen() {
     }
   }, [params]);
 
+  // Add a resetCard function
+  const resetCard = () => {
+    setImage(null);
+    setPostcardMessage('');
+    setSelectedAddressId(null);
+    setRecipientInfo(null);
+    setIsAIGenerated(false);
+    setHasUserEditedMessage(false);
+    setShowRecipientModal(false);
+    setShowRecipientModalComponent(true);
+    setShowAddressModal(false);
+    setEditingAddressId(null);
+    setAddressValidationStatus('idle');
+    setAddressValidationMessage('');
+    setShowValidationOptions(false);
+    setCorrectedAddress(null);
+    setShowUSPSNote(false);
+    setCameFromSelectRecipient(false);
+    setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+    setPostcardSize('xl');
+    imageSetFromParams.current = false;
+    postcardSizeSetFromParams.current = false;
+    // Navigate to main screen with NO params to clear everything
+    router.replace({ pathname: '/' });
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -927,18 +953,43 @@ export default function HomeScreen() {
           </View>
         </ThemedView>
 
-        <TouchableOpacity 
-          style={[
-            styles.submitButton,
-            styles.createButton,
-            (!image || !postcardMessage) && { opacity: 0.5 },
-            { zIndex: 1 }
-          ]} 
-          onPress={handleCreatePostcard}
-          disabled={!image || !postcardMessage}
-        >
-          <ThemedText style={styles.createButtonText}>Create Postcard</ThemedText>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 12, marginBottom: 24 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              borderWidth: 2,
+              borderColor: '#f28914',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 56,
+              height: 56,
+              minHeight: 56,
+              minWidth: 56,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 2,
+              elevation: 2,
+            }}
+            onPress={resetCard}
+            accessibilityLabel="Reset postcard"
+          >
+            <Ionicons name="refresh-circle" size={32} color="#f28914" style={{ marginTop: 0 }} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.submitButton,
+              styles.createButton,
+              (!image || !postcardMessage) && { opacity: 0.5 },
+              { zIndex: 1, height: 56, minHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }
+            ]}
+            onPress={handleCreatePostcard}
+            disabled={!image || !postcardMessage}
+          >
+            <ThemedText style={styles.createButtonText}>Create Postcard</ThemedText>
+          </TouchableOpacity>
+        </View>
 
         <ThemedView style={styles.formContainer}>
           <ThemedText style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
