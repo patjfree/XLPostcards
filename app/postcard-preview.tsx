@@ -576,6 +576,7 @@ export default function PostcardPreviewScreen() {
     return (
       <View style={styles.successOverlay} pointerEvents="auto">
         <View style={styles.successContent}>
+          <View style={{ width: '100%', height: 12, backgroundColor: '#fff' }} />
           <ThemedText style={styles.successTitle}>Success!</ThemedText>
           <ThemedText style={styles.successMessage}>
             Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
@@ -1355,8 +1356,8 @@ const styles = StyleSheet.create({
   successContent: {
     backgroundColor: '#fff',
     borderRadius: 24,
-    paddingVertical: 40,
-    paddingHorizontal: 32,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
     minWidth: 300,
     maxWidth: 400,
@@ -1368,7 +1369,7 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     color: '#f28914',
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 18,
     textAlign: 'center',
