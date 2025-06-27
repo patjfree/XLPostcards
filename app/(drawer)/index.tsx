@@ -904,7 +904,9 @@ export default function HomeScreen() {
               </View>
               <ThemedText style={styles.radioLabel}>XL (6"x9")</ThemedText>
             </Pressable>
-            <ThemedText style={{ marginLeft: 16, color: '#888', fontSize: 14 }}>(Both $1.99 + tax)</ThemedText>
+          </View>
+          <View style={{ alignItems: 'center', marginBottom: 4 }}>
+            <ThemedText style={{ color: '#888', fontSize: 14 }}>(Both $1.99 + tax)</ThemedText>
           </View>
         </ThemedView>
 
@@ -919,7 +921,11 @@ export default function HomeScreen() {
             }}
           >
             <ThemedText style={styles.buttonText}>
-              {selectedAddressId ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient') : 'Select Recipient'}
+              {addresses.length === 0
+                ? 'Add Recipient'
+                : (selectedAddressId
+                    ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient')
+                    : 'Select Recipient')}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
