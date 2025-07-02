@@ -43,8 +43,10 @@ export default function SelectRecipientScreen() {
                 style={styles.item}
                 onPress={() => {
                   if (item.id === 'add_new') {
+                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Adding new address with params:', { addNewAddress: 'true', imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize });
                     router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } });
                   } else {
+                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Selecting recipient with params:', { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize });
                     router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } });
                   }
                 }}
@@ -71,7 +73,10 @@ export default function SelectRecipientScreen() {
           )}
         />
         <View style={{ height: 32 }} />
-        <TouchableOpacity style={styles.cancelButton} onPress={() => router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } })}>
+        <TouchableOpacity style={styles.cancelButton} onPress={() => {
+          console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Canceling with params:', { imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize });
+          router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message, postcardSize: params.postcardSize } });
+        }}>
           <ThemedText style={styles.cancelText}>Cancel</ThemedText>
         </TouchableOpacity>
         <View style={{ height: 32 }} />

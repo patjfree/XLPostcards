@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList, Pressable } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import ImagePicker from 'react-native-image-crop-picker';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -27,6 +26,25 @@ const US_STATES = [
 
 const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
 const stannpApiKey = Constants.expoConfig?.extra?.stannpApiKey;
+
+// Helper function to process images for consistent 3:2 ratio and iOS compatibility
+const processImageForPostcard = async (imageUri: string) => {
+  try {
+    // If we already have an image URI, just return it without opening the picker
+    // This function should only open the picker when called from pickImage
+    return {
+      path: imageUri,
+      width: 1500,
+      height: 1000,
+      data: null, // We don't have base64 data for existing images
+      filename: 'image.jpg',
+      size: 0
+    };
+  } catch (error) {
+    console.error('[XLPOSTCARDS][MAIN] Error processing image:', error);
+    throw error;
+  }
+};
 
 const SETTINGS_KEYS = {
   SIGNATURE: 'settings_signature',
@@ -244,19 +262,44 @@ export default function HomeScreen() {
     console.log('[XLPOSTCARDS][MAIN] Processing navigation params:', params);
     console.log('[XLPOSTCARDS][MAIN] Current selectedAddressId:', selectedAddressId);
 
+    // Only skip image processing if we're adding a new address AND there's no imageUri
+    // This allows us to preserve the image when returning from select-recipient
+    if (params.addNewAddress === 'true' && !params.imageUri) {
+      console.log('[XLPOSTCARDS][MAIN] Skipping image processing for new address without image');
+      return;
+    }
+
     // Only set image from params if we haven't already set it from params
     if (params.imageUri && !imageSetFromParams.current) {
       console.log('[XLPOSTCARDS][MAIN] Setting image with URI:', params.imageUri);
-      setImage({ 
-        uri: params.imageUri as string,
-        width: 0,
-        height: 0,
-        type: 'image',
-        fileName: '',
-        fileSize: 0,
-        assetId: ''
-      });
-      imageSetFromParams.current = true;
+      try {
+        // Process the image to ensure consistent 3:2 ratio
+        const processed = await processImageForPostcard(params.imageUri as string);
+        setImage({ 
+          uri: processed.path,
+          width: processed.width,
+          height: processed.height,
+          base64: processed.data, // This will be null for existing images
+          type: 'image',
+          fileName: processed.filename || '',
+          fileSize: processed.size || 0,
+          assetId: '',
+        });
+        imageSetFromParams.current = true;
+      } catch (error) {
+        console.error('[XLPOSTCARDS][MAIN] Error processing image from params:', error);
+        // Fallback to original image if processing fails
+        setImage({ 
+          uri: params.imageUri as string,
+          width: 0,
+          height: 0,
+          type: 'image',
+          fileName: '',
+          fileSize: 0,
+          assetId: '',
+        });
+        imageSetFromParams.current = true;
+      }
     }
 
     // Process message
@@ -358,53 +401,63 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  // Request permissions on component mount
-  useEffect(() => {
-    (async () => {
-      const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (libraryStatus !== 'granted') {
-        Alert.alert('Permissions needed', 'Photo library permission is required to use this app.');
-      }
-    })();
-  }, []);
-
-  // Function to pick an image from the gallery
+  // Replace pickImage with react-native-image-crop-picker
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [3, 2],
-      quality: 1,
-      mediaTypes: 'images',
-      base64: true,
-      presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
-      allowsMultipleSelection: false,
-    });
-    if (!result.canceled) {
-      let asset = result.assets[0];
-      setImage(asset);
-      imageSetFromParams.current = true; // Prevent future overwrites from params
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 1500,
+        height: 1000,
+        cropping: true,
+        cropperToolbarTitle: 'Crop your postcard image',
+        cropperChooseText: 'Choose',
+        cropperCancelText: 'Cancel',
+        cropperRotateButtonsHidden: false,
+        includeBase64: true,
+        mediaType: 'photo',
+        forceJpg: true,
+      });
+      setImage({
+        uri: image.path,
+        width: image.width,
+        height: image.height,
+        base64: image.data,
+        type: 'image',
+        fileName: image.filename || '',
+        fileSize: image.size || 0,
+        assetId: '',
+      });
+      imageSetFromParams.current = true;
+    } catch (e) {
+      // User cancelled or error
     }
   };
 
-  // Function to take a photo with the camera
-  const takePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [3, 2], // 3 wide, 2 high (2:3 ratio)
-      quality: 0.7,
-      base64: true,
-      presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
-      allowsMultipleSelection: false,
-    });
-    if (!result.canceled) {
-      let asset = result.assets[0] as ImagePicker.ImagePickerAsset;
-      // Always crop/resize to 3:2 after picking (for iOS consistency)
-      const cropped = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        [{ resize: { width: 1500, height: 1000 } }], // 3:2 ratio
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-      );
-      setImage({ ...asset, uri: cropped.uri, base64: cropped.base64 });
+  // Update rotate handler to use crop-picker
+  const handleRotateImage = async () => {
+    if (!image) return;
+    try {
+      const rotated = await ImagePicker.openCropper({
+        path: image.uri,
+        width: 1500,
+        height: 1000,
+        cropping: true,
+        cropperToolbarTitle: 'Rotate your postcard image',
+        cropperChooseText: 'Done',
+        cropperCancelText: 'Cancel',
+        cropperRotateButtonsHidden: false,
+        includeBase64: true,
+        mediaType: 'photo',
+        forceJpg: true,
+      });
+      setImage({
+        ...image,
+        uri: rotated.path,
+        width: rotated.width,
+        height: rotated.height,
+        base64: rotated.data,
+      });
+    } catch (e) {
+      // User cancelled or error
     }
   };
 
@@ -881,10 +934,10 @@ export default function HomeScreen() {
 
         {image && (
           <ThemedView style={styles.imagePreviewContainer}>
-            <Image 
-              source={{ uri: image.uri }} 
+            <Image
+              source={{ uri: image.uri }}
               style={{ width: '100%', aspectRatio: 1.5, borderRadius: 8 }}
-              resizeMode="contain"
+              resizeMode="cover"
             />
           </ThemedView>
         )}

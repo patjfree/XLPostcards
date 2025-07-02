@@ -531,11 +531,12 @@ export default function PostcardPreviewScreen() {
       navParams.selectedRecipientId = selectedRecipientId || recipientInfo.id;
     }
     
+    console.log('[XLPOSTCARDS][PREVIEW] Navigating back to index with params:', navParams);
     router.replace({ 
       pathname: '/', 
       params: navParams
     });
-  }, [imageUri, message, recipientInfo, selectedRecipientId, router]);
+  }, [imageUri, message, recipientInfo, selectedRecipientId, router, params]);
 
   // Helper to show only one modal at a time
   const showOnlyModal = React.useCallback((modal: 'success' | 'error' | 'refund' | 'refundSuccess') => {
