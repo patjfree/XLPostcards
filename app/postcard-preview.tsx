@@ -1015,15 +1015,33 @@ export default function PostcardPreviewScreen() {
               </ThemedText>
               {/* Controls */}
               <View style={styles.controls}>
-                <View style={[styles.buttonRow, { justifyContent: 'center' }]}> 
+                <View style={[styles.buttonRow, { justifyContent: 'center', alignItems: 'center' }]}> 
                   {!sendResult?.success ? (
                     <>
                       <TouchableOpacity
-                        style={styles.backButton}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderColor: '#f28914',
+                          borderWidth: 2,
+                          borderRadius: 8,
+                          paddingVertical: 16,
+                          paddingHorizontal: 20,
+                          marginRight: 16,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 56,
+                          height: 56,
+                          flexDirection: 'row',
+                          elevation: 2,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 2,
+                        }}
                         onPress={handleBackPress}
                         accessibilityLabel="Go back"
                       >
-                        <MaterialIcons name="arrow-back" size={24} color="#f28914" />
+                        <MaterialIcons name="arrow-back" size={28} color="#f28914" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.submitButton, { alignSelf: 'center', minWidth: 240, maxWidth: 400 }]}

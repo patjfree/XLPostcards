@@ -1076,6 +1076,7 @@ export default function HomeScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}
+          keyboardVerticalOffset={Platform.OS === 'android' ? 32 : 0}
         >
           <ScrollView
             style={{ flex: 1 }}
