@@ -33,7 +33,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "1.1.0",
+  version: "1.2.0",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -52,7 +52,7 @@ module.exports = {
     bundleIdentifier: getBundleIdentifier(),
     supportsTablet: true,
     deploymentTarget: "13.0",
-    buildNumber: process.env.IOS_BUILD_NUMBER || "2",
+    buildNumber: process.env.IOS_BUILD_NUMBER || "3",
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
