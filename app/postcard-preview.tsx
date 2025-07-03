@@ -300,6 +300,9 @@ export default function PostcardPreviewScreen() {
       
       // Add scaled front and back images
       console.log('[XLPOSTCARDS][STANNP] Adding images to FormData');
+      console.log('[XLPOSTCARDS][STANNP] Front URI:', frontUri);
+      console.log('[XLPOSTCARDS][STANNP] Back URI:', backUri);
+      
       // @ts-ignore - React Native's FormData accepts this format
       formData.append('front', {
         uri: frontUri,
@@ -313,6 +316,8 @@ export default function PostcardPreviewScreen() {
         type: 'image/jpeg',
         name: 'back.jpg'
       });
+      
+      console.log('[XLPOSTCARDS][STANNP] FormData created successfully');
       
       // Format recipient data
       console.log('[XLPOSTCARDS][STANNP] Adding recipient data to FormData');
@@ -354,19 +359,28 @@ export default function PostcardPreviewScreen() {
         backImage: backUri
       });
       
-      // Make the API request
+      // Make the API request with timeout
       console.log('[XLPOSTCARDS][STANNP] Sending request to Stannp API');
-      const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
+      console.log('[XLPOSTCARDS][STANNP] Device info:', Platform.OS, Platform.Version);
       
-      console.log('[XLPOSTCARDS][STANNP] Response received. Status:', response.status);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Accept': 'application/json',
+            // Don't set Content-Type - let React Native set it automatically with boundary
+          },
+          body: formData,
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log('[XLPOSTCARDS][STANNP] Response received. Status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -420,6 +434,20 @@ export default function PostcardPreviewScreen() {
       };
       await updates();
       console.log('[XLPOSTCARDS][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======');
+      
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error('[XLPOSTCARDS][STANNP] Network/timeout error:', fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          console.error('[XLPOSTCARDS][STANNP] Request timed out after 30 seconds');
+          await postcardService.markTransactionFailed(postcardPurchase.transactionId);
+          throw new Error('Request timed out. Please check your internet connection and try again.');
+        }
+        
+        // Re-throw other fetch errors to be caught by main catch block
+        throw fetchError;
+      }
     } catch (error) {
       const err = error as Error;
       console.error('[XLPOSTCARDS][STANNP] ====== ERROR IN STANNP API CALL ======');

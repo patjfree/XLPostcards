@@ -91,6 +91,11 @@ class IAPManager {
       }
       
       console.log('[NANAGRAM][STRIPE] Using webhook URL:', webhookUrl);
+      console.log('[NANAGRAM][STRIPE] Device info:', {
+        platform: Platform.OS,
+        version: Platform.Version,
+        constants: Platform.constants
+      });
       
       const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
       const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
