@@ -33,7 +33,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "1.0.0",
+  version: "1.1.0",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -52,7 +52,7 @@ module.exports = {
     bundleIdentifier: getBundleIdentifier(),
     supportsTablet: true,
     deploymentTarget: "13.0",
-    buildNumber: process.env.IOS_BUILD_NUMBER || "1",
+    buildNumber: process.env.IOS_BUILD_NUMBER || "2",
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
@@ -64,6 +64,8 @@ module.exports = {
     versionCode: process.env.ANDROID_VERSION_CODE
       ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
       : 6,
+    compileSdkVersion: 35,
+    targetSdkVersion: 35,
     adaptiveIcon: {
       foregroundImage: "./assets/images/foreground.png",
       backgroundColor: "#f58c17"
@@ -97,6 +99,13 @@ module.exports = {
       photosPermission: "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       savePhotosPermission: "Allow XLPostcards to save photos you create.",
       isAccessMediaLocationEnabled: true,
+    }],
+    ["expo-build-properties", {
+      android: {
+        compileSdkVersion: 35,
+        targetSdkVersion: 35,
+        buildToolsVersion: "35.0.0"
+      },
     }],
     "react-native-iap"
   ],
