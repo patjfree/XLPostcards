@@ -64,7 +64,8 @@ export default function SettingsScreen() {
         <ThemedText type="title" style={styles.title}>Settings</ThemedText>
       </View>
       
-      <View style={styles.section}>
+      {/* Email field temporarily hidden */}
+      {/* <View style={styles.section}>
         <ThemedText style={styles.label}>Email</ThemedText>
         <TextInput
           style={styles.input}
@@ -75,7 +76,7 @@ export default function SettingsScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
-      </View>
+      </View> */}
 
       <View style={styles.section}>
         <ThemedText style={styles.label}>Signature Block</ThemedText>
@@ -90,7 +91,8 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <View style={styles.section}>
+      {/* Return Address field temporarily hidden */}
+      {/* <View style={styles.section}>
         <ThemedText style={styles.label}>Return Address</ThemedText>
         <TextInput
           style={[styles.input, styles.multilineInput]}
@@ -101,9 +103,10 @@ export default function SettingsScreen() {
           multiline
           numberOfLines={4}
         />
-      </View>
+      </View> */}
 
-      <View style={styles.switchContainer}>
+      {/* Always Include Return Address toggle temporarily hidden */}
+      {/* <View style={styles.switchContainer}>
         <ThemedText style={[styles.label, { flex: 1, flexWrap: 'wrap' }]}>Always Include{`
 `}Return Address</ThemedText>
         <Switch
@@ -112,7 +115,7 @@ export default function SettingsScreen() {
           trackColor={{ false: '#767577', true: '#f28914' }}
           thumbColor={includeReturnAddress ? '#fff' : '#f4f3f4'}
         />
-      </View>
+      </View> */}
     </SafeAreaView>
   );
 }

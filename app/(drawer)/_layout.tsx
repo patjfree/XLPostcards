@@ -1,6 +1,6 @@
 import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
-import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import SettingsScreen from './settings';
 
 function CustomDrawerContent(props: any) {
