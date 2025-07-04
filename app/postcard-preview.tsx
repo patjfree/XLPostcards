@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView, Text } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView, Text, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -202,9 +202,19 @@ export default function PostcardPreviewScreen() {
         return;
       }
       
-      // Capture both front and back images
-      const frontUri = await viewShotFrontRef.current.capture();
-      const backUri = await viewShotBackRef.current.capture();
+      // Capture both front and back images with iOS-safe settings
+      const frontUri = await viewShotFrontRef.current.capture({
+        format: 'jpg',
+        quality: 0.9,
+        result: 'tmpfile',
+        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+      });
+      const backUri = await viewShotBackRef.current.capture({
+        format: 'jpg',
+        quality: 0.9,
+        result: 'tmpfile',
+        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+      });
       
       // Save both images to media library
       const frontAsset = await MediaLibrary.createAssetAsync(frontUri);
@@ -225,10 +235,15 @@ export default function PostcardPreviewScreen() {
   
   // Function to handle the Stannp API call
   const sendToStannp = async (postcardPurchase: Purchase) => {
+    const stannpStartTime = Date.now();
+    console.log('[XLPOSTCARDS][STANNP] ========= ENTERING SENDTOSTANNP FUNCTION =========');
+    console.log('[XLPOSTCARDS][STANNP] Entry timestamp:', new Date().toISOString());
+    console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS, Platform.Version);
+    console.log('[XLPOSTCARDS][STANNP] Purchase object type:', typeof postcardPurchase);
+    console.log('[XLPOSTCARDS][STANNP] Purchase details:', JSON.stringify(postcardPurchase, null, 2));
+    
     try {
       console.log('[XLPOSTCARDS][STANNP] ====== STARTING STANNP API CALL ======');
-      console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS);
-      console.log('[XLPOSTCARDS][STANNP] Purchase details:', JSON.stringify(postcardPurchase, null, 2));
       
       // Ensure we have a transaction ID
       if (!postcardPurchase.transactionId) {
@@ -271,9 +286,51 @@ export default function PostcardPreviewScreen() {
         throw new Error('ViewShot refs not initialized');
       }
 
-      const frontOriginalUri = await viewShotFrontRef.current.capture();
-      const backOriginalUri = await viewShotBackRef.current.capture();
-      console.log('[XLPOSTCARDS][STANNP] Images captured successfully');
+      // Critical iOS fix: Ensure views are in visible window before capture
+      console.log('[XLPOSTCARDS][STANNP] ========= PREPARING FOR VIEWSHOT CAPTURE =========');
+      console.log('[XLPOSTCARDS][STANNP] ViewShot refs status:', {
+        frontRefExists: !!viewShotFrontRef.current,
+        backRefExists: !!viewShotBackRef.current,
+        isCapturing: isCapturing
+      });
+      
+      console.log('[XLPOSTCARDS][STANNP] Starting UI render delay...');
+      // Wait for UI to be fully rendered and visible
+      await new Promise(resolve => {
+        setTimeout(resolve, Platform.OS === 'ios' ? 300 : 100);
+      });
+      console.log('[XLPOSTCARDS][STANNP] UI render delay completed');
+      
+      console.log('[XLPOSTCARDS][STANNP] ========= STARTING VIEWSHOT CAPTURE WITH AFTERSCREENUPDATES =========');
+      const captureStartTime = Date.now();
+      
+      console.log('[XLPOSTCARDS][STANNP] Capturing FRONT image...');
+      const frontCaptureStart = Date.now();
+      const frontOriginalUri = await viewShotFrontRef.current.capture({
+        format: 'jpg',
+        quality: 0.9,
+        result: 'tmpfile',
+        // Critical: Use afterScreenUpdates on iOS to prevent "view not in visible window" error
+        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+      });
+      const frontCaptureDuration = Date.now() - frontCaptureStart;
+      console.log('[XLPOSTCARDS][STANNP] FRONT image captured successfully in', frontCaptureDuration, 'ms');
+      
+      console.log('[XLPOSTCARDS][STANNP] Capturing BACK image...');
+      const backCaptureStart = Date.now();
+      const backOriginalUri = await viewShotBackRef.current.capture({
+        format: 'jpg',
+        quality: 0.9,
+        result: 'tmpfile',
+        // Critical: Use afterScreenUpdates on iOS to prevent "view not in visible window" error
+        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+      });
+      const backCaptureDuration = Date.now() - backCaptureStart;
+      console.log('[XLPOSTCARDS][STANNP] BACK image captured successfully in', backCaptureDuration, 'ms');
+      
+      const totalCaptureDuration = Date.now() - captureStartTime;
+      console.log('[XLPOSTCARDS][STANNP] ========= ALL IMAGES CAPTURED SUCCESSFULLY =========');
+      console.log('[XLPOSTCARDS][STANNP] Total capture time:', totalCaptureDuration, 'ms');
       console.log('[XLPOSTCARDS][STANNP] Front image URI:', frontOriginalUri);
       console.log('[XLPOSTCARDS][STANNP] Back image URI:', backOriginalUri);
       
@@ -360,11 +417,21 @@ export default function PostcardPreviewScreen() {
       });
       
       // Make the API request with timeout
-      console.log('[XLPOSTCARDS][STANNP] Sending request to Stannp API');
+      console.log('[XLPOSTCARDS][STANNP] ========= PREPARING STANNP NETWORK REQUEST =========');
+      console.log('[XLPOSTCARDS][STANNP] FormData created, sending to Stannp API');
       console.log('[XLPOSTCARDS][STANNP] Device info:', Platform.OS, Platform.Version);
+      console.log('[XLPOSTCARDS][STANNP] Network request URL: https://api-us1.stannp.com/v1/postcards/create');
       
+      console.log('[XLPOSTCARDS][STANNP] Creating AbortController...');
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      console.log('[XLPOSTCARDS][STANNP] Setting 30-second timeout...');
+      const timeoutId = setTimeout(() => {
+        console.error('[XLPOSTCARDS][STANNP] ========= NETWORK TIMEOUT - ABORTING REQUEST =========');
+        controller.abort();
+      }, 30000); // 30 second timeout
+      
+      console.log('[XLPOSTCARDS][STANNP] ========= SENDING FETCH REQUEST TO STANNP =========');
+      const fetchStartTime = Date.now();
       
       try {
         const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
@@ -433,22 +500,42 @@ export default function PostcardPreviewScreen() {
         }, 7000);
       };
       await updates();
-      console.log('[XLPOSTCARDS][STANNP] ====== STANNP API CALL COMPLETED SUCCESSFULLY ======');
+      const stannpEndTime = Date.now();
+      const totalStannpDuration = stannpEndTime - stannpStartTime;
+      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CALL COMPLETED SUCCESSFULLY =========');
+      console.log('[XLPOSTCARDS][STANNP] Total Stannp function duration:', totalStannpDuration, 'ms');
+      console.log('[XLPOSTCARDS][STANNP] Success timestamp:', new Date().toISOString());
       
       } catch (fetchError) {
         clearTimeout(timeoutId);
-        console.error('[XLPOSTCARDS][STANNP] Network/timeout error:', fetchError);
+        const fetchEndTime = Date.now();
+        const fetchDuration = fetchEndTime - fetchStartTime;
+        const totalStannpDuration = fetchEndTime - stannpStartTime;
+        
+        console.error('[XLPOSTCARDS][STANNP] ========= NETWORK/TIMEOUT ERROR =========');
+        console.error('[XLPOSTCARDS][STANNP] Error type:', fetchError.name);
+        console.error('[XLPOSTCARDS][STANNP] Error message:', fetchError.message);
+        console.error('[XLPOSTCARDS][STANNP] Fetch duration before error:', fetchDuration, 'ms');
+        console.error('[XLPOSTCARDS][STANNP] Total Stannp duration before error:', totalStannpDuration, 'ms');
+        console.error('[XLPOSTCARDS][STANNP] Full error object:', fetchError);
         
         if (fetchError.name === 'AbortError') {
-          console.error('[XLPOSTCARDS][STANNP] Request timed out after 30 seconds');
+          console.error('[XLPOSTCARDS][STANNP] ========= REQUEST TIMED OUT AFTER 30 SECONDS =========');
           await postcardService.markTransactionFailed(postcardPurchase.transactionId);
           throw new Error('Request timed out. Please check your internet connection and try again.');
         }
         
         // Re-throw other fetch errors to be caught by main catch block
+        console.error('[XLPOSTCARDS][STANNP] Re-throwing fetch error to main catch block');
         throw fetchError;
       }
     } catch (error) {
+      const stannpErrorTime = Date.now();
+      const totalStannpDuration = stannpErrorTime - stannpStartTime;
+      
+      console.error('[XLPOSTCARDS][STANNP] ========= MAIN CATCH BLOCK - STANNP ERROR =========');
+      console.error('[XLPOSTCARDS][STANNP] Error timestamp:', new Date().toISOString());
+      console.error('[XLPOSTCARDS][STANNP] Total duration before error:', totalStannpDuration, 'ms');
       const err = error as Error;
       console.error('[XLPOSTCARDS][STANNP] ====== ERROR IN STANNP API CALL ======');
       console.error('[XLPOSTCARDS][STANNP] Error details:', {
@@ -705,10 +792,71 @@ export default function PostcardPreviewScreen() {
       
       setLastPurchase(purchase);
       
-      // Send to Stannp
-      console.log('[XLPOSTCARDS][PREVIEW] Sending to Stannp');
-      await sendToStannp(purchase);
-      console.log('[XLPOSTCARDS][PREVIEW] sendToStannp finished');
+      // Critical: Add memory management and UI cleanup before Stannp call
+      console.log('[XLPOSTCARDS][PREVIEW] ========= PAYMENT SUCCESSFUL - STARTING STANNP PREPARATION =========');
+      console.log('[XLPOSTCARDS][PREVIEW] Purchase object:', JSON.stringify(purchase, null, 2));
+      console.log('[XLPOSTCARDS][PREVIEW] Device info:', {
+        platform: Platform.OS,
+        version: Platform.Version,
+        memoryUsage: Platform.constants?.systemVersion,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('[XLPOSTCARDS][PREVIEW] Starting memory cleanup...');
+      // Force garbage collection hint (iOS memory management)
+      if (global.gc) {
+        console.log('[XLPOSTCARDS][PREVIEW] Calling global.gc()');
+        global.gc();
+        console.log('[XLPOSTCARDS][PREVIEW] global.gc() completed');
+      } else {
+        console.log('[XLPOSTCARDS][PREVIEW] global.gc() not available');
+      }
+      
+      console.log('[XLPOSTCARDS][PREVIEW] Dismissing keyboard...');
+      // Dismiss any active keyboards/modals that might interfere
+      Keyboard.dismiss();
+      console.log('[XLPOSTCARDS][PREVIEW] Keyboard dismissed');
+      
+      console.log('[XLPOSTCARDS][PREVIEW] Starting UI stabilization delay...');
+      // Small delay to ensure UI state is stable before heavy operations
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('[XLPOSTCARDS][PREVIEW] UI stabilization completed');
+      
+      console.log('[XLPOSTCARDS][PREVIEW] ========= UI STATE STABILIZED - CALLING STANNP API =========');
+      
+      // Send to Stannp with timeout protection and comprehensive logging
+      console.log('[XLPOSTCARDS][PREVIEW] Creating timeout protection (60 seconds)...');
+      const stannpTimeout = new Promise((_, reject) => {
+        const timeoutId = setTimeout(() => {
+          console.error('[XLPOSTCARDS][PREVIEW] ========= STANNP API TIMEOUT - 60 SECONDS EXCEEDED =========');
+          reject(new Error('Stannp API call timed out after 60 seconds'));
+        }, 60000);
+        return timeoutId;
+      });
+      
+      console.log('[XLPOSTCARDS][PREVIEW] Starting Promise.race with sendToStannp and timeout...');
+      const raceStartTime = Date.now();
+      
+      try {
+        await Promise.race([
+          sendToStannp(purchase),
+          stannpTimeout
+        ]);
+        
+        const raceEndTime = Date.now();
+        const duration = raceEndTime - raceStartTime;
+        console.log('[XLPOSTCARDS][PREVIEW] ========= STANNP API COMPLETED SUCCESSFULLY =========');
+        console.log('[XLPOSTCARDS][PREVIEW] Total duration:', duration, 'ms');
+        console.log('[XLPOSTCARDS][PREVIEW] sendToStannp finished successfully');
+        
+      } catch (error) {
+        const raceEndTime = Date.now();
+        const duration = raceEndTime - raceStartTime;
+        console.error('[XLPOSTCARDS][PREVIEW] ========= STANNP API FAILED =========');
+        console.error('[XLPOSTCARDS][PREVIEW] Duration before failure:', duration, 'ms');
+        console.error('[XLPOSTCARDS][PREVIEW] Error details:', error);
+        throw error; // Re-throw to be caught by outer catch
+      }
     } catch (error) {
       const err = error as Error;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
