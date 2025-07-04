@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList, Pressable } from 'react-native';
 import * as ExpoImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import ImagePicker, { Image as ImagePickerAsset } from 'react-native-image-crop-picker';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -215,7 +216,7 @@ const saveAddress = async (
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState<ExpoImagePicker.ImagePickerAsset | null>(null);
+  const [image, setImage] = useState<ExpoImagePicker.ImagePickerAsset | ImagePickerAsset | null>(null);
   const [postcardMessage, setPostcardMessage] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
@@ -402,56 +403,96 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  // Use Expo ImagePicker with ImageManipulator for better Android support
+  // Platform-specific image picker - iOS gets proper 3:2 cropping, Android avoids status bar issues
   const pickImage = async () => {
     try {
-      // Request permissions
-      const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
-        return;
-      }
-
-      // Launch image picker
-      const result = await ExpoImagePicker.launchImageLibraryAsync({
-        mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [3, 2], // 3:2 aspect ratio for postcard
-        quality: 0.9,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const selectedImage = result.assets[0];
+      if (Platform.OS === 'ios') {
+        // iOS: Use react-native-image-crop-picker for proper 3:2 cropping and rotation
+        const pickedImage = await ImagePicker.openPicker({
+          width: 1500,
+          height: 1000,
+          cropping: true,
+          cropperToolbarTitle: 'Crop your postcard image',
+          cropperChooseText: 'Choose',
+          cropperCancelText: 'Cancel',
+          cropperRotateButtonsHidden: false,
+          includeBase64: true,
+          mediaType: 'photo',
+          forceJpg: true,
+          // iOS-specific settings for better experience
+          cropperCircleOverlay: false,
+          showCropGuidelines: true,
+          showCropFrame: true,
+          enableRotationGesture: true,
+          cropperActiveWidgetColor: '#f28914',
+          cropperStatusBarColor: '#000000',
+          cropperToolbarColor: '#000000',
+          cropperToolbarWidgetColor: '#ffffff',
+        });
         
-        // Ensure the image is properly sized and cropped
-        const manipulatedImage = await ImageManipulator.manipulateAsync(
-          selectedImage.uri,
-          [
-            { resize: { width: 1500, height: 1000 } }
-          ],
-          {
-            compress: 0.9,
-            format: ImageManipulator.SaveFormat.JPEG,
-            base64: true,
-          }
-        );
-
         setImage({
-          uri: manipulatedImage.uri,
-          width: manipulatedImage.width,
-          height: manipulatedImage.height,
-          base64: manipulatedImage.base64,
+          uri: pickedImage.path,
+          width: pickedImage.width,
+          height: pickedImage.height,
+          base64: pickedImage.data,
           type: 'image',
-          fileName: selectedImage.fileName || 'image.jpg',
-          fileSize: selectedImage.fileSize || 0,
-          assetId: selectedImage.assetId || '',
+          fileName: pickedImage.filename || 'image.jpg',
+          fileSize: pickedImage.size || 0,
+          assetId: '',
         });
         imageSetFromParams.current = true;
+        
+      } else {
+        // Android: Use Expo ImagePicker to avoid status bar button issues
+        const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
+          return;
+        }
+
+        const result = await ExpoImagePicker.launchImageLibraryAsync({
+          mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [3, 2], // 3:2 aspect ratio for postcard
+          quality: 0.9,
+          base64: true,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+          const selectedImage = result.assets[0];
+          
+          // Ensure the image is properly sized and cropped for Android
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            selectedImage.uri,
+            [
+              { resize: { width: 1500, height: 1000 } }
+            ],
+            {
+              compress: 0.9,
+              format: ImageManipulator.SaveFormat.JPEG,
+              base64: true,
+            }
+          );
+
+          setImage({
+            uri: manipulatedImage.uri,
+            width: manipulatedImage.width,
+            height: manipulatedImage.height,
+            base64: manipulatedImage.base64,
+            type: 'image',
+            fileName: selectedImage.fileName || 'image.jpg',
+            fileSize: selectedImage.fileSize || 0,
+            assetId: selectedImage.assetId || '',
+          });
+          imageSetFromParams.current = true;
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select image.');
+      // User cancelled or error - don't show alert for cancellation
+      if (error.message && !error.message.includes('cancelled')) {
+        Alert.alert('Error', 'Failed to select image.');
+      }
     }
   };
 
