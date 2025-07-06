@@ -1279,6 +1279,96 @@ export default function PostcardPreviewScreen() {
                     setImageLoadError(false);
                   }}
                 />
+                {/* Overlay content for front of postcard */}
+                <View style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  pointerEvents: 'none'
+                }}>
+                  {/* Postcard icon in top right */}
+                  <View style={{
+                    position: 'absolute',
+                    top: 40,
+                    right: 40,
+                    width: 120,
+                    height: 120,
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4,
+                    elevation: 5,
+                  }}>
+                    <View style={{
+                      width: 80,
+                      height: 60,
+                      backgroundColor: '#f0f0f0',
+                      borderRadius: 4,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderWidth: 2,
+                      borderColor: '#666',
+                    }}>
+                      <View style={{
+                        width: 20,
+                        height: 20,
+                        backgroundColor: '#666',
+                        borderRadius: 10,
+                      }} />
+                      <View style={{
+                        width: 40,
+                        height: 4,
+                        backgroundColor: '#666',
+                        marginTop: 8,
+                        borderRadius: 2,
+                      }} />
+                    </View>
+                    {/* Small hand icon */}
+                    <View style={{
+                      position: 'absolute',
+                      bottom: 8,
+                      right: 8,
+                      width: 16,
+                      height: 16,
+                      backgroundColor: '#666',
+                      borderRadius: 8,
+                    }} />
+                  </View>
+                  
+                  {/* Recipient name in bottom left */}
+                  {recipientInfo?.to && (
+                    <View style={{
+                      position: 'absolute',
+                      bottom: 40,
+                      left: 40,
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 8,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 5,
+                    }}>
+                      <Text style={{
+                        fontSize: 48,
+                        fontWeight: 'bold',
+                        color: '#333',
+                        fontFamily: Platform.OS === 'ios' ? 'Arial' : 'sans-serif',
+                      }}>
+                        {recipientInfo.to}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                
                 {imageLoadError && (
                   <View style={styles.errorOverlay}>
                     <ThemedText style={styles.errorText}>
