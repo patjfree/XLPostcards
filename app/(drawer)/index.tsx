@@ -1,30 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Keyboard, FlatList, Pressable } from 'react-native';
+import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Pressable } from 'react-native';
 import * as ExpoImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import ImagePicker, { Image as ImagePickerAsset } from 'react-native-image-crop-picker';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import DropDownPicker from 'react-native-dropdown-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from '../components/AIDisclaimer';
 
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
-];
+// const US_STATES = [
+//   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+//   'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+//   'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+//   'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+//   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+// ];
 
 const openaiApiKey = Constants.expoConfig?.extra?.openaiApiKey;
 const stannpApiKey = Constants.expoConfig?.extra?.stannpApiKey;
@@ -63,10 +60,6 @@ function normalizeAbbr(str: string): string {
     s = s.replace(new RegExp(`\\b${long}\\b`, 'g'), abbr);
   });
   return s.replace(/\s+/g, ' ').trim();
-}
-function normalizeZip(zip: string): string {
-  if (!zip) return '';
-  return zip.trim();
 }
 function zip5(zip: string): string {
   return zip ? zip.substring(0, 5) : '';
@@ -116,103 +109,15 @@ const transitionModal = (closeModal: () => void, openModal?: () => void, delay: 
   }
 };
 
-type RecipientModalProps = {
-  visible: boolean;
-  addresses: any[];
-  setShowRecipientModal: (v: boolean) => void;
-  setShowAddressModal: (v: boolean) => void;
-  setSelectedAddressId: (id: string | null) => void;
-};
+// type RecipientModalProps = {
+//   visible: boolean;
+//   addresses: any[];
+//   setShowRecipientModal: (v: boolean) => void;
+//   setShowAddressModal: (v: boolean) => void;
+//   setSelectedAddressId: (id: string | null) => void;
+// };
 
-// Define the RecipientModal component
-function RecipientModal({
-  visible,
-  addresses,
-  setShowRecipientModal,
-  setShowAddressModal,
-  setSelectedAddressId,
-}: RecipientModalProps) {
-  useEffect(() => {
-    return () => {
-      console.log('[XLPOSTCARDS][MAIN] Recipient modal component unmounted (full dismount)');
-    };
-  }, []);
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      presentationStyle="overFullScreen"
-      onRequestClose={() => setShowRecipientModal(false)}
-    >
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <View style={{ width: '90%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>
-          <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
-            Select Recipient
-          </ThemedText>
-          <FlatList
-            data={[...addresses, { id: 'add_new', name: '+ Add new address' }]}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee' }}
-                onPress={() => {
-                  setShowRecipientModal(false);
-                  if (item.id === 'add_new') {
-                    setShowAddressModal(true);
-                    setSelectedAddressId(null);
-                  } else {
-                    setSelectedAddressId(item.id);
-                  }
-                }}
-              >
-                <ThemedText style={{ fontSize: 18, color: item.id === 'add_new' ? '#222' : '#888', fontWeight: item.id === 'add_new' ? 'bold' : 'normal' }}>
-                  {item.name}
-                </ThemedText>
-              </TouchableOpacity>
-            )}
-          />
-          <TouchableOpacity
-            style={[styles.submitButton, { marginTop: 16, backgroundColor: '#f28914' }]}
-            onPress={() => setShowRecipientModal(false)}
-          >
-            <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Cancel</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
-// Add this function before the component
-const saveAddress = async (
-  address: any,
-  addresses: any[],
-  editingAddressId: string | null,
-  setSelectedAddressId: (id: string | null) => void,
-  setNewAddress: (addr: any) => void,
-  setEditingAddressId: (id: string | null) => void,
-  setAddressValidationStatus: (status: 'idle'|'loading'|'valid'|'invalid'|'error') => void,
-  setAddressValidationMessage: (msg: string) => void,
-  setCorrectedAddress: (addr: any) => void,
-  loadAddresses: () => void
-) => {
-  let updated;
-  if (editingAddressId) {
-    updated = addresses.map((a: any) => a.id === editingAddressId ? { ...address, id: editingAddressId, verified: true } : a);
-  } else {
-    const id = Date.now().toString();
-    updated = [...addresses, { ...address, id, verified: true }];
-    setSelectedAddressId(id);
-  }
-  await AsyncStorage.setItem('addresses', JSON.stringify(updated));
-  setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
-  setEditingAddressId(null);
-  setAddressValidationStatus('idle');
-  setAddressValidationMessage('');
-  setCorrectedAddress(null);
-  loadAddresses();
-};
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
@@ -223,18 +128,16 @@ export default function HomeScreen() {
   const params = useLocalSearchParams();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [showRecipientModal, setShowRecipientModal] = useState(false);
-  const [showRecipientModalComponent, setShowRecipientModalComponent] = useState(true);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
-  const [stateItems] = useState(US_STATES.map(s => ({ label: s, value: s })));
   const [newAddress, setNewAddress] = useState({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
   const [addresses, setAddresses] = useState<any[]>([]);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addressValidationStatus, setAddressValidationStatus] = useState<'idle'|'loading'|'valid'|'invalid'|'error'>('idle');
   const [addressValidationMessage, setAddressValidationMessage] = useState('');
   const [showValidationOptions, setShowValidationOptions] = useState(false);
-  const [correctedAddress, setCorrectedAddress] = useState<any>(null);
+  const [, setCorrectedAddress] = useState<any>(null);
   const [showUSPSNote, setShowUSPSNote] = useState(false);
   const [cameFromSelectRecipient, setCameFromSelectRecipient] = useState(false);
   const [recipientInfo, setRecipientInfo] = useState<any>(null);
@@ -243,6 +146,9 @@ export default function HomeScreen() {
   const postcardSizeSetFromParams = React.useRef(false);
   const [postcardSize, setPostcardSize] = useState<'regular' | 'xl'>('xl');
   const hasMounted = React.useRef(false);
+  const [showRecipientModalComponent, setShowRecipientModalComponent] = useState(true);
+  // Suppress unused variable warning
+  void showRecipientModalComponent;
 
   // Move resetAllModals outside useEffect so it can be called anywhere
   const resetAllModals = () => {
@@ -288,7 +194,7 @@ export default function HomeScreen() {
           assetId: '',
         });
         imageSetFromParams.current = true;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[XLPOSTCARDS][MAIN] Error processing image from params:', error);
         // Fallback to original image if processing fails
         setImage({ 
@@ -318,7 +224,7 @@ export default function HomeScreen() {
           console.log('[XLPOSTCARDS][MAIN] Setting recipient info:', newRecipientInfo);
           setRecipientInfo(newRecipientInfo);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('[XLPOSTCARDS][MAIN] Error parsing recipient info:', error);
       }
     }
@@ -331,7 +237,7 @@ export default function HomeScreen() {
         if (recipientObj && recipientObj.id) {
           receivedRecipientId = recipientObj.id;
         }
-      } catch (e) {
+      } catch {
         // handle error
       }
     }
@@ -349,7 +255,7 @@ export default function HomeScreen() {
       postcardSizeSetFromParams.current = true;
     }
     console.log('[XLPOSTCARDS][DEBUG] postcardSize after processParams:', postcardSize);
-  }, [params, image, postcardMessage, recipientInfo, selectedAddressId, hasUserEditedMessage]);
+  }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize]);
 
   // Update the useEffect that processes params
   useEffect(() => {
@@ -490,14 +396,14 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       // User cancelled or error - don't show alert for cancellation
-      if (error.message && !error.message.includes('cancelled')) {
+      if ((error as any)?.message && !(error as any).message.includes('cancelled')) {
         Alert.alert('Error', 'Failed to select image.');
       }
     }
   };
 
   // Update rotate handler to use crop-picker
-  const handleRotateImage = async () => {
+  /* const handleRotateImage = async () => {
     if (!image) return;
     try {
       const rotated = await ImagePicker.openCropper({
@@ -520,10 +426,10 @@ export default function HomeScreen() {
         height: rotated.height,
         base64: rotated.data,
       });
-    } catch (e) {
+    } catch {
       // User cancelled or error
     }
-  };
+  }; */
 
   // Function to analyze the image with OpenAI
   const analyzeImage = async () => {
@@ -536,7 +442,7 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       // Prepare base64 image
-      let base64Image = image.base64 ? `data:image/jpeg;base64,${image.base64}` : undefined;
+      let base64Image = (image as any).base64 ? `data:image/jpeg;base64,${(image as any).base64}` : undefined;
       // Compose prompt
       let promptText =
         `Write a friendly, engaging postcard message (max ${postcardSize === 'regular' ? 60 : 100} words) based on the attached photo.` +
@@ -579,7 +485,7 @@ export default function HomeScreen() {
       const content = data.choices[0].message.content;
       setPostcardMessage(content);
       setIsAIGenerated(true);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to analyze image.');
     } finally {
       setLoading(false);
@@ -633,7 +539,7 @@ export default function HomeScreen() {
         router.push({
           pathname: '/postcard-preview',
           params: {
-            imageUri: image.uri,
+            imageUri: (image as any).uri,
             message: postcardMessage,
             recipient: JSON.stringify(recipientInfo),
             postcardSize,
@@ -658,7 +564,7 @@ export default function HomeScreen() {
     setAddresses(parsed);
   };
 
-  const handleEditAddress = (address: any) => {
+  /* const handleEditAddress = (address: any) => {
     console.log('[XLPOSTCARDS][MAIN] Editing address:', address.id);
     setNewAddress({
       name: address.name,
@@ -672,9 +578,9 @@ export default function HomeScreen() {
     });
     setEditingAddressId(address.id);
     setShowAddressModal(true);
-  };
+  }; */
 
-  const handleDeleteAddress = (id: string) => {
+  /* const handleDeleteAddress = (id: string) => {
     Alert.alert('Delete Address', 'Are you sure you want to delete this address?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -684,7 +590,7 @@ export default function HomeScreen() {
         loadAddresses();
       }},
     ]);
-  };
+  }; */
 
   const validateAddressWithStannp = async (address: any) => {
     setAddressValidationStatus('loading');
@@ -783,7 +689,7 @@ export default function HomeScreen() {
         setCorrectedAddress(null);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
       } else if (params.useOriginalAddress === 'true' && params.originalAddress) {
         const original = JSON.parse(params.originalAddress as string);
         let updated;
@@ -802,11 +708,11 @@ export default function HomeScreen() {
         setCorrectedAddress(null);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
       }
     };
     handleAddressCorrection();
-  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress]);
+  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress, editingAddressId, image, postcardMessage, router]);
 
   // Keep the editAddressId effect separate since it has different dependencies
   useEffect(() => {
@@ -884,7 +790,7 @@ export default function HomeScreen() {
         setShowUSPSNote(true);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
         return;
       } else {
         // Navigate to address correction screen
@@ -893,7 +799,7 @@ export default function HomeScreen() {
           params: {
             originalAddress: JSON.stringify(addressToSave),
             correctedAddress: JSON.stringify(corrected),
-            imageUri: image?.uri,
+            imageUri: (image as any)?.uri,
             message: postcardMessage
           }
         });
@@ -919,7 +825,7 @@ export default function HomeScreen() {
       setShowUSPSNote(false);
       await loadAddresses();
       // Navigate to main screen with new/edited address selected
-      router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: image?.uri, message: postcardMessage } });
+      router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
     }
   };
 
@@ -999,7 +905,7 @@ export default function HomeScreen() {
         {image && (
           <ThemedView style={styles.imagePreviewContainer}>
             <Image
-              source={{ uri: image.uri }}
+              source={{ uri: (image as any).uri }}
               style={{ width: '100%', aspectRatio: 1.5, borderRadius: 8 }}
               resizeMode="cover"
             />
@@ -1034,7 +940,7 @@ export default function HomeScreen() {
             style={[styles.fullWidthButton, { marginBottom: 8 }]}
             onPress={() => {
               setCameFromSelectRecipient(true);
-              router.push({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage, postcardSize } });
+              router.push({ pathname: '/select-recipient', params: { imageUri: (image as any)?.uri, message: postcardMessage, postcardSize } });
             }}
           >
             <ThemedText style={styles.buttonText}>
@@ -1231,10 +1137,10 @@ export default function HomeScreen() {
                     // Only navigate back to select-recipient if we actually came from there
                     if (cameFromSelectRecipient) {
                       setCameFromSelectRecipient(false);
-                      router.replace({ pathname: '/select-recipient', params: { imageUri: image?.uri, message: postcardMessage, postcardSize } });
+                      router.replace({ pathname: '/select-recipient', params: { imageUri: (image as any)?.uri, message: postcardMessage, postcardSize } });
                     } else {
                       // Clear all params that would cause modal to reopen
-                      router.replace({ pathname: '/', params: { imageUri: image?.uri, message: postcardMessage } });
+                      router.replace({ pathname: '/', params: { imageUri: (image as any)?.uri, message: postcardMessage } });
                     }
                   }}
                 >
