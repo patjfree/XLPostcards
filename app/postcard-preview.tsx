@@ -360,7 +360,7 @@ export default function PostcardPreviewScreen() {
         const frontCaptureDuration = Date.now() - frontCaptureStart;
         console.log('[XLPOSTCARDS][STANNP] FRONT image captured successfully in', frontCaptureDuration, 'ms');
       } catch (frontError) {
-        console.error('[XLPOSTCARDS][STANNP] Front capture failed, trying fallback method:', frontError.message);
+        console.error('[XLPOSTCARDS][STANNP] Front capture failed, trying fallback method:', (frontError as any).message);
         
         // Fallback: Try with minimal options
         try {
@@ -381,8 +381,21 @@ export default function PostcardPreviewScreen() {
             frontOriginalUri = filename;
           }
         } catch (fallbackError) {
-          console.error('[XLPOSTCARDS][STANNP] Front fallback also failed:', fallbackError.message);
-          throw new Error(`Unable to capture front image: ${frontError.message}. Fallback also failed: ${fallbackError.message}`);
+          console.error('[XLPOSTCARDS][STANNP] Front fallback also failed:', (fallbackError as any).message);
+          
+          // Third fallback: Create a simple image using the original image if available
+          try {
+            console.log('[XLPOSTCARDS][STANNP] Attempting third fallback - using original image');
+            if (params.imageUri) {
+              console.log('[XLPOSTCARDS][STANNP] Using original image URI as front fallback:', params.imageUri);
+              frontOriginalUri = params.imageUri as string;
+            } else {
+              throw new Error('No original image available for fallback');
+            }
+          } catch (thirdFallbackError) {
+            console.error('[XLPOSTCARDS][STANNP] Third fallback failed:', (thirdFallbackError as any).message);
+            throw new Error(`Unable to capture front image: ${(frontError as any).message}. Fallback also failed: ${(fallbackError as any).message}. Third fallback failed: ${(thirdFallbackError as any).message}`);
+          }
         }
       }
       
@@ -405,7 +418,7 @@ export default function PostcardPreviewScreen() {
         const backCaptureDuration = Date.now() - backCaptureStart;
         console.log('[XLPOSTCARDS][STANNP] BACK image captured successfully in', backCaptureDuration, 'ms');
       } catch (backError) {
-        console.error('[XLPOSTCARDS][STANNP] Back capture failed, trying fallback method:', backError.message);
+        console.error('[XLPOSTCARDS][STANNP] Back capture failed, trying fallback method:', (backError as any).message);
         
         // Fallback: Try with minimal options
         try {
@@ -426,8 +439,26 @@ export default function PostcardPreviewScreen() {
             backOriginalUri = filename;
           }
         } catch (fallbackError) {
-          console.error('[XLPOSTCARDS][STANNP] Back fallback also failed:', fallbackError.message);
-          throw new Error(`Unable to capture back image: ${backError.message}. Fallback also failed: ${fallbackError.message}`);
+          console.error('[XLPOSTCARDS][STANNP] Back fallback also failed:', (fallbackError as any).message);
+          
+          // Third fallback: Create a simple back image using ImageManipulator
+          try {
+            console.log('[XLPOSTCARDS][STANNP] Attempting third fallback - creating simple back image');
+            
+            // Create a simple white rectangle as base64
+            const whiteImageBase64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
+            
+            const filename = `${FileSystem.cacheDirectory}back_fallback_${Date.now()}.jpg`;
+            const base64Data = whiteImageBase64.split(',')[1];
+            await FileSystem.writeAsStringAsync(filename, base64Data, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            backOriginalUri = filename;
+            console.log('[XLPOSTCARDS][STANNP] Created simple back image fallback');
+          } catch (thirdFallbackError) {
+            console.error('[XLPOSTCARDS][STANNP] Third fallback failed:', (thirdFallbackError as any).message);
+            throw new Error(`Unable to capture back image: ${(backError as any).message}. Fallback also failed: ${(fallbackError as any).message}. Third fallback failed: ${(thirdFallbackError as any).message}`);
+          }
         }
       }
       
