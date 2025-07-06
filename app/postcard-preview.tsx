@@ -202,19 +202,56 @@ export default function PostcardPreviewScreen() {
         return;
       }
       
-      // Capture both front and back images with iOS-safe settings
-      const frontUri = await viewShotFrontRef.current.capture({
-        format: 'jpg',
-        quality: 0.9,
-        result: 'tmpfile',
-        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
-      });
-      const backUri = await viewShotBackRef.current.capture({
-        format: 'jpg',
-        quality: 0.9,
-        result: 'tmpfile',
-        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
-      });
+      // Capture both front and back images with iOS-safe settings and fallback
+      let frontUri, backUri;
+      
+      try {
+        frontUri = await viewShotFrontRef.current.capture({
+          format: 'jpg',
+          quality: 0.9,
+          result: 'tmpfile',
+          ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+        });
+      } catch (error) {
+        console.log('[XLPOSTCARDS][SAVE] Front capture failed, trying fallback');
+        frontUri = await viewShotFrontRef.current.capture({
+          format: 'jpg',
+          quality: 0.8,
+          result: 'base64'
+        });
+        if (frontUri.startsWith('data:')) {
+          const base64Data = frontUri.split(',')[1];
+          const filename = `${FileSystem.cacheDirectory}save_front_${Date.now()}.jpg`;
+          await FileSystem.writeAsStringAsync(filename, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          frontUri = filename;
+        }
+      }
+      
+      try {
+        backUri = await viewShotBackRef.current.capture({
+          format: 'jpg',
+          quality: 0.9,
+          result: 'tmpfile',
+          ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+        });
+      } catch (error) {
+        console.log('[XLPOSTCARDS][SAVE] Back capture failed, trying fallback');
+        backUri = await viewShotBackRef.current.capture({
+          format: 'jpg',
+          quality: 0.8,
+          result: 'base64'
+        });
+        if (backUri.startsWith('data:')) {
+          const base64Data = backUri.split(',')[1];
+          const filename = `${FileSystem.cacheDirectory}save_back_${Date.now()}.jpg`;
+          await FileSystem.writeAsStringAsync(filename, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          backUri = filename;
+        }
+      }
       
       // Save both images to media library
       const frontAsset = await MediaLibrary.createAssetAsync(frontUri);
@@ -306,27 +343,93 @@ export default function PostcardPreviewScreen() {
       
       console.log('[XLPOSTCARDS][STANNP] Capturing FRONT image...');
       const frontCaptureStart = Date.now();
-      const frontOriginalUri = await viewShotFrontRef.current.capture({
-        format: 'jpg',
-        quality: 0.9,
-        result: 'tmpfile',
-        // Critical: Use afterScreenUpdates on iOS to prevent "view not in visible window" error
-        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
-      });
-      const frontCaptureDuration = Date.now() - frontCaptureStart;
-      console.log('[XLPOSTCARDS][STANNP] FRONT image captured successfully in', frontCaptureDuration, 'ms');
+      let frontOriginalUri;
+      
+      try {
+        frontOriginalUri = await viewShotFrontRef.current.capture({
+          format: 'jpg',
+          quality: 0.9,
+          result: 'tmpfile',
+          // Multiple iOS fallback strategies
+          ...(Platform.OS === 'ios' && { 
+            afterScreenUpdates: true,
+            snapshotContentContainer: false,
+            handleGLSurfaceViewOnAndroid: false
+          })
+        });
+        const frontCaptureDuration = Date.now() - frontCaptureStart;
+        console.log('[XLPOSTCARDS][STANNP] FRONT image captured successfully in', frontCaptureDuration, 'ms');
+      } catch (frontError) {
+        console.error('[XLPOSTCARDS][STANNP] Front capture failed, trying fallback method:', frontError.message);
+        
+        // Fallback: Try with minimal options
+        try {
+          frontOriginalUri = await viewShotFrontRef.current.capture({
+            format: 'jpg',
+            quality: 0.8,
+            result: 'base64'
+          });
+          console.log('[XLPOSTCARDS][STANNP] FRONT image captured with fallback method');
+          
+          // Convert base64 to file if needed
+          if (frontOriginalUri.startsWith('data:')) {
+            const base64Data = frontOriginalUri.split(',')[1];
+            const filename = `${FileSystem.cacheDirectory}front_${Date.now()}.jpg`;
+            await FileSystem.writeAsStringAsync(filename, base64Data, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            frontOriginalUri = filename;
+          }
+        } catch (fallbackError) {
+          console.error('[XLPOSTCARDS][STANNP] Front fallback also failed:', fallbackError.message);
+          throw new Error(`Unable to capture front image: ${frontError.message}. Fallback also failed: ${fallbackError.message}`);
+        }
+      }
       
       console.log('[XLPOSTCARDS][STANNP] Capturing BACK image...');
       const backCaptureStart = Date.now();
-      const backOriginalUri = await viewShotBackRef.current.capture({
-        format: 'jpg',
-        quality: 0.9,
-        result: 'tmpfile',
-        // Critical: Use afterScreenUpdates on iOS to prevent "view not in visible window" error
-        ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
-      });
-      const backCaptureDuration = Date.now() - backCaptureStart;
-      console.log('[XLPOSTCARDS][STANNP] BACK image captured successfully in', backCaptureDuration, 'ms');
+      let backOriginalUri;
+      
+      try {
+        backOriginalUri = await viewShotBackRef.current.capture({
+          format: 'jpg',
+          quality: 0.9,
+          result: 'tmpfile',
+          // Multiple iOS fallback strategies
+          ...(Platform.OS === 'ios' && { 
+            afterScreenUpdates: true,
+            snapshotContentContainer: false,
+            handleGLSurfaceViewOnAndroid: false
+          })
+        });
+        const backCaptureDuration = Date.now() - backCaptureStart;
+        console.log('[XLPOSTCARDS][STANNP] BACK image captured successfully in', backCaptureDuration, 'ms');
+      } catch (backError) {
+        console.error('[XLPOSTCARDS][STANNP] Back capture failed, trying fallback method:', backError.message);
+        
+        // Fallback: Try with minimal options
+        try {
+          backOriginalUri = await viewShotBackRef.current.capture({
+            format: 'jpg',
+            quality: 0.8,
+            result: 'base64'
+          });
+          console.log('[XLPOSTCARDS][STANNP] BACK image captured with fallback method');
+          
+          // Convert base64 to file if needed
+          if (backOriginalUri.startsWith('data:')) {
+            const base64Data = backOriginalUri.split(',')[1];
+            const filename = `${FileSystem.cacheDirectory}back_${Date.now()}.jpg`;
+            await FileSystem.writeAsStringAsync(filename, base64Data, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            backOriginalUri = filename;
+          }
+        } catch (fallbackError) {
+          console.error('[XLPOSTCARDS][STANNP] Back fallback also failed:', fallbackError.message);
+          throw new Error(`Unable to capture back image: ${backError.message}. Fallback also failed: ${fallbackError.message}`);
+        }
+      }
       
       const totalCaptureDuration = Date.now() - captureStartTime;
       console.log('[XLPOSTCARDS][STANNP] ========= ALL IMAGES CAPTURED SUCCESSFULLY =========');
