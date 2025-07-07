@@ -1269,7 +1269,7 @@ export default function PostcardPreviewScreen() {
               }}>
                 <Image
                   source={{ uri: imageUri }}
-                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'cover' }}
+                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'contain', backgroundColor: 'white' }}
                   onError={(error: ImageErrorEvent) => {
                     console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
                     setImageLoadError(true);
@@ -1291,10 +1291,10 @@ export default function PostcardPreviewScreen() {
                   {/* Postcard icon in top right */}
                   <View style={{
                     position: 'absolute',
-                    top: 40,
-                    right: 40,
-                    width: 120,
-                    height: 120,
+                    top: 60,
+                    right: 60,
+                    width: 100,
+                    height: 100,
                     backgroundColor: 'white',
                     borderRadius: 8,
                     justifyContent: 'center',
@@ -1306,8 +1306,8 @@ export default function PostcardPreviewScreen() {
                     elevation: 5,
                   }}>
                     <View style={{
-                      width: 80,
-                      height: 60,
+                      width: 60,
+                      height: 45,
                       backgroundColor: '#f0f0f0',
                       borderRadius: 4,
                       justifyContent: 'center',
@@ -1316,57 +1316,31 @@ export default function PostcardPreviewScreen() {
                       borderColor: '#666',
                     }}>
                       <View style={{
-                        width: 20,
-                        height: 20,
+                        width: 15,
+                        height: 15,
                         backgroundColor: '#666',
-                        borderRadius: 10,
+                        borderRadius: 8,
                       }} />
                       <View style={{
-                        width: 40,
-                        height: 4,
+                        width: 30,
+                        height: 3,
                         backgroundColor: '#666',
-                        marginTop: 8,
+                        marginTop: 6,
                         borderRadius: 2,
                       }} />
                     </View>
                     {/* Small hand icon */}
                     <View style={{
                       position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      width: 16,
-                      height: 16,
+                      bottom: 6,
+                      right: 6,
+                      width: 12,
+                      height: 12,
                       backgroundColor: '#666',
                       borderRadius: 8,
                     }} />
                   </View>
                   
-                  {/* Recipient name in bottom left */}
-                  {recipientInfo?.to && (
-                    <View style={{
-                      position: 'absolute',
-                      bottom: 40,
-                      left: 40,
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      paddingHorizontal: 20,
-                      paddingVertical: 12,
-                      borderRadius: 8,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                      elevation: 5,
-                    }}>
-                      <Text style={{
-                        fontSize: 48,
-                        fontWeight: 'bold',
-                        color: '#333',
-                        fontFamily: Platform.OS === 'ios' ? 'Arial' : 'sans-serif',
-                      }}>
-                        {recipientInfo.to}
-                      </Text>
-                    </View>
-                  )}
                 </View>
                 
                 {imageLoadError && (

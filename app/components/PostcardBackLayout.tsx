@@ -24,10 +24,10 @@ interface PostcardBackLayoutProps {
 const postageIndicia = require('../../assets/images/TruePostage.jpeg');
 const stampImage = require('../../assets/images/stamp.png');
 
-// Address box positions (further adjusted for 4x6)
+// Address box positions (adjusted to stay within bounds)
 const addressBox = {
-  regular: { left: 950, top: 780, width: 700, height: 320 }, // more top margin, slightly narrower
-  xl: { left: 1700, top: 1200, width: 800, height: 400 },
+  regular: { left: 800, top: 600, width: 600, height: 300 }, // Moved in from edges
+  xl: { left: 1400, top: 900, width: 700, height: 350 }, // Moved in from edges
 };
 
 const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
@@ -40,21 +40,21 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
   stampImage: stampOverride,
 }) => {
   const box = addressBox[postcardSize];
-  const MESSAGE_FONT = postcardSize === 'regular' ? 32 : 48;
-  const ADDRESS_FONT = postcardSize === 'regular' ? 32 : 48;
-  // Make stamp and postage indicia 4x larger (not 16x)
-  const STAMP_SIZE = postcardSize === 'regular' ? 400 : 400; // 100*4
-  const POSTAGE_HEIGHT = postcardSize === 'regular' ? 240 : 240; // 60*4
+  const MESSAGE_FONT = postcardSize === 'regular' ? 28 : 40;
+  const ADDRESS_FONT = postcardSize === 'regular' ? 28 : 36;
+  // Reasonable stamp and postage indicia sizes
+  const STAMP_SIZE = postcardSize === 'regular' ? 160 : 200; // Smaller, more reasonable size
+  const POSTAGE_HEIGHT = postcardSize === 'regular' ? 100 : 120; // Smaller postage height
 
   // For 4x6, move message block further left and down, and make it narrower
   const messageBlockStyle = postcardSize === 'regular'
     ? { position: 'absolute' as const, left: 60, top: 60, width: width * 0.38, height: height - 120 }
     : { position: 'absolute' as const, left: 60, top: 60, width: width * 0.5, height: height - 120 };
 
-  // For 4x6, move stamp further in from the edge
+  // Stamp positioning - ensure it stays within bounds
   const stampStyle = postcardSize === 'regular'
-    ? { position: 'absolute' as const, top: 80, right: 80, width: STAMP_SIZE, height: STAMP_SIZE }
-    : { position: 'absolute' as const, top: 40, right: 40, width: STAMP_SIZE, height: STAMP_SIZE };
+    ? { position: 'absolute' as const, top: 80, right: 120, width: STAMP_SIZE, height: STAMP_SIZE }
+    : { position: 'absolute' as const, top: 80, right: 120, width: STAMP_SIZE, height: STAMP_SIZE };
 
   return (
     <View style={{ width, height, backgroundColor: 'white' }}>
@@ -71,10 +71,10 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
         height: box.height,
         justifyContent: 'flex-start',
       }}>
-        {/* Postage indicia at top of address box, 4x larger */}
+        {/* Postage indicia at top of address box */}
         <Image
           source={postageImage || postageIndicia}
-          style={{ width: box.width, height: POSTAGE_HEIGHT, marginBottom: 8 }}
+          style={{ width: box.width * 0.8, height: POSTAGE_HEIGHT, marginBottom: 8, alignSelf: 'center' }}
           resizeMode="contain"
         />
         {/* Address text */}
