@@ -70,6 +70,8 @@ class IAPManager {
   }
 
   public async purchasePostcard(stripe?: any): Promise<Purchase> {
+    console.log('[XLPOSTCARDS][IAP] Starting purchasePostcard, platform:', Platform.OS);
+    
     if (Platform.OS === 'ios') {
       // Stripe Payment Sheet logic
       // Get the appropriate webhook URL based on environment
@@ -140,21 +142,53 @@ class IAPManager {
       return purchase;
     }
     // Android IAP logic
+    console.log('[XLPOSTCARDS][IAP] Android purchase flow starting');
+    
     if (!this.isInitialized) {
+      console.log('[XLPOSTCARDS][IAP] Initializing IAP connection...');
       await this.initialize();
     }
+    
     const sku = PRODUCT_SKUS.android[0];
-    const products = await RNIap.getProducts({ skus: [sku] });
-    if (!products || products.length === 0) {
-      throw new Error(`Product ${sku} not found in store`);
+    console.log('[XLPOSTCARDS][IAP] Fetching products for SKU:', sku);
+    
+    try {
+      const products = await RNIap.getProducts({ skus: [sku] });
+      console.log('[XLPOSTCARDS][IAP] Available products:', products);
+      
+      if (!products || products.length === 0) {
+        console.error('[XLPOSTCARDS][IAP] No products found for SKU:', sku);
+        throw new Error(`Product ${sku} not found in store`);
+      }
+      
+      console.log('[XLPOSTCARDS][IAP] Requesting purchase for:', products[0]);
+      const purchaseResponse = await RNIap.requestPurchase({ skus: [sku] });
+      console.log('[XLPOSTCARDS][IAP] Purchase response:', purchaseResponse);
+      
+      const purchase = (Array.isArray(purchaseResponse) ? purchaseResponse[0] : purchaseResponse) as PostcardPurchase;
+      console.log('[XLPOSTCARDS][IAP] Processed purchase:', purchase);
+      
+      if (!purchase.purchaseToken && !purchase.transactionId) {
+        console.error('[XLPOSTCARDS][IAP] Invalid purchase - missing tokens:', purchase);
+        throw new Error('Invalid purchase: missing purchase token or transactionId');
+      }
+      
+      console.log('[XLPOSTCARDS][IAP] Finishing transaction...');
+      await RNIap.finishTransaction({ purchase, isConsumable: true });
+      console.log('[XLPOSTCARDS][IAP] Purchase completed successfully');
+      
+      return purchase;
+    } catch (error) {
+      console.error('[XLPOSTCARDS][IAP] Detailed purchase error:', {
+        error,
+        message: (error as Error)?.message,
+        code: (error as any)?.code,
+        stack: (error as Error)?.stack,
+        sku,
+        isInitialized: this.isInitialized
+      });
+      throw error;
     }
-    const purchaseResponse = await RNIap.requestPurchase({ skus: [sku] });
-    const purchase = (Array.isArray(purchaseResponse) ? purchaseResponse[0] : purchaseResponse) as PostcardPurchase;
-    if (!purchase.purchaseToken && !purchase.transactionId) {
-      throw new Error('Invalid purchase: missing purchase token or transactionId');
-    }
-    await RNIap.finishTransaction({ purchase, isConsumable: true });
-    return purchase;
   }
 
   public async cleanup(): Promise<void> {

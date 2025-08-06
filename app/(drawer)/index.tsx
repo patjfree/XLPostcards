@@ -309,7 +309,7 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  // Platform-specific image picker - iOS gets proper 3:2 cropping, Android avoids status bar issues
+  // Platform-specific image picker - Both iOS and Android use react-native-image-crop-picker for consistent cropping
   const pickImage = async () => {
     try {
       if (Platform.OS === 'ios') {
@@ -349,7 +349,53 @@ export default function HomeScreen() {
         imageSetFromParams.current = true;
         
       } else {
-        // Android: Use Expo ImagePicker to avoid status bar button issues
+        // Android: Use react-native-image-crop-picker with proper status bar configuration
+        try {
+          const pickedImage = await ImagePicker.openPicker({
+            width: 1500,
+            height: 1000,
+            cropping: true,
+            cropperToolbarTitle: 'Crop your postcard image',
+            cropperChooseText: 'Choose',
+            cropperCancelText: 'Cancel',
+            cropperRotateButtonsHidden: false,
+            includeBase64: true,
+            mediaType: 'photo',
+            forceJpg: true,
+            // Android-specific settings to fix status bar button positioning
+            cropperCircleOverlay: false,
+            showCropGuidelines: true,
+            showCropFrame: true,
+            enableRotationGesture: true,
+            cropperActiveWidgetColor: '#f28914',
+            cropperStatusBarColor: '#000000',
+            cropperToolbarColor: '#000000',
+            cropperToolbarWidgetColor: '#ffffff',
+            // Fix for Android status bar overlap
+            freeStyleCropEnabled: false,
+            hideBottomControls: false,
+            cropperTintColor: '#f28914',
+            cropperStatusBarHidden: false,
+          });
+          
+          setImage({
+            uri: pickedImage.path,
+            width: pickedImage.width,
+            height: pickedImage.height,
+            base64: pickedImage.data,
+            type: 'image',
+            fileName: pickedImage.filename || 'image.jpg',
+            fileSize: pickedImage.size || 0,
+            assetId: '',
+          });
+          imageSetFromParams.current = true;
+          return;
+        } catch (cropperError) {
+          console.log('Cropper failed, falling back to Expo ImagePicker:', cropperError);
+          // Fallback to Expo ImagePicker if cropper fails
+        }
+
+        // Fallback: Use Expo ImagePicker if cropper fails
         const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
