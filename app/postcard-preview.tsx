@@ -20,7 +20,18 @@ import { postcardService } from '@/utils/postcardService';
 import { stripeManager } from '@/utils/stripeManager';
 import PostcardBackLayout from './components/PostcardBackLayout';
 
-// Postcard dimensions at 300 DPI (landscape 9x6)
+// Postcard dimensions at 300 DPI - will be dynamically set based on size
+const getPostcardDimensions = (size: 'regular' | 'xl') => {
+  if (size === 'regular') {
+    // 4x6 Regular postcard
+    return { width: 1872, height: 1272 };
+  } else {
+    // 6x9 XL postcard  
+    return { width: 2772, height: 1872 };
+  }
+};
+
+// Default to XL for backwards compatibility
 const POSTCARD_WIDTH = 2772;
 const POSTCARD_HEIGHT = 1872;
 const POSTCARD_ASPECT_RATIO = POSTCARD_HEIGHT / POSTCARD_WIDTH;
@@ -50,11 +61,12 @@ const CheckboxIcon = ({ checked }: { checked: boolean }) => (
 );
 
 // Function to scale an image to the required dimensions
-const scaleImage = async (imageUri: string): Promise<string> => {
+const scaleImage = async (imageUri: string, postcardSize: 'regular' | 'xl'): Promise<string> => {
   try {
+    const dimensions = getPostcardDimensions(postcardSize);
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
-      [{ resize: { width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT } }],
+      [{ resize: { width: dimensions.width, height: dimensions.height } }],
       { 
         compress: 1, 
         format: ImageManipulator.SaveFormat.JPEG,
@@ -473,8 +485,8 @@ export default function PostcardPreviewScreen() {
       
       // Step 2: Scale images to required dimensions
       console.log('[XLPOSTCARDS][STANNP] Scaling images');
-      const frontUri = await scaleImage(frontOriginalUri);
-      const backUri = await scaleImage(backOriginalUri);
+      const frontUri = await scaleImage(frontOriginalUri, postcardSize);
+      const backUri = await scaleImage(backOriginalUri, postcardSize);
       console.log('[XLPOSTCARDS][STANNP] Images scaled successfully');
       console.log('[XLPOSTCARDS][STANNP] Scaled front URI:', frontUri);
       console.log('[XLPOSTCARDS][STANNP] Scaled back URI:', backUri);
@@ -1055,7 +1067,11 @@ export default function PostcardPreviewScreen() {
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
   const designWidth = 700;
-  const designPreviewHeight = designWidth * POSTCARD_ASPECT_RATIO;
+  
+  // Get correct dimensions for the current postcard size
+  const currentDimensions = getPostcardDimensions(postcardSize);
+  const currentAspectRatio = currentDimensions.height / currentDimensions.width;
+  const designPreviewHeight = designWidth * currentAspectRatio;
   const designFooterHeight = 170;
   const designTotalHeight = designPreviewHeight * 2 + designFooterHeight + 24 + (Platform.OS === 'android' ? 32 : 40);
 
@@ -1281,23 +1297,23 @@ export default function PostcardPreviewScreen() {
               ref={viewShotFrontRef}
               style={[styles.postcardPreviewContainer, { width: designWidth, height: designPreviewHeight }]}
               options={{
-                width: POSTCARD_WIDTH,
-                height: POSTCARD_HEIGHT,
+                width: currentDimensions.width,
+                height: currentDimensions.height,
                 quality: 1,
                 format: "jpg"
               }}
             >
               <View style={{
-                width: POSTCARD_WIDTH,
-                height: POSTCARD_HEIGHT,
-                transform: [{ scale: designWidth / POSTCARD_WIDTH }],
+                width: currentDimensions.width,
+                height: currentDimensions.height,
+                transform: [{ scale: designWidth / currentDimensions.width }],
                 transformOrigin: 'top left',
                 backgroundColor: 'white',
                 overflow: 'hidden',
               }}>
                 <Image
                   source={{ uri: imageUri }}
-                  style={{ width: POSTCARD_WIDTH, height: POSTCARD_HEIGHT, resizeMode: 'contain', backgroundColor: 'white' }}
+                  style={{ width: currentDimensions.width, height: currentDimensions.height, resizeMode: 'contain', backgroundColor: 'white' }}
                   onError={(error: ImageErrorEvent) => {
                     console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
                     setImageLoadError(true);

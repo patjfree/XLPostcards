@@ -38,6 +38,21 @@ const PostcardBackGenerator = ({
   const WIDTH = isRegular ? 1871 : 2771;   // Stannp exact pixel dimensions @ 300 DPI
   const HEIGHT = isRegular ? 1271 : 1871;
   
+  // Calculate dynamic font size based on message length
+  const calculateMessageFontSize = (messageText: string, baseSize: number, maxWidth: number): number => {
+    const messageLength = messageText.length;
+    let fontSize = baseSize;
+    
+    // Rough calculation: if message is long, reduce font size to fit
+    if (messageLength > 200) {
+      fontSize = Math.max(baseSize * 0.7, 20); // Minimum 20px
+    } else if (messageLength > 100) {
+      fontSize = Math.max(baseSize * 0.85, 24); // Minimum 24px
+    }
+    
+    return fontSize;
+  };
+  
   // STANNP SAFE ZONES - Based on template specifications
   if (isRegular) {
     // 4x6 Regular: Use Stannp template exact measurements
@@ -58,8 +73,8 @@ const PostcardBackGenerator = ({
     var ADDRESS_WIDTH = 600;   // Conservative width for address
     var ADDRESS_HEIGHT = 200;  // Conservative height for address
     
-    var MESSAGE_FONT = 28;
-    var ADDRESS_FONT = 28;
+    var MESSAGE_FONT = calculateMessageFontSize(message, 36, MESSAGE_WIDTH);  // Dynamic sizing based on message length
+    var ADDRESS_FONT = 32;  // Increased from 28
   } else {
     // 6x9 XL: Proportionally scale up
     var SAFE_LEFT = 108;       // 0.36" = 108px @ 300 DPI
@@ -77,7 +92,7 @@ const PostcardBackGenerator = ({
     var ADDRESS_WIDTH = 700;
     var ADDRESS_HEIGHT = 300;
     
-    var MESSAGE_FONT = 42;
+    var MESSAGE_FONT = calculateMessageFontSize(message, 42, MESSAGE_WIDTH);  // Dynamic sizing for 6x9 too
     var ADDRESS_FONT = 42;
   }
 
@@ -142,6 +157,24 @@ const PostcardBackGenerator = ({
             <Text style={{fontSize: MESSAGE_FONT, color: '#222', lineHeight: MESSAGE_FONT * 1.2}}>
               {message}
             </Text>
+            {/* Debug overlay to verify message positioning */}
+            {__DEV__ && (
+              <View style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderWidth: 2,
+                borderColor: 'red',
+                borderStyle: 'dashed',
+                backgroundColor: 'rgba(255,0,0,0.1)'
+              }}>
+                <Text style={{fontSize: 12, color: 'red', backgroundColor: 'white'}}>
+                  MSG: {MESSAGE_WIDTH}x{MESSAGE_HEIGHT} @ {MESSAGE_FONT}px
+                </Text>
+              </View>
+            )}
           </View>
           
           {/* Address area - STANNP EXACT POSITIONING */}
