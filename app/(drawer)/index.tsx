@@ -349,53 +349,7 @@ export default function HomeScreen() {
         imageSetFromParams.current = true;
         
       } else {
-        // Android: Use react-native-image-crop-picker with proper status bar configuration
-        try {
-          const pickedImage = await ImagePicker.openPicker({
-            width: 1500,
-            height: 1000,
-            cropping: true,
-            cropperToolbarTitle: 'Crop your postcard image',
-            cropperChooseText: 'Choose',
-            cropperCancelText: 'Cancel',
-            cropperRotateButtonsHidden: false,
-            includeBase64: true,
-            mediaType: 'photo',
-            forceJpg: true,
-            // Android-specific settings to fix status bar button positioning
-            cropperCircleOverlay: false,
-            showCropGuidelines: true,
-            showCropFrame: true,
-            enableRotationGesture: true,
-            cropperActiveWidgetColor: '#f28914',
-            cropperStatusBarColor: '#000000',
-            cropperToolbarColor: '#000000',
-            cropperToolbarWidgetColor: '#ffffff',
-            // Fix for Android status bar overlap
-            freeStyleCropEnabled: false,
-            hideBottomControls: false,
-            cropperTintColor: '#f28914',
-            cropperStatusBarHidden: false,
-          });
-          
-          setImage({
-            uri: pickedImage.path,
-            width: pickedImage.width,
-            height: pickedImage.height,
-            base64: pickedImage.data,
-            type: 'image',
-            fileName: pickedImage.filename || 'image.jpg',
-            fileSize: pickedImage.size || 0,
-            assetId: '',
-          });
-          imageSetFromParams.current = true;
-          return;
-        } catch (cropperError) {
-          console.log('Cropper failed, falling back to Expo ImagePicker:', cropperError);
-          // Fallback to Expo ImagePicker if cropper fails
-        }
-
-        // Fallback: Use Expo ImagePicker if cropper fails
+        // Android: Use simple Expo ImagePicker with 3:2 aspect ratio
         const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
@@ -413,9 +367,22 @@ export default function HomeScreen() {
         if (!result.canceled && result.assets[0]) {
           const selectedImage = result.assets[0];
           
-          // Ensure the image is properly sized and cropped for Android
+          // Ensure the image is properly sized to 3:2 aspect ratio
           const manipulatedImage = await ImageManipulator.manipulateAsync(
             selectedImage.uri,
+            [
+              { resize: { width: 1500 } } // Let height adjust automatically to maintain aspect ratio
+            ],
+            {
+              compress: 0.9,
+              format: ImageManipulator.SaveFormat.JPEG,
+              base64: true,
+            }
+          );
+
+          // Ensure final dimensions are exactly 3:2 ratio (1500x1000)
+          const finalImage = await ImageManipulator.manipulateAsync(
+            manipulatedImage.uri,
             [
               { resize: { width: 1500, height: 1000 } }
             ],
@@ -427,10 +394,10 @@ export default function HomeScreen() {
           );
 
           setImage({
-            uri: manipulatedImage.uri,
-            width: manipulatedImage.width,
-            height: manipulatedImage.height,
-            base64: manipulatedImage.base64,
+            uri: finalImage.uri,
+            width: 1500,
+            height: 1000,
+            base64: finalImage.base64,
             type: 'image',
             fileName: selectedImage.fileName || 'image.jpg',
             fileSize: selectedImage.fileSize || 0,
@@ -448,34 +415,48 @@ export default function HomeScreen() {
     }
   };
 
-  // Update rotate handler to use crop-picker
-  /* const handleRotateImage = async () => {
+  // Simple 90-degree rotation handler - maintains 3:2 aspect ratio
+  const handleRotateImage = async () => {
     if (!image) return;
     try {
-      const rotated = await ImagePicker.openCropper({
-        path: image.uri,
-        width: 1500,
-        height: 1000,
-        cropping: true,
-        cropperToolbarTitle: 'Rotate your postcard image',
-        cropperChooseText: 'Done',
-        cropperCancelText: 'Cancel',
-        cropperRotateButtonsHidden: false,
-        includeBase64: true,
-        mediaType: 'photo',
-        forceJpg: true,
-      });
+      // First rotate the image 90 degrees
+      const rotated = await ImageManipulator.manipulateAsync(
+        image.uri,
+        [{ rotate: 90 }], // Simple 90-degree rotation
+        {
+          compress: 0.9,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
+      
+      // After rotation, ensure we maintain postcard aspect ratio (3:2)
+      // If we started with 1500x1000 (3:2), after rotation it becomes 1000x1500 (2:3)
+      // We need to crop/resize it back to 1500x1000 (3:2)
+      const finalImage = await ImageManipulator.manipulateAsync(
+        rotated.uri,
+        [
+          { resize: { width: 1500, height: 1000 } } // Force back to 3:2 ratio
+        ],
+        {
+          compress: 0.9,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
+      
       setImage({
         ...image,
-        uri: rotated.path,
-        width: rotated.width,
-        height: rotated.height,
-        base64: rotated.data,
+        uri: finalImage.uri,
+        width: 1500, // Keep consistent 3:2 dimensions
+        height: 1000,
+        base64: finalImage.base64,
       });
-    } catch {
-      // User cancelled or error
+    } catch (error) {
+      console.error('Error rotating image:', error);
+      Alert.alert('Error', 'Failed to rotate image.');
     }
-  }; */
+  };
 
   // Function to analyze the image with OpenAI
   const analyzeImage = async () => {

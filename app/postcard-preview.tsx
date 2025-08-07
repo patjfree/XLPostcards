@@ -1288,58 +1288,6 @@ export default function PostcardPreviewScreen() {
                   bottom: 0,
                   pointerEvents: 'none'
                 }}>
-                  {/* Postcard icon in top right */}
-                  <View style={{
-                    position: 'absolute',
-                    top: 60,
-                    right: 60,
-                    width: 100,
-                    height: 100,
-                    backgroundColor: 'white',
-                    borderRadius: 8,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                    elevation: 5,
-                  }}>
-                    <View style={{
-                      width: 60,
-                      height: 45,
-                      backgroundColor: '#f0f0f0',
-                      borderRadius: 4,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      borderWidth: 2,
-                      borderColor: '#666',
-                    }}>
-                      <View style={{
-                        width: 15,
-                        height: 15,
-                        backgroundColor: '#666',
-                        borderRadius: 8,
-                      }} />
-                      <View style={{
-                        width: 30,
-                        height: 3,
-                        backgroundColor: '#666',
-                        marginTop: 6,
-                        borderRadius: 2,
-                      }} />
-                    </View>
-                    {/* Small hand icon */}
-                    <View style={{
-                      position: 'absolute',
-                      bottom: 6,
-                      right: 6,
-                      width: 12,
-                      height: 12,
-                      backgroundColor: '#666',
-                      borderRadius: 8,
-                    }} />
-                  </View>
                   
                 </View>
                 

@@ -51,13 +51,19 @@ class IAPManager {
     if (Platform.OS !== 'android') return;
     this.purchaseUpdateSubscription = RNIap.purchaseUpdatedListener(
       async (purchase: RNIap.ProductPurchase) => {
+        console.log('[XLPOSTCARDS][IAP] Purchase update listener triggered:', purchase);
         let idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const purchaseWithIdempotency: PostcardPurchase = {
           ...purchase,
           idempotencyKey,
         };
         if (purchase.purchaseToken) {
-          await RNIap.finishTransaction({ purchase, isConsumable: true });
+          try {
+            await RNIap.finishTransaction({ purchase, isConsumable: true });
+            console.log('[XLPOSTCARDS][IAP] Transaction finished in listener');
+          } catch (finishError) {
+            console.warn('[XLPOSTCARDS][IAP] finishTransaction failed in listener:', finishError);
+          }
         }
         return purchaseWithIdempotency;
       }
@@ -168,13 +174,29 @@ class IAPManager {
       const purchase = (Array.isArray(purchaseResponse) ? purchaseResponse[0] : purchaseResponse) as PostcardPurchase;
       console.log('[XLPOSTCARDS][IAP] Processed purchase:', purchase);
       
+      // Add idempotencyKey to purchase
+      const idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      purchase.idempotencyKey = idempotencyKey;
+      
       if (!purchase.purchaseToken && !purchase.transactionId) {
         console.error('[XLPOSTCARDS][IAP] Invalid purchase - missing tokens:', purchase);
         throw new Error('Invalid purchase: missing purchase token or transactionId');
       }
       
       console.log('[XLPOSTCARDS][IAP] Finishing transaction...');
-      await RNIap.finishTransaction({ purchase, isConsumable: true });
+      try {
+        await RNIap.finishTransaction({ purchase, isConsumable: true });
+        console.log('[XLPOSTCARDS][IAP] Transaction finished successfully');
+      } catch (finishError) {
+        console.warn('[XLPOSTCARDS][IAP] finishTransaction failed but purchase was successful:', {
+          finishError,
+          message: (finishError as Error)?.message,
+          code: (finishError as any)?.code,
+          purchaseToken: purchase.purchaseToken,
+          transactionId: purchase.transactionId
+        });
+        // Don't throw - the purchase itself was successful
+      }
       console.log('[XLPOSTCARDS][IAP] Purchase completed successfully');
       
       return purchase;

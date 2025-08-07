@@ -33,19 +33,53 @@ const PostcardBackGenerator = ({
   const viewShotRef = useRef<ViewShot & ViewShotMethods>(null);
 
   const isRegular = postcardSize === 'regular';
-  const WIDTH = isRegular ? 1871 : 2771;
+  
+  // STANNP EXACT SPECIFICATIONS - Design for print first!
+  const WIDTH = isRegular ? 1871 : 2771;   // Stannp exact pixel dimensions @ 300 DPI
   const HEIGHT = isRegular ? 1271 : 1871;
-  const MESSAGE_FONT = isRegular ? 32 : 48;
-  const ADDRESS_FONT = isRegular ? 32 : 48;
-  const LOGO_SIZE = isRegular ? 180 : 260;
-  const STAMP_FONT = isRegular ? 20 : 32;
-  const PADDING = isRegular ? 32 : 50;
-  const ADDRESS_BOTTOM = isRegular ? 60 : 100;
-  const LOGO_RIGHT = isRegular ? 32 : 50;
-  const LOGO_BOTTOM = isRegular ? 32 : 50;
-  const STAMP_SIZE = isRegular ? 100 : 200;
-  const STAMP_TOP = isRegular ? 20 : 50;
-  const STAMP_RIGHT = isRegular ? 20 : 50;
+  
+  // STANNP SAFE ZONES - Based on template specifications
+  if (isRegular) {
+    // 4x6 Regular: Use Stannp template exact measurements
+    var SAFE_LEFT = 72;        // 0.24" = 72px @ 300 DPI
+    var SAFE_TOP = 72;         // 0.24" = 72px @ 300 DPI  
+    var SAFE_RIGHT = 72;       // 0.24" = 72px @ 300 DPI
+    var SAFE_BOTTOM = 72;      // 0.24" = 72px @ 300 DPI
+    
+    // Message area: Left 2.93" (879px) of safe zone
+    var MESSAGE_LEFT = SAFE_LEFT;
+    var MESSAGE_TOP = SAFE_TOP;
+    var MESSAGE_WIDTH = 879;   // 2.93" exactly from Stannp template
+    var MESSAGE_HEIGHT = HEIGHT - SAFE_TOP - SAFE_BOTTOM;
+    
+    // Address area: Right 4.13" (1239px) of safe zone  
+    var ADDRESS_RIGHT = SAFE_RIGHT;
+    var ADDRESS_BOTTOM = SAFE_BOTTOM + 100;  // Space from bottom
+    var ADDRESS_WIDTH = 600;   // Conservative width for address
+    var ADDRESS_HEIGHT = 200;  // Conservative height for address
+    
+    var MESSAGE_FONT = 28;
+    var ADDRESS_FONT = 28;
+  } else {
+    // 6x9 XL: Proportionally scale up
+    var SAFE_LEFT = 108;       // 0.36" = 108px @ 300 DPI
+    var SAFE_TOP = 108;
+    var SAFE_RIGHT = 108;
+    var SAFE_BOTTOM = 108;
+    
+    var MESSAGE_LEFT = SAFE_LEFT;
+    var MESSAGE_TOP = SAFE_TOP;
+    var MESSAGE_WIDTH = WIDTH * 0.48;  // Keep proportional to XL size
+    var MESSAGE_HEIGHT = HEIGHT - SAFE_TOP - SAFE_BOTTOM;
+    
+    var ADDRESS_RIGHT = SAFE_RIGHT;
+    var ADDRESS_BOTTOM = SAFE_BOTTOM + 120;
+    var ADDRESS_WIDTH = 700;
+    var ADDRESS_HEIGHT = 300;
+    
+    var MESSAGE_FONT = 42;
+    var ADDRESS_FONT = 42;
+  }
 
   useEffect(() => {
     const generatePostcardBack = async () => {
@@ -95,20 +129,45 @@ const PostcardBackGenerator = ({
         }}
       >
         <View style={{flex:1, backgroundColor: 'white'}}>
-          <View style={{position: 'absolute', top: PADDING, left: PADDING, width: WIDTH * 0.55 - PADDING, height: HEIGHT - 2 * PADDING}}>
-            <Text style={{fontSize: MESSAGE_FONT, color: '#222'}}>{message}</Text>
+          {/* Message area - STANNP EXACT POSITIONING */}
+          <View style={{
+            position: 'absolute', 
+            top: MESSAGE_TOP, 
+            left: MESSAGE_LEFT, 
+            width: MESSAGE_WIDTH,
+            height: MESSAGE_HEIGHT,
+            // Debug border to verify positioning
+            // borderWidth: 1, borderColor: 'red', borderStyle: 'dashed'
+          }}>
+            <Text style={{fontSize: MESSAGE_FONT, color: '#222', lineHeight: MESSAGE_FONT * 1.2}}>
+              {message}
+            </Text>
           </View>
-          <View style={{position: 'absolute', bottom: ADDRESS_BOTTOM, left: WIDTH * 0.55 + PADDING, width: WIDTH * 0.4 - 2 * PADDING}}>
-            <Text style={{fontSize: ADDRESS_FONT, color: '#222'}}>{recipientInfo.to}</Text>
-            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{recipientInfo.addressLine1}</Text>
-            {recipientInfo.addressLine2 && <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{recipientInfo.addressLine2}</Text>}
-            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 8}}>{`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}</Text>
-          </View>
-          <View style={{position: 'absolute', right: LOGO_RIGHT, bottom: LOGO_BOTTOM}}>
-            <Text style={{fontSize: LOGO_SIZE}}>📬</Text>
-          </View>
-          <View style={{position: 'absolute', top: STAMP_TOP, right: STAMP_RIGHT, width: STAMP_SIZE, height: STAMP_SIZE, borderColor: '#cccccc', borderWidth: 1, borderStyle: 'solid', alignItems: 'center', justifyContent: 'center'}}>
-            <Text style={{fontSize: STAMP_FONT}}>STAMP</Text>
+          
+          {/* Address area - STANNP EXACT POSITIONING */}
+          <View style={{
+            position: 'absolute', 
+            bottom: ADDRESS_BOTTOM, 
+            right: ADDRESS_RIGHT, 
+            width: ADDRESS_WIDTH,
+            height: ADDRESS_HEIGHT,
+            // Debug border to verify positioning  
+            // borderWidth: 1, borderColor: 'blue', borderStyle: 'dashed'
+          }}>
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222', lineHeight: ADDRESS_FONT * 1.2}}>
+              {recipientInfo.to}
+            </Text>
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 4, lineHeight: ADDRESS_FONT * 1.2}}>
+              {recipientInfo.addressLine1}
+            </Text>
+            {recipientInfo.addressLine2 && (
+              <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 4, lineHeight: ADDRESS_FONT * 1.2}}>
+                {recipientInfo.addressLine2}
+              </Text>
+            )}
+            <Text style={{fontSize: ADDRESS_FONT, color: '#222', marginTop: 4, lineHeight: ADDRESS_FONT * 1.2}}>
+              {`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+            </Text>
           </View>
         </View>
       </ViewShot>

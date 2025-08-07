@@ -24,10 +24,45 @@ interface PostcardBackLayoutProps {
 const postageIndicia = require('../../assets/images/TruePostage.jpeg');
 const stampImage = require('../../assets/images/stamp.png');
 
-// Address box positions (adjusted to stay within bounds)
-const addressBox = {
-  regular: { left: 800, top: 600, width: 600, height: 300 }, // Moved in from edges
-  xl: { left: 1400, top: 900, width: 700, height: 350 }, // Moved in from edges
+// STANNP EXACT SPECIFICATIONS scaled for preview
+const getStannpDimensions = (postcardSize: 'regular' | 'xl', previewWidth: number, previewHeight: number) => {
+  const isRegular = postcardSize === 'regular';
+  
+  // Stannp original dimensions @ 300 DPI  
+  const STANNP_WIDTH = isRegular ? 1871 : 2771;
+  const STANNP_HEIGHT = isRegular ? 1271 : 1871;
+  
+  // Scale factor from Stannp to preview
+  const scaleX = previewWidth / STANNP_WIDTH;
+  const scaleY = previewHeight / STANNP_HEIGHT;
+  
+  if (isRegular) {
+    // 4x6 Regular: Scale Stannp exact measurements to preview size
+    return {
+      messageLeft: 72 * scaleX,        // Scaled from Stannp 72px safe margin
+      messageTop: 72 * scaleY,         
+      messageWidth: 879 * scaleX,      // Scaled from Stannp 2.93" = 879px
+      messageHeight: (STANNP_HEIGHT - 144) * scaleY, // Total height minus top/bottom margins
+      
+      addressRight: 72 * scaleX,       // Scaled from Stannp safe margin
+      addressBottom: 172 * scaleY,     // Scaled from Stannp positioning
+      addressWidth: 600 * scaleX,      // Scaled conservative width
+      addressHeight: 200 * scaleY,     // Scaled conservative height
+    };
+  } else {
+    // 6x9 XL: Scale proportionally
+    return {
+      messageLeft: 108 * scaleX,
+      messageTop: 108 * scaleY,
+      messageWidth: (STANNP_WIDTH * 0.48) * scaleX,
+      messageHeight: (STANNP_HEIGHT - 216) * scaleY,
+      
+      addressRight: 108 * scaleX,
+      addressBottom: 228 * scaleY,
+      addressWidth: 700 * scaleX,
+      addressHeight: 300 * scaleY,
+    };
+  }
 };
 
 const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
@@ -39,56 +74,58 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
   postageImage,
   stampImage: stampOverride,
 }) => {
-  const box = addressBox[postcardSize];
-  const MESSAGE_FONT = postcardSize === 'regular' ? 28 : 40;
-  const ADDRESS_FONT = postcardSize === 'regular' ? 28 : 36;
-  // Reasonable stamp and postage indicia sizes
-  const STAMP_SIZE = postcardSize === 'regular' ? 160 : 200; // Smaller, more reasonable size
-  const POSTAGE_HEIGHT = postcardSize === 'regular' ? 100 : 120; // Smaller postage height
-
-  // For 4x6, move message block further left and down, and make it narrower
-  const messageBlockStyle = postcardSize === 'regular'
-    ? { position: 'absolute' as const, left: 60, top: 60, width: width * 0.38, height: height - 120 }
-    : { position: 'absolute' as const, left: 60, top: 60, width: width * 0.5, height: height - 120 };
-
-  // Stamp positioning - ensure it stays within bounds
-  const stampStyle = postcardSize === 'regular'
-    ? { position: 'absolute' as const, top: 80, right: 120, width: STAMP_SIZE, height: STAMP_SIZE }
-    : { position: 'absolute' as const, top: 80, right: 120, width: STAMP_SIZE, height: STAMP_SIZE };
+  // Get Stannp exact dimensions scaled to preview size
+  const dims = getStannpDimensions(postcardSize, width, height);
+  const MESSAGE_FONT = postcardSize === 'regular' ? 16 : 24; // Scaled for preview
+  const ADDRESS_FONT = postcardSize === 'regular' ? 16 : 20;  // Scaled for preview
 
   return (
     <View style={{ width, height, backgroundColor: 'white' }}>
-      {/* Message block */}
-      <View style={messageBlockStyle}>
-        <Text style={{ fontSize: MESSAGE_FONT, color: '#222' }}>{message}</Text>
-      </View>
-      {/* Address box overlay */}
+      {/* Message area - SCALED FROM STANNP EXACT POSITIONING */}
       <View style={{
         position: 'absolute',
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        justifyContent: 'flex-start',
+        left: dims.messageLeft,
+        top: dims.messageTop,
+        width: dims.messageWidth,
+        height: dims.messageHeight,
+        // Debug border to verify scaling
+        // borderWidth: 1, borderColor: 'red', borderStyle: 'dashed'
       }}>
-        {/* Postage indicia at top of address box */}
-        <Image
-          source={postageImage || postageIndicia}
-          style={{ width: box.width * 0.8, height: POSTAGE_HEIGHT, marginBottom: 8, alignSelf: 'center' }}
-          resizeMode="contain"
-        />
-        {/* Address text */}
-        <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.to}</Text>
-        <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.addressLine1}</Text>
-        {recipientInfo.addressLine2 && <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{recipientInfo.addressLine2}</Text>}
-        <Text style={{ fontSize: ADDRESS_FONT, color: '#222' }}>{`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}</Text>
+        <Text style={{ 
+          fontSize: MESSAGE_FONT, 
+          color: '#222', 
+          lineHeight: MESSAGE_FONT * 1.3 
+        }}>
+          {message}
+        </Text>
       </View>
-      {/* Stamp in stamp area (top right), 4x larger */}
-      <Image
-        source={stampOverride || stampImage}
-        style={stampStyle}
-        resizeMode="contain"
-      />
+      
+      {/* Address area - SCALED FROM STANNP EXACT POSITIONING */}
+      <View style={{
+        position: 'absolute',
+        right: dims.addressRight,
+        bottom: dims.addressBottom,
+        width: dims.addressWidth,
+        height: dims.addressHeight,
+        justifyContent: 'flex-start',
+        // Debug border to verify scaling
+        // borderWidth: 1, borderColor: 'blue', borderStyle: 'dashed'
+      }}>
+        <Text style={{ fontSize: ADDRESS_FONT, color: '#222', lineHeight: ADDRESS_FONT * 1.3 }}>
+          {recipientInfo.to}
+        </Text>
+        <Text style={{ fontSize: ADDRESS_FONT, color: '#222', marginTop: 2, lineHeight: ADDRESS_FONT * 1.3 }}>
+          {recipientInfo.addressLine1}
+        </Text>
+        {recipientInfo.addressLine2 && (
+          <Text style={{ fontSize: ADDRESS_FONT, color: '#222', marginTop: 2, lineHeight: ADDRESS_FONT * 1.3 }}>
+            {recipientInfo.addressLine2}
+          </Text>
+        )}
+        <Text style={{ fontSize: ADDRESS_FONT, color: '#222', marginTop: 2, lineHeight: ADDRESS_FONT * 1.3 }}>
+          {`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
+        </Text>
+      </View>
     </View>
   );
 };
