@@ -11,8 +11,6 @@ import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from '../components/AIDisclaimer';
 
 // const US_STATES = [
@@ -923,46 +921,46 @@ export default function HomeScreen() {
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        <ThemedView style={styles.buttonsContainer}>
+        <View style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.fullWidthButton} onPress={pickImage}>
-            <ThemedText style={styles.buttonText}>{image ? 'Change Photo' : '1) Select Photo'}</ThemedText>
+            <Text style={styles.buttonText}>{image ? 'Change Photo' : '1) Select Photo'}</Text>
           </TouchableOpacity>
-        </ThemedView>
+        </View>
 
         {image && (
-          <ThemedView style={styles.imagePreviewContainer}>
+          <View style={styles.imagePreviewContainer}>
             <Image
               source={{ uri: (image as any).uri }}
               style={{ width: '100%', aspectRatio: 1.5, borderRadius: 8 }}
               resizeMode="cover"
             />
-          </ThemedView>
+          </View>
         )}
 
-        <ThemedView style={styles.sectionBlock}>
-          <ThemedText style={styles.sectionLabel}>Select Postcard Size</ThemedText>
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionLabel}>Select Postcard Size</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
             <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
               <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
                 {postcardSize === 'regular' && <View style={styles.radioInner} />}
               </View>
-              <ThemedText style={styles.radioLabel}>Regular (4"x6")</ThemedText>
+              <Text style={styles.radioLabel}>Regular (4"x6")</Text>
             </Pressable>
             <Pressable onPress={() => setPostcardSize('xl')} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={[styles.radioOuter, postcardSize === 'xl' && styles.radioOuterSelected]}>
                 {postcardSize === 'xl' && <View style={styles.radioInner} />}
               </View>
-              <ThemedText style={styles.radioLabel}>XL (6"x9")</ThemedText>
+              <Text style={styles.radioLabel}>XL (6"x9")</Text>
             </Pressable>
           </View>
           <View style={{ alignItems: 'center', marginBottom: 4 }}>
-            <ThemedText style={{ color: '#888', fontSize: 14 }}>Same Low Price - $1.99 + tax</ThemedText>
+            <Text style={{ color: '#888', fontSize: 14 }}>Same Low Price - $1.99 + tax</Text>
           </View>
-        </ThemedView>
+        </View>
 
         {/* Address Dropdown Section */}
-        <ThemedView style={[styles.sectionBlock, { zIndex: 3000 }]}>
-          <ThemedText style={styles.sectionLabel}>2) Select Recipient</ThemedText>
+        <View style={[styles.sectionBlock, { zIndex: 3000 }]}>
+          <Text style={styles.sectionLabel}>2) Select Recipient</Text>
           <TouchableOpacity
             style={[styles.fullWidthButton, { marginBottom: 8 }]}
             onPress={() => {
@@ -970,19 +968,19 @@ export default function HomeScreen() {
               router.push({ pathname: '/select-recipient', params: { imageUri: (image as any)?.uri, message: postcardMessage, postcardSize } });
             }}
           >
-            <ThemedText style={styles.buttonText}>
+            <Text style={styles.buttonText}>
               {addresses.length === 0
                 ? 'Add Recipient'
                 : (selectedAddressId
                     ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient')
                     : 'Select Recipient')}
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
-        </ThemedView>
+        </View>
 
         {/* Message Block */}
-        <ThemedView style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <ThemedText style={styles.sectionLabel}>3) Write Message</ThemedText>
+        <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
+          <Text style={styles.sectionLabel}>3) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
               style={[styles.input, styles.messageInput]}
@@ -1004,10 +1002,10 @@ export default function HomeScreen() {
               onPress={analyzeImage}
               disabled={!image || loading}
             >
-              <ThemedText style={[styles.buttonText, { fontSize: 18 }]}>Write for me</ThemedText>
+              <Text style={[styles.buttonText, { fontSize: 18 }]}>Write for me</Text>
             </TouchableOpacity>
           </View>
-        </ThemedView>
+        </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
           <TouchableOpacity
@@ -1043,16 +1041,16 @@ export default function HomeScreen() {
             onPress={handleCreatePostcard}
             disabled={!image || !postcardMessage}
           >
-            <ThemedText style={styles.createButtonText}>Create Postcard</ThemedText>
+            <Text style={styles.createButtonText}>Create Postcard</Text>
           </TouchableOpacity>
         </View>
 
-        <ThemedView style={styles.formContainer}>
-          <ThemedText style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
+        <View style={styles.formContainer}>
+          <Text style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
             Currently postcards can only be sent to the US
-          </ThemedText>
+          </Text>
           <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
-        </ThemedView>
+        </View>
       </ScrollView>
 
       {/* Add/Edit Address Modal */}
@@ -1081,9 +1079,9 @@ export default function HomeScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={{ flex: 1, maxWidth: 420, width: '98%', alignSelf: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 20, justifyContent: 'center' }}>
-              <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#f28914', textAlign: 'center', marginBottom: 16 }}>
                 {editingAddressId ? 'Edit Address' : 'Add New Address'}
-              </ThemedText>
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Name *"
@@ -1150,9 +1148,9 @@ export default function HomeScreen() {
                 placeholderTextColor="#b3b3b3"
               /> */}
               {addressValidationStatus === 'invalid' && addressValidationMessage ? (
-                <ThemedText style={{ color: '#dc3545', textAlign: 'center', marginBottom: 12 }}>
+                <Text style={{ color: '#dc3545', textAlign: 'center', marginBottom: 12 }}>
                   {addressValidationMessage}
-                </ThemedText>
+                </Text>
               ) : null}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
                 <TouchableOpacity
@@ -1171,13 +1169,13 @@ export default function HomeScreen() {
                     }
                   }}
                 >
-                  <ThemedText style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Cancel</ThemedText>
+                  <Text style={{ color: '#f28914', fontWeight: 'bold', fontSize: 18 }}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: '#f28914' }]}
                   onPress={handleSaveNewAddress}
                 >
-                  <ThemedText style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Save</ThemedText>
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>

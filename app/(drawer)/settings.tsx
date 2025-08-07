@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, View, Switch, Platform, StatusBar } from 'react-native';
+import { StyleSheet, TextInput, View, Switch, Platform, StatusBar, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SETTINGS_KEYS = {
@@ -61,7 +59,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 32) : 0 }}>
-        <ThemedText type="title" style={styles.title}>Settings</ThemedText>
+        <Text style={styles.title}>Settings</Text>
       </View>
       
       {/* Email field temporarily hidden */}
@@ -79,7 +77,7 @@ export default function SettingsScreen() {
       </View> */}
 
       <View style={styles.section}>
-        <ThemedText style={styles.label}>Signature Block</ThemedText>
+        <Text style={styles.label}>Signature Block</Text>
         <TextInput
           style={[styles.input, styles.multilineInput]}
           value={signature}

@@ -12,8 +12,6 @@ import Constants from 'expo-constants';
 import { useStripe } from '@stripe/stripe-react-native';
 import '../config'; // <-- Import config to ensure it's loaded
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import AIDisclaimer from './components/AIDisclaimer';
 import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
@@ -881,10 +879,10 @@ export default function PostcardPreviewScreen() {
       <View style={styles.successOverlay} pointerEvents="auto">
         <View style={styles.successContent}>
           <View style={{ width: '100%', height: 12, backgroundColor: '#fff' }} />
-          <ThemedText style={styles.successTitle}>Success!</ThemedText>
-          <ThemedText style={styles.successMessage}>
+          <Text style={styles.successTitle}>Success!</Text>
+          <Text style={styles.successMessage}>
             Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
-          </ThemedText>
+          </Text>
           <TouchableOpacity 
             style={styles.successButton}
             onPress={() => {
@@ -893,7 +891,7 @@ export default function PostcardPreviewScreen() {
               handleNavigation();
             }}
           >
-            <ThemedText style={styles.successButtonText}>OK</ThemedText>
+            <Text style={styles.successButtonText}>OK</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1135,25 +1133,25 @@ export default function PostcardPreviewScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ThemedText style={styles.modalTitle}>Oops!</ThemedText>
-            <ThemedText style={styles.modalText}>
+            <Text style={styles.modalTitle}>Oops!</Text>
+            <Text style={styles.modalText}>
               {isPaymentCanceled
                 ? 'Payment was canceled. No charge was made. Please try again or return to the home screen.'
                 : lastErrorMessage || 'Oops, something went wrong sending your XLPostcards.'}
-            </ThemedText>
+            </Text>
             {stannpAttempts === 1 && !isPaymentCanceled ? (
               <TouchableOpacity 
                 style={styles.modalButton}
                 onPress={handleTryAgain}
               >
-                <ThemedText style={styles.modalButtonText}>Try Again</ThemedText>
+                <Text style={styles.modalButtonText}>Try Again</Text>
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity 
               style={[styles.modalButton, { marginTop: 12, backgroundColor: '#2c5a68' }]}
               onPress={handleBackToHome}
             >
-              <ThemedText style={styles.modalButtonText}>Back to Home</ThemedText>
+              <Text style={styles.modalButtonText}>Back to Home</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1212,10 +1210,10 @@ export default function PostcardPreviewScreen() {
             >
               <MaterialIcons name="close" size={24} color="white" />
             </TouchableOpacity>
-            <ThemedText style={styles.modalTitle}>Request Refund</ThemedText>
-            <ThemedText style={styles.modalText}>
+            <Text style={styles.modalTitle}>Request Refund</Text>
+            <Text style={styles.modalText}>
               Please provide your information for the refund request:
-            </ThemedText>
+            </Text>
             <TextInput
               style={styles.refundInput}
               placeholder="Name *"
@@ -1240,9 +1238,9 @@ export default function PostcardPreviewScreen() {
               onPress={handleSubmitRefund}
               disabled={!refundForm.name.trim() || !refundForm.email.trim() || isSubmitting}
             >
-              <ThemedText style={styles.modalButtonText}>
+              <Text style={styles.modalButtonText}>
                 {isSubmitting ? 'Submitting...' : 'Request Refund'}
-              </ThemedText>
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1263,10 +1261,10 @@ export default function PostcardPreviewScreen() {
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <ThemedText style={styles.modalTitle}>Refund Request Received</ThemedText>
-          <ThemedText style={styles.modalText}>
+          <Text style={styles.modalTitle}>Refund Request Received</Text>
+          <Text style={styles.modalText}>
             We've received your request for a refund, please give us 2 business days to investigate and complete the transaction.
-          </ThemedText>
+          </Text>
           <TouchableOpacity 
             style={styles.modalButton}
             onPress={() => {
@@ -1274,7 +1272,7 @@ export default function PostcardPreviewScreen() {
               router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
             }}
           >
-            <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            <Text style={styles.modalButtonText}>OK</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1292,7 +1290,7 @@ export default function PostcardPreviewScreen() {
     <>
       {/* Existing SuccessModal and main content */}
       <SuccessOverlay />
-      <ThemedView style={styles.container}>
+      <View style={styles.container}>
         {/* Top SafeAreaView for status bar spacer */}
         <SafeAreaView style={{ backgroundColor: '#22303C' }} />
         <View
@@ -1366,9 +1364,9 @@ export default function PostcardPreviewScreen() {
                 
                 {imageLoadError && (
                   <View style={styles.errorOverlay}>
-                    <ThemedText style={styles.errorText}>
+                    <Text style={styles.errorText}>
                       Failed to load image.{"\n"}Please go back and try again.
-                    </ThemedText>
+                    </Text>
                   </View>
                 )}
               </View>
@@ -1405,9 +1403,9 @@ export default function PostcardPreviewScreen() {
             {/* Footer content */}
             <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 
               {/* Disclaimer Text */}
-              <ThemedText style={styles.disclaimerText}>
+              <Text style={styles.disclaimerText}>
                 By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
-              </ThemedText>
+              </Text>
               {/* Controls */}
               <View style={styles.controls}>
                 <View style={[styles.buttonRow, { justifyContent: 'center', alignItems: 'center' }]}> 
@@ -1443,9 +1441,9 @@ export default function PostcardPreviewScreen() {
                         onPress={() => void startNewPurchaseFlow()}
                         disabled={sending}
                       >
-                        <ThemedText style={styles.buttonText}>
+                        <Text style={styles.buttonText}>
                           Send Your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} Postcard
-                        </ThemedText>
+                        </Text>
                       </TouchableOpacity>
                     </>
                   ) : null}
@@ -1458,14 +1456,14 @@ export default function PostcardPreviewScreen() {
         {sending && (
           <View style={styles.statusContainer}>
             <ActivityIndicator size="large" color="#A1CEDC" />
-            <ThemedText style={styles.statusText}>Sending XLPostcards...</ThemedText>
+            <Text style={styles.statusText}>Sending XLPostcards...</Text>
           </View>
         )}
         {/* Add the new modals */}
         <ErrorModal />
         <RefundModal />
         <RefundSuccessModal />
-      </ThemedView>
+      </View>
     </>
   );
 }
