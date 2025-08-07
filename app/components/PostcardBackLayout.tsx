@@ -41,7 +41,7 @@ const getStannpDimensions = (postcardSize: 'regular' | 'xl', previewWidth: numbe
     return {
       messageLeft: 72 * scaleX,        // Scaled from Stannp 72px safe margin
       messageTop: 72 * scaleY,         
-      messageWidth: 879 * scaleX,      // Scaled from Stannp 2.93" = 879px
+      messageWidth: 620 * scaleX,      // Reduced to prevent address overlap
       messageHeight: (STANNP_HEIGHT - 144) * scaleY, // Total height minus top/bottom margins
       
       addressRight: 72 * scaleX,       // Scaled from Stannp safe margin
@@ -76,8 +76,35 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
 }) => {
   // Get Stannp exact dimensions scaled to preview size
   const dims = getStannpDimensions(postcardSize, width, height);
-  const MESSAGE_FONT = postcardSize === 'regular' ? 16 : 24; // Scaled for preview
-  const ADDRESS_FONT = postcardSize === 'regular' ? 16 : 20;  // Scaled for preview
+  // Calculate proper font sizes for print output - these need to be much larger
+  // When used in ViewShot at full resolution, we need full-size fonts
+  const isFullResolution = width > 1000; // ViewShot uses full Stannp dimensions
+  
+  // Dynamic font sizing based on message length
+  const calculateMessageFontSize = (messageText: string, baseSize: number): number => {
+    const messageLength = messageText.length;
+    let fontSize = baseSize;
+    
+    if (messageLength > 200) {
+      fontSize = Math.max(baseSize * 0.7, baseSize * 0.6);
+    } else if (messageLength > 100) {
+      fontSize = Math.max(baseSize * 0.85, baseSize * 0.75);
+    }
+    
+    return fontSize;
+  };
+  
+  let MESSAGE_FONT, ADDRESS_FONT;
+  if (isFullResolution) {
+    // Full resolution for Stannp output - use large fonts with dynamic scaling
+    const baseMessageFont = postcardSize === 'regular' ? 60 : 72;
+    MESSAGE_FONT = calculateMessageFontSize(message, baseMessageFont);
+    ADDRESS_FONT = postcardSize === 'regular' ? 48 : 56;
+  } else {
+    // Preview resolution - scale fonts down
+    MESSAGE_FONT = postcardSize === 'regular' ? 16 : 24;
+    ADDRESS_FONT = postcardSize === 'regular' ? 16 : 20;
+  }
 
   return (
     <View style={{ width, height, backgroundColor: 'white' }}>
