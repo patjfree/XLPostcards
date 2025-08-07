@@ -23,11 +23,22 @@ import PostcardBackLayout from './components/PostcardBackLayout';
 // Postcard dimensions at 300 DPI - will be dynamically set based on size
 const getPostcardDimensions = (size: 'regular' | 'xl') => {
   if (size === 'regular') {
-    // 4x6 Regular postcard
+    // 4x6 Regular postcard - add bleed area to prevent white strips
     return { width: 1872, height: 1272 };
   } else {
-    // 6x9 XL postcard  
+    // 6x9 XL postcard - add bleed area to prevent white strips
     return { width: 2772, height: 1872 };
+  }
+};
+
+// Get dimensions for front image with bleed extension
+const getFrontImageDimensions = (size: 'regular' | 'xl') => {
+  if (size === 'regular') {
+    // 4x6 with slight extension to ensure full bleed
+    return { width: 1890, height: 1290 };  // +18px on each dimension for bleed
+  } else {
+    // 6x9 with slight extension to ensure full bleed
+    return { width: 2790, height: 1890 };  // +18px on each dimension for bleed
   }
 };
 
@@ -485,7 +496,16 @@ export default function PostcardPreviewScreen() {
       
       // Step 2: Scale images to required dimensions
       console.log('[XLPOSTCARDS][STANNP] Scaling images');
-      const frontUri = await scaleImage(frontOriginalUri, postcardSize);
+      // Scale front image with bleed dimensions
+      const frontDimensions = getFrontImageDimensions(postcardSize);
+      const frontScaledResult = await ImageManipulator.manipulateAsync(
+        frontOriginalUri,
+        [{ resize: { width: frontDimensions.width, height: frontDimensions.height } }],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: false }
+      );
+      const frontUri = frontScaledResult.uri;
+      
+      // Scale back image with standard dimensions  
       const backUri = await scaleImage(backOriginalUri, postcardSize);
       console.log('[XLPOSTCARDS][STANNP] Images scaled successfully');
       console.log('[XLPOSTCARDS][STANNP] Scaled front URI:', frontUri);
@@ -1070,6 +1090,7 @@ export default function PostcardPreviewScreen() {
   
   // Get correct dimensions for the current postcard size
   const currentDimensions = getPostcardDimensions(postcardSize);
+  const frontImageDimensions = getFrontImageDimensions(postcardSize);
   const currentAspectRatio = currentDimensions.height / currentDimensions.width;
   const designPreviewHeight = designWidth * currentAspectRatio;
   const designFooterHeight = 170;
@@ -1313,7 +1334,15 @@ export default function PostcardPreviewScreen() {
               }}>
                 <Image
                   source={{ uri: imageUri }}
-                  style={{ width: currentDimensions.width, height: currentDimensions.height, resizeMode: 'contain', backgroundColor: 'white' }}
+                  style={{ 
+                    width: frontImageDimensions.width, 
+                    height: frontImageDimensions.height, 
+                    resizeMode: 'cover', 
+                    backgroundColor: 'white',
+                    position: 'absolute',
+                    top: -9,  // Offset to center the larger image
+                    left: -9
+                  }}
                   onError={(error: ImageErrorEvent) => {
                     console.error('Image loading error:', error?.nativeEvent?.error || 'Unknown error');
                     setImageLoadError(true);

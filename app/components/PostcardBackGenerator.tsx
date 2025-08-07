@@ -44,10 +44,11 @@ const PostcardBackGenerator = ({
     let fontSize = baseSize;
     
     // Rough calculation: if message is long, reduce font size to fit
+    // But keep minimums much higher since fonts need to be bigger
     if (messageLength > 200) {
-      fontSize = Math.max(baseSize * 0.7, 20); // Minimum 20px
+      fontSize = Math.max(baseSize * 0.7, baseSize * 0.6); // Minimum 60% of base
     } else if (messageLength > 100) {
-      fontSize = Math.max(baseSize * 0.85, 24); // Minimum 24px
+      fontSize = Math.max(baseSize * 0.85, baseSize * 0.75); // Minimum 75% of base
     }
     
     return fontSize;
@@ -61,20 +62,20 @@ const PostcardBackGenerator = ({
     var SAFE_RIGHT = 72;       // 0.24" = 72px @ 300 DPI
     var SAFE_BOTTOM = 72;      // 0.24" = 72px @ 300 DPI
     
-    // Message area: Left 2.93" (879px) of safe zone
+    // Message area: Left side only - must not overlap address area
     var MESSAGE_LEFT = SAFE_LEFT;
     var MESSAGE_TOP = SAFE_TOP;
-    var MESSAGE_WIDTH = 879;   // 2.93" exactly from Stannp template
+    var MESSAGE_WIDTH = 620;   // Reduced from 879px to prevent address overlap
     var MESSAGE_HEIGHT = HEIGHT - SAFE_TOP - SAFE_BOTTOM;
     
-    // Address area: Right 4.13" (1239px) of safe zone  
+    // Address area: Right side with proper spacing
     var ADDRESS_RIGHT = SAFE_RIGHT;
     var ADDRESS_BOTTOM = SAFE_BOTTOM + 100;  // Space from bottom
     var ADDRESS_WIDTH = 600;   // Conservative width for address
     var ADDRESS_HEIGHT = 200;  // Conservative height for address
     
-    var MESSAGE_FONT = calculateMessageFontSize(message, 36, MESSAGE_WIDTH);  // Dynamic sizing based on message length
-    var ADDRESS_FONT = 32;  // Increased from 28
+    var MESSAGE_FONT = calculateMessageFontSize(message, 60, MESSAGE_WIDTH);  // Much larger base size: 60px
+    var ADDRESS_FONT = 48;  // Much larger: 48px
   } else {
     // 6x9 XL: Proportionally scale up
     var SAFE_LEFT = 108;       // 0.36" = 108px @ 300 DPI
@@ -92,8 +93,8 @@ const PostcardBackGenerator = ({
     var ADDRESS_WIDTH = 700;
     var ADDRESS_HEIGHT = 300;
     
-    var MESSAGE_FONT = calculateMessageFontSize(message, 42, MESSAGE_WIDTH);  // Dynamic sizing for 6x9 too
-    var ADDRESS_FONT = 42;
+    var MESSAGE_FONT = calculateMessageFontSize(message, 72, MESSAGE_WIDTH);  // Much larger: 72px base size for 6x9
+    var ADDRESS_FONT = 56;  // Much larger: 56px for addresses
   }
 
   useEffect(() => {
