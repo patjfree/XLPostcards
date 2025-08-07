@@ -133,6 +133,7 @@ export default function PostcardPreviewScreen() {
   
   // Add a new state to hold the last error message
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
+  const [stannpConfirmed, setStannpConfirmed] = useState<boolean>(false);
   
   // Update the initial params effect
   useEffect(() => {
@@ -596,11 +597,24 @@ export default function PostcardPreviewScreen() {
       const data = JSON.parse(responseText);
       console.log('[XLPOSTCARDS][STANNP] Parsed API Response:', JSON.stringify(data, null, 2));
       
+      console.log('[XLPOSTCARDS][STANNP] ========= CRITICAL STANNP SUCCESS CHECK =========');
+      console.log('[XLPOSTCARDS][STANNP] data.success value:', data.success);
+      console.log('[XLPOSTCARDS][STANNP] data.success type:', typeof data.success);
+      console.log('[XLPOSTCARDS][STANNP] data object keys:', Object.keys(data));
+      
       if (!data.success) {
-        console.error('[XLPOSTCARDS][STANNP] API reported failure:', data.error);
+        console.error('[XLPOSTCARDS][STANNP] ========= STANNP API REPORTED FAILURE =========');
+        console.error('[XLPOSTCARDS][STANNP] API failure reason:', data.error);
+        console.error('[XLPOSTCARDS][STANNP] Full response data:', JSON.stringify(data, null, 2));
         await postcardService.markTransactionFailed(postcardPurchase.transactionId);
         throw new Error(data.error || 'Failed to send postcard');
       }
+      
+      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CONFIRMED SUCCESS =========');
+      console.log('[XLPOSTCARDS][STANNP] Proceeding with success flow...');
+      
+      // Set the Stannp confirmation flag
+      setStannpConfirmed(true);
       
       // Mark transaction as completed
       console.log('[XLPOSTCARDS][STANNP] Marking transaction as complete');
@@ -619,8 +633,14 @@ export default function PostcardPreviewScreen() {
           message: `Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.`,
           pdfUrl: pdfUrl
         });
-        console.log('[XLPOSTCARDS][STANNP] Showing success modal now');
-        showOnlyModal('success');
+        if (stannpConfirmed) {
+          console.log('[XLPOSTCARDS][STANNP] ========= SHOWING SUCCESS MODAL AFTER STANNP CONFIRMATION =========');
+          console.log('[XLPOSTCARDS][STANNP] Success modal triggered because Stannp API returned success: true');
+          showOnlyModal('success');
+        } else {
+          console.error('[XLPOSTCARDS][STANNP] ========= WARNING: ATTEMPTING SUCCESS MODAL WITHOUT STANNP CONFIRMATION =========');
+          console.error('[XLPOSTCARDS][STANNP] This should not happen - blocking success modal');
+        }
         setSending(false);
         setIsCapturing(false);
 
@@ -714,6 +734,7 @@ export default function PostcardPreviewScreen() {
     setLastPurchase(null);
     setSendResult(null);
     setStannpAttempts(0);
+    setStannpConfirmed(false);
     setShowSuccessModal(false);
     setShowErrorModal(false);
     setShowRefundModal(false);
@@ -857,11 +878,17 @@ export default function PostcardPreviewScreen() {
 
   // Update the fallback effect for success modal
   useEffect(() => {
-    if (sendResult?.success && !showSuccessModal) {
-      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] Forcing SuccessModal to show after Stannp confirmation.');
+    if (sendResult?.success && !showSuccessModal && stannpConfirmed) {
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] ========= FALLBACK SUCCESS MODAL TRIGGER =========');
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] This should only happen if Stannp API returned success: true');
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] sendResult:', sendResult);
+      console.log('[XLPOSTCARDS][PREVIEW][FALLBACK] stannpConfirmed:', stannpConfirmed);
       showOnlyModal('success');
+    } else if (sendResult?.success && !showSuccessModal && !stannpConfirmed) {
+      console.error('[XLPOSTCARDS][PREVIEW][FALLBACK] ========= BLOCKING SUCCESS MODAL: NO STANNP CONFIRMATION =========');
+      console.error('[XLPOSTCARDS][PREVIEW][FALLBACK] sendResult.success is true but stannpConfirmed is false');
     }
-  }, [sendResult?.success, showSuccessModal, showOnlyModal]);
+  }, [sendResult?.success, showSuccessModal, stannpConfirmed, showOnlyModal]);
 
   // Function to start a new purchase flow
   const startNewPurchaseFlow = async () => {
@@ -869,6 +896,7 @@ export default function PostcardPreviewScreen() {
       console.log('[XLPOSTCARDS][PREVIEW] Continue button pressed');
       setSending(true);
       setSendResult(null);
+      setStannpConfirmed(false);
       setIsCapturing(true);
 
       // Start the purchase flow
