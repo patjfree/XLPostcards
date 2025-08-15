@@ -1,0 +1,311 @@
+{
+  "name": "XLPostcards - Collage Creator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-collage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Create Collage",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input and set template configuration\nconst input = $input.all()[0].json;\n\n// Validation\nif (!input.images || !Array.isArray(input.images) || input.images.length === 0) {\n  throw new Error('No images provided');\n}\n\nif (!input.template || !['1-photo', '2-photo', '3-photo', '4-photo'].includes(input.template)) {\n  throw new Error('Invalid template type');\n}\n\nif (!input.postcardSize || !['regular', 'xl'].includes(input.postcardSize)) {\n  throw new Error('Invalid postcard size');\n}\n\n// Template layout definitions\nconst TEMPLATE_LAYOUTS = {\n  '1-photo': {\n    slots: 1,\n    getLayout: (w, h) => [{ x: 0, y: 0, width: w, height: h }]\n  },\n  '2-photo': {\n    slots: 2,\n    getLayout: (w, h, size) => size === 'regular' ? [\n      { x: 0, y: 0, width: Math.floor(w/2), height: h },\n      { x: Math.floor(w/2), y: 0, width: Math.floor(w/2), height: h }\n    ] : [\n      { x: 0, y: 0, width: w, height: Math.floor(h/2) },\n      { x: 0, y: Math.floor(h/2), width: w, height: Math.floor(h/2) }\n    ]\n  },\n  '3-photo': {\n    slots: 3,\n    getLayout: (w, h) => [\n      { x: 0, y: 0, width: Math.floor(w/2), height: h },\n      { x: Math.floor(w/2), y: 0, width: Math.floor(w/2), height: Math.floor(h/2) },\n      { x: Math.floor(w/2), y: Math.floor(h/2), width: Math.floor(w/2), height: Math.floor(h/2) }\n    ]\n  },\n  '4-photo': {\n    slots: 4,\n    getLayout: (w, h) => [\n      { x: 0, y: 0, width: Math.floor(w/2), height: Math.floor(h/2) },\n      { x: Math.floor(w/2), y: 0, width: Math.floor(w/2), height: Math.floor(h/2) },\n      { x: 0, y: Math.floor(h/2), width: Math.floor(w/2), height: Math.floor(h/2) },\n      { x: Math.floor(w/2), y: Math.floor(h/2), width: Math.floor(w/2), height: Math.floor(h/2) }\n    ]\n  }\n};\n\n// Set dimensions based on postcard size\nconst dimensions = input.postcardSize === 'regular' \n  ? { width: 1500, height: 1000 }\n  : { width: 2250, height: 1500 };\n\n// Get template and layout\nconst template = TEMPLATE_LAYOUTS[input.template];\nconst layout = template.getLayout(dimensions.width, dimensions.height, input.postcardSize);\n\n// Filter images to only include valid URLs and limit to template slots\nconst validImages = input.images\n  .filter(img => img && typeof img === 'string' && img.startsWith('http'))\n  .slice(0, template.slots);\n\nif (validImages.length === 0) {\n  throw new Error('No valid image URLs provided');\n}\n\nconsole.log(`[COLLAGE] Processing ${input.template} template with ${validImages.length} images`);\nconsole.log(`[COLLAGE] Dimensions: ${dimensions.width}x${dimensions.height}`);\nconsole.log(`[COLLAGE] Layout:`, layout);\n\nreturn [{\n  json: {\n    ...input,\n    dimensions,\n    layout,\n    slots: template.slots,\n    validImages,\n    transactionId: input.transactionId || `collage-${Date.now()}`\n  }\n}];"
+      },
+      "id": "configure-template",
+      "name": "Configure Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-images",
+      "name": "Split Images",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.validImages[$index] }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "download-image",
+      "name": "Download Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-images",
+      "name": "Merge Images",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# Import required libraries\nfrom PIL import Image, ImageDraw\nimport io\nimport base64\nimport json\nfrom typing import List, Dict\nimport requests\nfrom urllib.parse import urlparse\n\ndef create_collage():\n    try:\n        # Get configuration from first item\n        config_item = items[0]['json']\n        dimensions = config_item['dimensions']\n        layout = config_item['layout']\n        template_type = config_item['template']\n        transaction_id = config_item.get('transactionId', 'unknown')\n        \n        print(f\"[COLLAGE] Creating {template_type} collage: {dimensions['width']}x{dimensions['height']}\")\n        print(f\"[COLLAGE] Transaction ID: {transaction_id}\")\n        print(f\"[COLLAGE] Layout slots: {len(layout)}\")\n        \n        # Create base canvas\n        canvas = Image.new('RGB', (dimensions['width'], dimensions['height']), 'white')\n        print(f\"[COLLAGE] Created base canvas: {canvas.size}\")\n        \n        # Collect image data from downloaded items\n        image_count = 0\n        for i, item in enumerate(items[1:], 1):  # Skip first item (config)\n            if i-1 >= len(layout):\n                print(f\"[COLLAGE] Skipping extra image {i-1} (layout only has {len(layout)} slots)\")\n                break\n                \n            # Check if item has binary data\n            if 'binary' not in item or 'data' not in item['binary']:\n                print(f\"[COLLAGE] No binary data in item {i}\")\n                continue\n                \n            binary_data = item['binary']['data']\n            if not binary_data or 'data' not in binary_data:\n                print(f\"[COLLAGE] No image data in item {i}\")\n                continue\n                \n            slot = layout[i-1]\n            print(f\"[COLLAGE] Processing image {i-1} for slot: x={slot['x']}, y={slot['y']}, w={slot['width']}, h={slot['height']}\")\n            \n            try:\n                # Decode base64 image data\n                img_base64 = binary_data['data']\n                img_bytes = base64.b64decode(img_base64)\n                \n                # Load image\n                img = Image.open(io.BytesIO(img_bytes))\n                original_size = img.size\n                print(f\"[COLLAGE] Loaded image {i-1}: {original_size[0]}x{original_size[1]}\")\n                \n                # Convert to RGB if necessary (handles RGBA, grayscale, etc.)\n                if img.mode != 'RGB':\n                    img = img.convert('RGB')\n                    print(f\"[COLLAGE] Converted image {i-1} to RGB\")\n                \n                # Resize image to fit slot while maintaining aspect ratio\n                # First, calculate the aspect ratios\n                img_ratio = img.width / img.height\n                slot_ratio = slot['width'] / slot['height']\n                \n                if img_ratio > slot_ratio:\n                    # Image is wider than slot, fit by height\n                    new_height = slot['height']\n                    new_width = int(new_height * img_ratio)\n                    # Crop excess width\n                    crop_x = (new_width - slot['width']) // 2\n                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)\n                    img = img.crop((crop_x, 0, crop_x + slot['width'], new_height))\n                else:\n                    # Image is taller than slot, fit by width\n                    new_width = slot['width']\n                    new_height = int(new_width / img_ratio)\n                    # Crop excess height\n                    crop_y = (new_height - slot['height']) // 2\n                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)\n                    img = img.crop((0, crop_y, new_width, crop_y + slot['height']))\n                \n                # Final resize to exact slot dimensions (should be close already)\n                img = img.resize((slot['width'], slot['height']), Image.Resampling.LANCZOS)\n                print(f\"[COLLAGE] Resized image {i-1} to: {img.size}\")\n                \n                # Paste onto canvas\n                canvas.paste(img, (slot['x'], slot['y']))\n                image_count += 1\n                print(f\"[COLLAGE] Pasted image {i-1} at position ({slot['x']}, {slot['y']})\")\n                \n            except Exception as e:\n                print(f\"[COLLAGE] Error processing image {i-1}: {str(e)}\")\n                # Draw a placeholder rectangle for failed images\n                draw = ImageDraw.Draw(canvas)\n                draw.rectangle(\n                    [slot['x'], slot['y'], slot['x'] + slot['width'], slot['y'] + slot['height']], \n                    fill='lightgray', \n                    outline='gray',\n                    width=2\n                )\n                # Add error text\n                draw.text(\n                    (slot['x'] + slot['width']//2, slot['y'] + slot['height']//2), \n                    f\"Error\\nImage {i-1}\", \n                    fill='black', \n                    anchor='mm'\n                )\n        \n        print(f\"[COLLAGE] Successfully processed {image_count} images\")\n        \n        if image_count == 0:\n            raise Exception(\"No images were successfully processed\")\n        \n        # Convert canvas to base64 for output\n        buffer = io.BytesIO()\n        canvas.save(buffer, format='JPEG', quality=90, optimize=True)\n        buffer.seek(0)\n        \n        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')\n        file_size = len(buffer.getvalue())\n        \n        print(f\"[COLLAGE] Generated collage: {canvas.size[0]}x{canvas.size[1]}, {file_size} bytes\")\n        \n        return [{\n            'json': {\n                'success': True,\n                'template': template_type,\n                'dimensions': dimensions,\n                'transactionId': transaction_id,\n                'imageCount': image_count,\n                'fileSize': file_size\n            },\n            'binary': {\n                'collage': {\n                    'data': img_base64,\n                    'mimeType': 'image/jpeg',\n                    'fileName': f\"collage-{template_type}-{transaction_id}.jpg\"\n                }\n            }\n        }]\n        \n    except Exception as e:\n        error_msg = str(e)\n        print(f\"[COLLAGE] Fatal error: {error_msg}\")\n        return [{\n            'json': {\n                'success': False,\n                'error': error_msg,\n                'template': config_item.get('template', 'unknown') if 'config_item' in locals() else 'unknown',\n                'transactionId': config_item.get('transactionId', 'unknown') if 'config_item' in locals() else 'unknown'\n            }\n        }]\n\n# Execute the collage creation\nresult = create_collage()\nreturn result"
+      },
+      "id": "create-collage",
+      "name": "Create Collage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-condition",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload",
+        "sendBinaryData": true,
+        "binaryPropertyName": "collage",
+        "options": {
+          "bodyContentType": "multipart-form-data",
+          "formData": {
+            "parameters": [
+              {
+                "name": "public_id",
+                "value": "={{ $json.transactionId }}-collage"
+              },
+              {
+                "name": "upload_preset",
+                "value": "YOUR_UPLOAD_PRESET"
+              },
+              {
+                "name": "folder",
+                "value": "xlpostcards/collages"
+              }
+            ]
+          }
+        }
+      },
+      "id": "upload-to-cloudinary",
+      "name": "Upload to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"composite_image_url\": \"{{ $json.secure_url }}\",\n  \"template\": \"{{ $('Create Collage').item.json.template }}\",\n  \"dimensions\": {{ $('Create Collage').item.json.dimensions }},\n  \"transactionId\": \"{{ $('Create Collage').item.json.transactionId }}\",\n  \"imageCount\": {{ $('Create Collage').item.json.imageCount }},\n  \"fileSize\": {{ $('Create Collage').item.json.fileSize }}\n}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.error || 'Failed to create collage' }}\",\n  \"template\": \"{{ $json.template || 'unknown' }}\",\n  \"transactionId\": \"{{ $json.transactionId || 'unknown' }}\"\n}",
+        "options": {}
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Create Collage": {
+      "main": [
+        [
+          {
+            "node": "Configure Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Template": {
+      "main": [
+        [
+          {
+            "node": "Split Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Images": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Merge Images",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Images": {
+      "main": [
+        [
+          {
+            "node": "Create Collage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Collage": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "your-instance-id"
+  },
+  "id": "xlpostcards-collage-workflow",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "xlpostcards",
+      "name": "XLPostcards"
+    }
+  ]
+}

@@ -11,7 +11,6 @@ import { useRef } from 'react';
 import Constants from 'expo-constants';
 import { useStripe } from '@stripe/stripe-react-native';
 import '../config'; // <-- Import config to ensure it's loaded
-import { getPrintPixels, getFrontBleedPixels } from '@/utils/printSpecs';
 
 import AIDisclaimer from './components/AIDisclaimer';
 import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
@@ -20,8 +19,26 @@ import { stripeManager } from '@/utils/stripeManager';
 import PostcardBackLayout from './components/PostcardBackLayout';
 
 // Postcard dimensions at 300 DPI - will be dynamically set based on size
+const getPostcardDimensions = (size: 'regular' | 'xl') => {
+  if (size === 'regular') {
+    // 4x6 Regular postcard - add bleed area to prevent white strips
+    return { width: 1872, height: 1272 };
+  } else {
+    // 6x9 XL postcard - add bleed area to prevent white strips
+    return { width: 2772, height: 1872 };
+  }
+};
 
 // Get dimensions for front image with bleed extension
+const getFrontImageDimensions = (size: 'regular' | 'xl') => {
+  if (size === 'regular') {
+    // 4x6 with slight extension to ensure full bleed
+    return { width: 1890, height: 1290 };  // +18px on each dimension for bleed
+  } else {
+    // 6x9 with slight extension to ensure full bleed
+    return { width: 2790, height: 1890 };  // +18px on each dimension for bleed
+  }
+};
 
 // Default to XL for backwards compatibility
 const POSTCARD_WIDTH = 2772;
@@ -55,7 +72,7 @@ const CheckboxIcon = ({ checked }: { checked: boolean }) => (
 // Function to scale an image to the required dimensions
 const scaleImage = async (imageUri: string, postcardSize: 'regular' | 'xl'): Promise<string> => {
   try {
-    const dimensions = getPrintPixels(postcardSize);
+    const dimensions = getPostcardDimensions(postcardSize);
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [{ resize: { width: dimensions.width, height: dimensions.height } }],
@@ -236,7 +253,7 @@ export default function PostcardPreviewScreen() {
       
       try {
         backUri = await viewShotBackRef.current.capture({
-          format: 'png',
+          format: 'jpg',
           quality: 0.9,
           result: 'tmpfile',
           ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
@@ -244,13 +261,13 @@ export default function PostcardPreviewScreen() {
       } catch (error) {
         console.log('[XLPOSTCARDS][SAVE] Back capture failed, trying fallback');
         backUri = await viewShotBackRef.current.capture({
-          format: 'png',
+          format: 'jpg',
           quality: 0.8,
           result: 'base64'
         });
         if (backUri.startsWith('data:')) {
           const base64Data = backUri.split(',')[1];
-          const filename = `${FileSystem.cacheDirectory}save_back_${Date.now()}.png`;
+          const filename = `${FileSystem.cacheDirectory}save_back_${Date.now()}.jpg`;
           await FileSystem.writeAsStringAsync(filename, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
           });
@@ -410,7 +427,7 @@ export default function PostcardPreviewScreen() {
       
       try {
         backOriginalUri = await viewShotBackRef.current.capture({
-          format: 'png',
+          format: 'jpg',
           quality: 0.9,
           result: 'tmpfile',
           // Multiple iOS fallback strategies
@@ -428,7 +445,7 @@ export default function PostcardPreviewScreen() {
         // Fallback: Try with minimal options
         try {
           backOriginalUri = await viewShotBackRef.current.capture({
-            format: 'png',
+            format: 'jpg',
             quality: 0.8,
             result: 'base64'
           });
@@ -437,7 +454,7 @@ export default function PostcardPreviewScreen() {
           // Convert base64 to file if needed
           if (backOriginalUri.startsWith('data:')) {
             const base64Data = backOriginalUri.split(',')[1];
-            const filename = `${FileSystem.cacheDirectory}back_${Date.now()}.png`;
+            const filename = `${FileSystem.cacheDirectory}back_${Date.now()}.jpg`;
             await FileSystem.writeAsStringAsync(filename, base64Data, {
               encoding: FileSystem.EncodingType.Base64,
             });
@@ -453,7 +470,7 @@ export default function PostcardPreviewScreen() {
             // Create a simple white rectangle as base64
             const whiteImageBase64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
             
-            const filename = `${FileSystem.cacheDirectory}back_fallback_${Date.now()}.png`;
+            const filename = `${FileSystem.cacheDirectory}back_fallback_${Date.now()}.jpg`;
             const base64Data = whiteImageBase64.split(',')[1];
             await FileSystem.writeAsStringAsync(filename, base64Data, {
               encoding: FileSystem.EncodingType.Base64,
@@ -478,7 +495,7 @@ export default function PostcardPreviewScreen() {
       // Step 2: Scale images to required dimensions
       console.log('[XLPOSTCARDS][STANNP] Scaling images');
       // Scale front image with bleed dimensions
-      const frontDimensions = getFrontBleedPixels(postcardSize);
+      const frontDimensions = getFrontImageDimensions(postcardSize);
       const frontScaledResult = await ImageManipulator.manipulateAsync(
         frontOriginalUri,
         [{ resize: { width: frontDimensions.width, height: frontDimensions.height } }],
@@ -1062,8 +1079,8 @@ export default function PostcardPreviewScreen() {
   const designWidth = 700;
   
   // Get correct dimensions for the current postcard size
-  const currentDimensions = getPrintPixels(postcardSize);
-  const frontImageDimensions = getFrontBleedPixels(postcardSize);
+  const currentDimensions = getPostcardDimensions(postcardSize);
+  const frontImageDimensions = getFrontImageDimensions(postcardSize);
   const currentAspectRatio = currentDimensions.height / currentDimensions.width;
   const designPreviewHeight = designWidth * currentAspectRatio;
   const designFooterHeight = 170;
@@ -1354,11 +1371,10 @@ export default function PostcardPreviewScreen() {
                 width: currentDimensions.width,
                 height: currentDimensions.height,
                 quality: 1,
-                format: "png",
+                format: "jpg",
                 fileName: "postcard-back"
               }}
-            
-        useRenderInContext={Platform.OS === 'ios'}>
+            >
               <View style={{
                 width: currentDimensions.width,
                 height: currentDimensions.height,

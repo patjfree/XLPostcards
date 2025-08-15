@@ -64,7 +64,7 @@ export default function SettingsScreen() {
       
       {/* Email field temporarily hidden */}
       {/* <View style={styles.section}>
-        <ThemedText style={styles.label}>Email</ThemedText>
+        <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -91,7 +91,7 @@ export default function SettingsScreen() {
 
       {/* Return Address field temporarily hidden */}
       {/* <View style={styles.section}>
-        <ThemedText style={styles.label}>Return Address</ThemedText>
+        <Text style={styles.label}>Return Address</Text>
         <TextInput
           style={[styles.input, styles.multilineInput]}
           value={returnAddress}
@@ -105,8 +105,8 @@ export default function SettingsScreen() {
 
       {/* Always Include Return Address toggle temporarily hidden */}
       {/* <View style={styles.switchContainer}>
-        <ThemedText style={[styles.label, { flex: 1, flexWrap: 'wrap' }]}>Always Include{`
-`}Return Address</ThemedText>
+        <Text style={[styles.label, { flex: 1, flexWrap: 'wrap' }]}>Always Include{`
+`}Return Address</Text>
         <Switch
           value={includeReturnAddress}
           onValueChange={setIncludeReturnAddress}

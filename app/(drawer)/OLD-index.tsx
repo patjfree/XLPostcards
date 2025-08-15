@@ -10,7 +10,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { PostcardSize, supportedPostcardSizes } from '@/utils/printSpecs';
 
 import AIDisclaimer from '../components/AIDisclaimer';
 
@@ -125,12 +124,6 @@ export default function HomeScreen() {
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
-// normalized postcard size from params (validated)
-const __postcardSizeParam = (params?.postcardSize as string) || '';
-const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSizeParam as PostcardSize) 
-  ? (__postcardSizeParam as PostcardSize) 
-  : undefined);
-
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -149,7 +142,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
   const [hasUserEditedMessage, setHasUserEditedMessage] = useState(false);
   const imageSetFromParams = React.useRef(false);
   const postcardSizeSetFromParams = React.useRef(false);
-  const [postcardSize, setPostcardSize] = useState<PostcardSize>('xl');
+  const [postcardSize, setPostcardSize] = useState<'regular' | 'xl'>('xl');
   const hasMounted = React.useRef(false);
   const [showRecipientModalComponent, setShowRecipientModalComponent] = useState(true);
   // Suppress unused variable warning
