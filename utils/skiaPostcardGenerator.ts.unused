@@ -1,0 +1,380 @@
+import { 
+  Skia, 
+  useImage, 
+  Canvas, 
+  Group, 
+  Rect, 
+  Text, 
+  Image as SkiaImage,
+  useFont,
+  SkImage,
+  SkSurface,
+  ColorType,
+  AlphaType,
+  SkFont,
+  ImageFormat
+} from '@shopify/react-native-skia';
+import * as FileSystem from 'expo-file-system';
+import { PostcardSize, getPrintPixels, getFrontBleedPixels } from './printSpecs';
+import { Platform } from 'react-native';
+
+interface RecipientInfo {
+  to: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipcode: string;
+  id?: string;
+}
+
+/**
+ * Creates a Skia surface and renders postcard content
+ * This completely bypasses ViewShot and React Native's rendering limitations
+ */
+export class SkiaPostcardGenerator {
+  private surface: SkSurface | null = null;
+  private canvas: any = null;
+
+  constructor(width: number, height: number) {
+    console.log('[SKIA_GENERATOR] Creating Skia surface:', { width, height });
+    
+    // Create Skia surface with exact dimensions
+    this.surface = Skia.Surface.Make(width, height)!;
+    this.canvas = this.surface.getCanvas();
+    
+    if (!this.surface || !this.canvas) {
+      throw new Error('Failed to create Skia surface');
+    }
+  }
+
+  /**
+   * Loads an image from URI for Skia rendering
+   */
+  private async loadSkiaImage(imageUri: string): Promise<SkImage> {
+    console.log('[SKIA_GENERATOR] Loading image:', imageUri);
+    
+    try {
+      // Download/read the image file
+      let base64Data: string;
+      
+      if (imageUri.startsWith('file://')) {
+        base64Data = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } else if (imageUri.startsWith('data:')) {
+        base64Data = imageUri.split(',')[1];
+      } else {
+        // Handle other URI types if needed
+        throw new Error('Unsupported image URI format');
+      }
+      
+      // Create Skia image from base64
+      const imageData = Skia.Data.fromBase64(base64Data);
+      const image = Skia.Image.MakeImageFromEncoded(imageData);
+      
+      if (!image) {
+        throw new Error('Failed to create Skia image from data');
+      }
+      
+      console.log('[SKIA_GENERATOR] Image loaded successfully:', image.width(), 'x', image.height());
+      return image;
+      
+    } catch (error) {
+      console.error('[SKIA_GENERATOR] Error loading image:', error);
+      throw new Error(`Failed to load image: ${error}`);
+    }
+  }
+
+  /**
+   * Generates the front of the postcard with user's image(s)
+   */
+  async generateFront(imageUri: string): Promise<void> {
+    console.log('[SKIA_GENERATOR] Generating postcard front');
+    
+    try {
+      const image = await this.loadSkiaImage(imageUri);
+      const surfaceInfo = this.surface!.imageInfo();
+      
+      // Clear canvas with white background
+      this.canvas.clear(Skia.Color('white'));
+      
+      // Draw the image to fill the entire front
+      const srcRect = Skia.XYWHRect(0, 0, image.width(), image.height());
+      const destRect = Skia.XYWHRect(0, 0, surfaceInfo.width, surfaceInfo.height);
+      
+      this.canvas.drawImageRect(image, srcRect, destRect);
+      
+      console.log('[SKIA_GENERATOR] Front generated successfully');
+      
+    } catch (error) {
+      console.error('[SKIA_GENERATOR] Error generating front:', error);
+      throw new Error(`Failed to generate front: ${error}`);
+    }
+  }
+
+  /**
+   * Generates the back of the postcard with message and address
+   */
+  async generateBack(message: string, recipientInfo: RecipientInfo, postcardSize: PostcardSize): Promise<void> {
+    console.log('[SKIA_GENERATOR] Generating postcard back');
+    
+    try {
+      const surfaceInfo = this.surface!.imageInfo();
+      const { width, height } = surfaceInfo;
+      
+      // Clear canvas with white background
+      this.canvas.clear(Skia.Color('white'));
+      
+      // Create fonts
+      const messageFontSize = postcardSize === 'regular' ? 36 : 56;
+      const addressFontSize = postcardSize === 'regular' ? 32 : 48;
+      
+      // Calculate layout dimensions (same as PostcardBackLayout)
+      const base = getPrintPixels(postcardSize);
+      const scaleX = width / base.width;
+      const scaleY = height / base.height;
+
+      let layout;
+      if (postcardSize === 'regular') {
+        // 4x6 layout
+        layout = {
+          messageLeft: 72 * scaleX,
+          messageTop: 72 * scaleY,
+          messageWidth: 900 * scaleX,
+          messageHeight: (base.height - 144) * scaleY,
+          addressRight: 72 * scaleX,
+          addressBottom: 172 * scaleY,
+          addressWidth: 600 * scaleX,
+          addressHeight: 220 * scaleY,
+        };
+      } else {
+        // 6x9 layout
+        layout = {
+          messageLeft: 108 * scaleX,
+          messageTop: 108 * scaleY,
+          messageWidth: 1060 * scaleX,
+          messageHeight: (base.height - 216) * scaleY,
+          addressRight: 108 * scaleX,
+          addressBottom: 228 * scaleY,
+          addressWidth: 700 * scaleX,
+          addressHeight: 300 * scaleY,
+        };
+      }
+
+      // Create text paint
+      const textPaint = Skia.Paint();
+      textPaint.setColor(Skia.Color('black'));
+      textPaint.setAntiAlias(true);
+
+      // Draw message text
+      console.log('[SKIA_GENERATOR] Drawing message text');
+      this.drawWrappedText(
+        message,
+        layout.messageLeft,
+        layout.messageTop,
+        layout.messageWidth,
+        layout.messageHeight,
+        messageFontSize,
+        textPaint
+      );
+
+      // Draw address
+      console.log('[SKIA_GENERATOR] Drawing address');
+      const addressX = width - layout.addressRight - layout.addressWidth;
+      const addressY = height - layout.addressBottom - layout.addressHeight;
+      
+      this.drawAddress(
+        recipientInfo,
+        addressX,
+        addressY,
+        layout.addressWidth,
+        layout.addressHeight,
+        addressFontSize,
+        textPaint
+      );
+      
+      console.log('[SKIA_GENERATOR] Back generated successfully');
+      
+    } catch (error) {
+      console.error('[SKIA_GENERATOR] Error generating back:', error);
+      throw new Error(`Failed to generate back: ${error}`);
+    }
+  }
+
+  /**
+   * Draws wrapped text within specified bounds
+   */
+  private drawWrappedText(
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    maxHeight: number,
+    fontSize: number,
+    paint: any
+  ): void {
+    // For now, draw simple text - can be enhanced with proper wrapping
+    const font = Skia.Font(Skia.Typeface.MakeFreeTypeFaceFromData(null)!, fontSize);
+    
+    // Simple word wrapping
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const textWidth = font.measureText(testLine).width;
+      
+      if (textWidth <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          lines.push(word);
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    // Draw each line
+    const lineHeight = fontSize * 1.3;
+    for (let i = 0; i < lines.length; i++) {
+      const lineY = y + (i + 1) * lineHeight;
+      if (lineY <= y + maxHeight) {
+        this.canvas.drawText(lines[i], x, lineY, paint, font);
+      }
+    }
+  }
+
+  /**
+   * Draws address information
+   */
+  private drawAddress(
+    recipientInfo: RecipientInfo,
+    x: number,
+    y: number,
+    maxWidth: number,
+    maxHeight: number,
+    fontSize: number,
+    paint: any
+  ): void {
+    const font = Skia.Font(Skia.Typeface.MakeFreeTypeFaceFromData(null)!, fontSize);
+    const lineHeight = fontSize * 1.3;
+    
+    let currentY = y + lineHeight;
+    
+    // Name (bold - for now just regular)
+    this.canvas.drawText(recipientInfo.to, x, currentY, paint, font);
+    currentY += lineHeight;
+    
+    // Address line 1
+    this.canvas.drawText(recipientInfo.addressLine1, x, currentY, paint, font);
+    currentY += lineHeight;
+    
+    // Address line 2 (if exists)
+    if (recipientInfo.addressLine2) {
+      this.canvas.drawText(recipientInfo.addressLine2, x, currentY, paint, font);
+      currentY += lineHeight;
+    }
+    
+    // City, State ZIP
+    currentY += lineHeight * 0.3; // Small gap
+    const cityStateZip = `${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`;
+    this.canvas.drawText(cityStateZip, x, currentY, paint, font);
+  }
+
+  /**
+   * Exports the rendered surface as a PNG file
+   */
+  async exportToPNG(): Promise<string> {
+    console.log('[SKIA_GENERATOR] Exporting to PNG');
+    
+    try {
+      const image = this.surface!.makeImageSnapshot();
+      const pngData = image.encodeToBytes(ImageFormat.PNG, 100);
+      
+      if (!pngData) {
+        throw new Error('Failed to encode image to PNG');
+      }
+      
+      // Save to temporary file
+      const fileName = `skia-postcard-${Date.now()}.png`;
+      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+      
+      const base64Data = pngData.toString('base64');
+      await FileSystem.writeAsStringAsync(filePath, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      console.log('[SKIA_GENERATOR] PNG exported successfully:', filePath);
+      return filePath;
+      
+    } catch (error) {
+      console.error('[SKIA_GENERATOR] Error exporting PNG:', error);
+      throw new Error(`Failed to export PNG: ${error}`);
+    }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  dispose(): void {
+    this.surface?.dispose();
+    this.surface = null;
+    this.canvas = null;
+  }
+}
+
+/**
+ * Main function to generate complete postcard using Skia
+ */
+export const generateCompletePostcardSkia = async (
+  frontImageUri: string,
+  message: string,
+  recipientInfo: RecipientInfo,
+  postcardSize: PostcardSize
+): Promise<{ frontUri: string; backUri: string }> => {
+  console.log('[SKIA_GENERATOR] Starting complete postcard generation with Skia');
+  console.log('[SKIA_GENERATOR] Platform:', Platform.OS);
+  console.log('[SKIA_GENERATOR] Size:', postcardSize);
+  
+  const dimensions = getPrintPixels(postcardSize);
+  const frontDimensions = getFrontBleedPixels(postcardSize);
+  
+  let frontGenerator: SkiaPostcardGenerator | null = null;
+  let backGenerator: SkiaPostcardGenerator | null = null;
+  
+  try {
+    // Generate front
+    console.log('[SKIA_GENERATOR] Creating front generator');
+    frontGenerator = new SkiaPostcardGenerator(frontDimensions.width, frontDimensions.height);
+    await frontGenerator.generateFront(frontImageUri);
+    const frontUri = await frontGenerator.exportToPNG();
+    
+    // Generate back
+    console.log('[SKIA_GENERATOR] Creating back generator');
+    backGenerator = new SkiaPostcardGenerator(dimensions.width, dimensions.height);
+    await backGenerator.generateBack(message, recipientInfo, postcardSize);
+    const backUri = await backGenerator.exportToPNG();
+    
+    console.log('[SKIA_GENERATOR] Complete postcard generated successfully');
+    console.log('[SKIA_GENERATOR] Front URI:', frontUri);
+    console.log('[SKIA_GENERATOR] Back URI:', backUri);
+    
+    return { frontUri, backUri };
+    
+  } catch (error) {
+    console.error('[SKIA_GENERATOR] Error generating complete postcard:', error);
+    throw new Error(`Failed to generate complete postcard: ${error}`);
+  } finally {
+    // Cleanup
+    frontGenerator?.dispose();
+    backGenerator?.dispose();
+  }
+};

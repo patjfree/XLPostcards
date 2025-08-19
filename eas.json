@@ -1,54 +1,35 @@
 {
-  "cli": {
-    "version": ">=16.1.0",
-    "appVersionSource": "remote"
-  },
+  "cli": { "version": ">=16.1.0", "appVersionSource": "remote" },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": {
-        "APP_VARIANT": "development"
-      },
-      "android": {
-        "buildType": "apk"
-      }
+      "env": { "APP_VARIANT": "development" },
+      "android": { "buildType": "apk" }
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "APP_VARIANT": "preview"
-      },
-      "android": {
-        "buildType": "apk"
-      }
+      "env": { "APP_VARIANT": "preview" },
+      "android": { "buildType": "apk" }
+    },
+    "ios-simulator": {
+      "extends": "development",
+      "ios": { "simulator": true }
     },
     "production": {
       "autoIncrement": true,
-      "env": {
-        "APP_VARIANT": "production"
-      },
+      "env": { "APP_VARIANT": "production" },
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release",
         "scheme": "XLPostcards"
       },
-      "android": {
-        "buildType": "app-bundle"
-      }
-    },
-    "ios-simulator": {
-      "extends": "development",
-      "ios": {
-        "simulator": true
-      }
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": {
     "production": {
-      "android": {
-        "track": "internal"
-      }
+      "android": { "track": "internal" }
     }
   }
 }

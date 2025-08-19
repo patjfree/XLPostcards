@@ -1,8 +1,12 @@
 import 'dotenv/config';
-//require("dotenv").config(); - comment out for now
 
-// ✅ Use APP_VARIANT directly (not EAS_BUILD_PROFILE)
-const APP_VARIANT = process.env.EAS_BUILD_PROFILE || process.env.APP_VARIANT || 'development';
+const PROFILE = process.env.EAS_BUILD_PROFILE || '';
+// Prefer explicit APP_VARIANT; otherwise map common profiles to a variant:
+const APP_VARIANT =
+  process.env.APP_VARIANT ||
+  (PROFILE === 'development' || PROFILE === 'ios-simulator' ? 'development'
+   : PROFILE === 'preview' ? 'preview'
+   : 'production');
 
 const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';
@@ -33,7 +37,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "1.6.1",
+  version: "2.0.4",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -121,6 +125,8 @@ module.exports = {
       : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
+    n8nPostcardBackWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-dev2',
+    n8nPostcardBackWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-prod',
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,

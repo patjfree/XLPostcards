@@ -18,6 +18,8 @@ import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
 import { stripeManager } from '@/utils/stripeManager';
 import PostcardBackLayout from './components/PostcardBackLayout';
+import { generateCompletePostcard } from '@/utils/postcardGenerator';
+import { generateCompletePostcardServer } from '@/utils/serverPostcardGenerator';
 
 // Postcard dimensions at 300 DPI - will be dynamically set based on size
 
@@ -97,6 +99,7 @@ export default function PostcardPreviewScreen() {
   const params = useLocalSearchParams();
   const viewShotFrontRef = useRef<ViewShot & ViewShotMethods>(null);
   const viewShotBackRef = useRef<ViewShot & ViewShotMethods>(null);
+  const postcardBackLayoutRef = useRef<View>(null);
   const stripe = useStripe();
   const [currentSide, setCurrentSide] = useState<'front' | 'back'>('back');
   const [saving, setSaving] = useState(false);
@@ -236,21 +239,24 @@ export default function PostcardPreviewScreen() {
       
       try {
         backUri = await viewShotBackRef.current.capture({
-          format: 'png',
+          format: 'jpg',
           quality: 0.9,
           result: 'tmpfile',
-          ...(Platform.OS === 'ios' && { afterScreenUpdates: true })
+          ...(Platform.OS === 'ios' && { 
+            afterScreenUpdates: true,
+            snapshotContentContainer: false
+          })
         });
       } catch (error) {
         console.log('[XLPOSTCARDS][SAVE] Back capture failed, trying fallback');
         backUri = await viewShotBackRef.current.capture({
-          format: 'png',
+          format: 'jpg',
           quality: 0.8,
           result: 'base64'
         });
         if (backUri.startsWith('data:')) {
           const base64Data = backUri.split(',')[1];
-          const filename = `${FileSystem.cacheDirectory}save_back_${Date.now()}.png`;
+          const filename = `${FileSystem.cacheDirectory}save_back_${Date.now()}.jpg`;
           await FileSystem.writeAsStringAsync(filename, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
           });
@@ -275,10 +281,10 @@ export default function PostcardPreviewScreen() {
     }
   };
   
-  // Function to handle the Stannp API call
+  // Function to handle the Stannp API call (ViewShot-free)
   const sendToStannp = async (postcardPurchase: Purchase) => {
     const stannpStartTime = Date.now();
-    console.log('[XLPOSTCARDS][STANNP] ========= ENTERING SENDTOSTANNP FUNCTION =========');
+    console.log('[XLPOSTCARDS][STANNP] ========= ENTERING SENDTOSTANNP FUNCTION (VIEWSHOT-FREE) =========');
     console.log('[XLPOSTCARDS][STANNP] Entry timestamp:', new Date().toISOString());
     console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS, Platform.Version);
     console.log('[XLPOSTCARDS][STANNP] Purchase object type:', typeof postcardPurchase);
@@ -320,184 +326,82 @@ export default function PostcardPreviewScreen() {
       console.log('[XLPOSTCARDS][STANNP] Creating transaction record');
       await postcardService.createTransaction(postcardPurchase.transactionId);
 
-      // Step 1: Capture images at full resolution
-      console.log('[XLPOSTCARDS][STANNP] Capturing front and back images');
+      // Step 1: Generate postcard images programmatically (ViewShot-free)
+      console.log('[XLPOSTCARDS][STANNP] ========= GENERATING POSTCARD IMAGES PROGRAMMATICALLY =========');
+      const generationStartTime = Date.now();
       
-      if (!viewShotFrontRef.current || !viewShotBackRef.current) {
-        console.error('[XLPOSTCARDS][STANNP] ViewShot refs not initialized');
-        throw new Error('ViewShot refs not initialized');
+      // Ensure we have the original image URI
+      if (!params.imageUri) {
+        console.error('[XLPOSTCARDS][STANNP] No image URI available for front postcard');
+        throw new Error('No image selected for postcard front');
       }
 
-      // Critical iOS fix: Ensure views are in visible window before capture
-      console.log('[XLPOSTCARDS][STANNP] ========= PREPARING FOR VIEWSHOT CAPTURE =========');
-      console.log('[XLPOSTCARDS][STANNP] ViewShot refs status:', {
-        frontRefExists: !!viewShotFrontRef.current,
-        backRefExists: !!viewShotBackRef.current,
-        isCapturing: isCapturing
-      });
+      // Use server-side generation - bypasses all iOS ViewShot limitations
+      let frontUri: string;
+      let backUri: string;
       
-      console.log('[XLPOSTCARDS][STANNP] Starting UI render delay...');
-      // Wait for UI to be fully rendered and visible
-      await new Promise(resolve => {
-        setTimeout(resolve, Platform.OS === 'ios' ? 300 : 100);
-      });
-      console.log('[XLPOSTCARDS][STANNP] UI render delay completed');
-      
-      console.log('[XLPOSTCARDS][STANNP] ========= STARTING VIEWSHOT CAPTURE WITH AFTERSCREENUPDATES =========');
-      const captureStartTime = Date.now();
-      
-      console.log('[XLPOSTCARDS][STANNP] Capturing FRONT image...');
-      const frontCaptureStart = Date.now();
-      let frontOriginalUri;
-      
+      console.log('[XLPOSTCARDS][STANNP] Using server-side generation approach (N8N + Python)');
       try {
-        frontOriginalUri = await viewShotFrontRef.current.capture({
-          format: 'jpg',
-          quality: 0.9,
-          result: 'tmpfile',
-          // Multiple iOS fallback strategies
-          ...(Platform.OS === 'ios' && { 
-            afterScreenUpdates: true,
-            snapshotContentContainer: false,
-            handleGLSurfaceViewOnAndroid: false
-          })
-        });
-        const frontCaptureDuration = Date.now() - frontCaptureStart;
-        console.log('[XLPOSTCARDS][STANNP] FRONT image captured successfully in', frontCaptureDuration, 'ms');
-      } catch (frontError) {
-        console.error('[XLPOSTCARDS][STANNP] Front capture failed, trying fallback method:', (frontError as any).message);
+        const result = await generateCompletePostcardServer(
+          params.imageUri as string,
+          message,
+          recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
+          postcardSize,
+          postcardPurchase.transactionId
+        );
+        frontUri = result.frontUri;
+        backUri = result.backUri;
         
-        // Fallback: Try with minimal options
-        try {
-          frontOriginalUri = await viewShotFrontRef.current.capture({
-            format: 'jpg',
-            quality: 0.8,
-            result: 'base64'
-          });
-          console.log('[XLPOSTCARDS][STANNP] FRONT image captured with fallback method');
-          
-          // Convert base64 to file if needed
-          if (frontOriginalUri.startsWith('data:')) {
-            const base64Data = frontOriginalUri.split(',')[1];
-            const filename = `${FileSystem.cacheDirectory}front_${Date.now()}.jpg`;
-            await FileSystem.writeAsStringAsync(filename, base64Data, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-            frontOriginalUri = filename;
-          }
-        } catch (fallbackError) {
-          console.error('[XLPOSTCARDS][STANNP] Front fallback also failed:', (fallbackError as any).message);
-          
-          // Third fallback: Create a simple image using the original image if available
-          try {
-            console.log('[XLPOSTCARDS][STANNP] Attempting third fallback - using original image');
-            if (params.imageUri) {
-              console.log('[XLPOSTCARDS][STANNP] Using original image URI as front fallback:', params.imageUri);
-              frontOriginalUri = params.imageUri as string;
-            } else {
-              throw new Error('No original image available for fallback');
-            }
-          } catch (thirdFallbackError) {
-            console.error('[XLPOSTCARDS][STANNP] Third fallback failed:', (thirdFallbackError as any).message);
-            throw new Error(`Unable to capture front image: ${(frontError as any).message}. Fallback also failed: ${(fallbackError as any).message}. Third fallback failed: ${(thirdFallbackError as any).message}`);
-          }
-        }
+        console.log('[XLPOSTCARDS][STANNP] Server-side generation successful');
+        console.log('[XLPOSTCARDS][STANNP] Front URI:', frontUri);
+        console.log('[XLPOSTCARDS][STANNP] Back URI:', backUri);
+        
+      } catch (serverError) {
+        console.error('[XLPOSTCARDS][STANNP] Server-side generation failed, falling back to original SVG:', serverError);
+        // Fallback to original SVG approach
+        const result = await generateCompletePostcard(
+          params.imageUri as string,
+          message,
+          recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
+          postcardSize
+        );
+        frontUri = result.frontUri;
+        backUri = result.backUri;
       }
       
-      console.log('[XLPOSTCARDS][STANNP] Capturing BACK image...');
-      const backCaptureStart = Date.now();
-      let backOriginalUri;
+      const totalGenerationDuration = Date.now() - generationStartTime;
+      console.log('[XLPOSTCARDS][STANNP] ========= IMAGES GENERATED SUCCESSFULLY =========');
+      console.log('[XLPOSTCARDS][STANNP] Total generation time:', totalGenerationDuration, 'ms');
+      console.log('[XLPOSTCARDS][STANNP] Front image URI:', frontUri);
+      console.log('[XLPOSTCARDS][STANNP] Back image URI:', backUri);
       
-      try {
-        backOriginalUri = await viewShotBackRef.current.capture({
-          format: 'png',
-          quality: 0.9,
-          result: 'tmpfile',
-          // Multiple iOS fallback strategies
-          ...(Platform.OS === 'ios' && { 
-            afterScreenUpdates: true,
-            snapshotContentContainer: false,
-            handleGLSurfaceViewOnAndroid: false
-          })
-        });
-        const backCaptureDuration = Date.now() - backCaptureStart;
-        console.log('[XLPOSTCARDS][STANNP] BACK image captured successfully in', backCaptureDuration, 'ms');
-      } catch (backError) {
-        console.error('[XLPOSTCARDS][STANNP] Back capture failed, trying fallback method:', (backError as any).message);
-        
-        // Fallback: Try with minimal options
-        try {
-          backOriginalUri = await viewShotBackRef.current.capture({
-            format: 'png',
-            quality: 0.8,
-            result: 'base64'
-          });
-          console.log('[XLPOSTCARDS][STANNP] BACK image captured with fallback method');
-          
-          // Convert base64 to file if needed
-          if (backOriginalUri.startsWith('data:')) {
-            const base64Data = backOriginalUri.split(',')[1];
-            const filename = `${FileSystem.cacheDirectory}back_${Date.now()}.png`;
-            await FileSystem.writeAsStringAsync(filename, base64Data, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-            backOriginalUri = filename;
-          }
-        } catch (fallbackError) {
-          console.error('[XLPOSTCARDS][STANNP] Back fallback also failed:', (fallbackError as any).message);
-          
-          // Third fallback: Create a simple back image using ImageManipulator
-          try {
-            console.log('[XLPOSTCARDS][STANNP] Attempting third fallback - creating simple back image');
-            
-            // Create a simple white rectangle as base64
-            const whiteImageBase64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
-            
-            const filename = `${FileSystem.cacheDirectory}back_fallback_${Date.now()}.png`;
-            const base64Data = whiteImageBase64.split(',')[1];
-            await FileSystem.writeAsStringAsync(filename, base64Data, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-            backOriginalUri = filename;
-            console.log('[XLPOSTCARDS][STANNP] Created simple back image fallback');
-          } catch (thirdFallbackError) {
-            console.error('[XLPOSTCARDS][STANNP] Third fallback failed:', (thirdFallbackError as any).message);
-            throw new Error(`Unable to capture back image: ${(backError as any).message}. Fallback also failed: ${(fallbackError as any).message}. Third fallback failed: ${(thirdFallbackError as any).message}`);
-          }
-        }
-      }
-      
-      const totalCaptureDuration = Date.now() - captureStartTime;
-      console.log('[XLPOSTCARDS][STANNP] ========= ALL IMAGES CAPTURED SUCCESSFULLY =========');
-      console.log('[XLPOSTCARDS][STANNP] Total capture time:', totalCaptureDuration, 'ms');
-      console.log('[XLPOSTCARDS][STANNP] Front image URI:', frontOriginalUri);
-      console.log('[XLPOSTCARDS][STANNP] Back image URI:', backOriginalUri);
-      
-      setIsCapturing(false);  // Reset capturing mode after snapshots
-      
+      setIsCapturing(false);  // Reset capturing mode after generation
+
       // Step 2: Scale images to required dimensions
-      console.log('[XLPOSTCARDS][STANNP] Scaling images');
+      console.log('[XLPOSTCARDS][STANNP] Scaling images for Stannp requirements');
+      
       // Scale front image with bleed dimensions
       const frontDimensions = getFrontBleedPixels(postcardSize);
       const frontScaledResult = await ImageManipulator.manipulateAsync(
-        frontOriginalUri,
+        frontUri,
         [{ resize: { width: frontDimensions.width, height: frontDimensions.height } }],
         { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: false }
       );
-      const frontUri = frontScaledResult.uri;
+      const finalFrontUri = frontScaledResult.uri;
       
       // Scale back image with standard dimensions  
-      const backUri = await scaleImage(backOriginalUri, postcardSize);
+      const finalBackUri = await scaleImage(backUri, postcardSize);
       console.log('[XLPOSTCARDS][STANNP] Images scaled successfully');
-      console.log('[XLPOSTCARDS][STANNP] Scaled front URI:', frontUri);
-      console.log('[XLPOSTCARDS][STANNP] Scaled back URI:', backUri);
+      console.log('[XLPOSTCARDS][STANNP] Final front URI:', finalFrontUri);
+      console.log('[XLPOSTCARDS][STANNP] Final back URI:', finalBackUri);
 
       // Step 3: Create FormData and send to Stannp
       console.log('[XLPOSTCARDS][STANNP] Preparing FormData');
       const formData = new FormData();
       
       // Add test mode flag and size
-      const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+      // Force live mode even in development for real postcard testing
+      const isTestMode = false;
       console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', postcardSize === 'regular' ? '4x6' : '6x9');
@@ -505,19 +409,17 @@ export default function PostcardPreviewScreen() {
       
       // Add scaled front and back images
       console.log('[XLPOSTCARDS][STANNP] Adding images to FormData');
-      console.log('[XLPOSTCARDS][STANNP] Front URI:', frontUri);
-      console.log('[XLPOSTCARDS][STANNP] Back URI:', backUri);
       
       // @ts-ignore - React Native's FormData accepts this format
       formData.append('front', {
-        uri: frontUri,
+        uri: finalFrontUri,
         type: 'image/jpeg',
         name: 'front.jpg'
       });
 
       // @ts-ignore - React Native's FormData accepts this format
       formData.append('back', {
-        uri: backUri,
+        uri: finalBackUri,
         type: 'image/jpeg',
         name: 'back.jpg'
       });
@@ -560,8 +462,8 @@ export default function PostcardPreviewScreen() {
           postcode: recipientInfo?.zipcode || '',
           country: 'US'
         },
-        frontImage: frontUri,
-        backImage: backUri
+        frontImage: finalFrontUri,
+        backImage: finalBackUri
       });
       
       // Make the API request with timeout
@@ -662,7 +564,7 @@ export default function PostcardPreviewScreen() {
       await updates();
       const stannpEndTime = Date.now();
       const totalStannpDuration = stannpEndTime - stannpStartTime;
-      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CALL COMPLETED SUCCESSFULLY =========');
+      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CALL COMPLETED SUCCESSFULLY (VIEWSHOT-FREE) =========');
       console.log('[XLPOSTCARDS][STANNP] Total Stannp function duration:', totalStannpDuration, 'ms');
       console.log('[XLPOSTCARDS][STANNP] Success timestamp:', new Date().toISOString());
       
@@ -862,8 +764,11 @@ export default function PostcardPreviewScreen() {
           <TouchableOpacity 
             style={styles.successButton}
             onPress={() => {
-              // Reset success modal - navigation will be handled by useEffect
+              console.log('[XLPOSTCARDS][PREVIEW] Success modal OK button pressed - closing modal and navigating');
+              // Close modal and navigate directly
               setShowSuccessModal(false);
+              // Navigate back to main screen immediately
+              handleNavigation();
             }}
           >
             <Text style={styles.successButtonText}>OK</Text>
@@ -873,13 +778,8 @@ export default function PostcardPreviewScreen() {
     );
   }, [showSuccessModal, handleNavigation]);
 
-  // Navigation effect for success modal - only navigate when user manually closes it
-  useEffect(() => {
-    if (!showSuccessModal && sendResult?.success) {
-      console.log('[XLPOSTCARDS][PREVIEW] Success modal manually closed by user, navigating to index');
-      handleNavigation();
-    }
-  }, [showSuccessModal, sendResult?.success, handleNavigation]);
+  // Note: Navigation is now handled directly in the OK button press
+  // Removed automatic navigation useEffect to ensure modal stays open until user clicks OK
 
   // Update the fallback effect for success modal
   useEffect(() => {
@@ -1354,19 +1254,21 @@ export default function PostcardPreviewScreen() {
                 width: currentDimensions.width,
                 height: currentDimensions.height,
                 quality: 1,
-                format: "png",
+                format: "jpg",
                 fileName: "postcard-back"
               }}
-            
-        useRenderInContext={Platform.OS === 'ios'}>
-              <View style={{
-                width: currentDimensions.width,
-                height: currentDimensions.height,
-                transform: [{ scale: designWidth / currentDimensions.width }],
-                transformOrigin: 'top left',
-                backgroundColor: '#FFFFFF',
-                overflow: 'hidden',
-              }}>
+            >
+              <View 
+                ref={postcardBackLayoutRef}
+                style={{
+                  width: currentDimensions.width,
+                  height: currentDimensions.height,
+                  transform: [{ scale: designWidth / currentDimensions.width }],
+                  transformOrigin: 'top left',
+                  backgroundColor: '#FFFFFF',
+                  overflow: 'hidden',
+                }}
+                collapsable={false}>
                 <PostcardBackLayout
                   width={currentDimensions.width}
                   height={currentDimensions.height}

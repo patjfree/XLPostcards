@@ -70,6 +70,7 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
   postcardSize,
 }) => {
   const dims = getScaledDims(postcardSize, width, height);
+  
 
   const calculateMessageFontSize = (text: string, base: number) => {
     if (text.length <= 220) return base;
@@ -91,6 +92,11 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
     MESSAGE_FONT = postcardSize === 'regular' ? 16 : 24;
     ADDRESS_FONT = postcardSize === 'regular' ? 16 : 20;
   }
+  
+  // Ensure minimum font sizes for visibility
+  MESSAGE_FONT = Math.max(MESSAGE_FONT, postcardSize === 'regular' ? 20 : 30);
+  ADDRESS_FONT = Math.max(ADDRESS_FONT, postcardSize === 'regular' ? 18 : 24);
+  
 
   return (
     <View collapsable={false} style={{
@@ -98,55 +104,162 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
       height,
       backgroundColor: '#FFFFFF',
       position: 'relative',
+      ...(Platform.OS === 'ios' && {
+        // Enhanced iOS-specific fixes for ViewShot compatibility on large postcards
+        borderWidth: 0,
+        borderColor: 'transparent',
+        shadowColor: 'transparent',
+        shadowOpacity: 0,
+        // Additional memory optimization for 6x9 captures
+        ...(postcardSize === 'xl' && {
+          overflow: 'hidden',
+          opacity: 1,
+          shouldRasterizeIOS: false, // Disable rasterization for memory
+          renderToHardwareTextureAndroid: false,
+        }),
+      }),
     }}>
-      {/* White underlay prevents any alpha → black issues on iOS snapshots */}
-      <View pointerEvents="none" style={{
+      {/* Enhanced white background layer for iOS ViewShot compatibility */}
+      <View pointerEvents="none" collapsable={false} style={{
         position: 'absolute',
         left: 0, top: 0, right: 0, bottom: 0,
         backgroundColor: '#FFFFFF',
+        zIndex: 0,
+        ...(Platform.OS === 'ios' && postcardSize === 'xl' && {
+          // Force solid background for large captures
+          borderWidth: 1,
+          borderColor: '#FFFFFF',
+        }),
       }} />
 
-      {/* Message area */}
-      <View style={{
-        position: 'absolute',
-        left: dims.messageLeft,
-        top: dims.messageTop,
-        width: dims.messageWidth,
-        height: dims.messageHeight,
-      }}>
-        <Text style={{
-          fontSize: MESSAGE_FONT,
-          color: '#000000',
-          lineHeight: MESSAGE_FONT * 1.4,
+      {/* Message area - simplified for iOS 6x9 compatibility */}
+      <View 
+        collapsable={false}
+        style={{
+          position: 'absolute',
+          left: dims.messageLeft,
+          top: dims.messageTop,
+          width: dims.messageWidth,
+          height: dims.messageHeight,
+          zIndex: 10,
           backgroundColor: 'transparent',
+          ...(Platform.OS === 'ios' && postcardSize === 'xl' && {
+            // Additional iOS 6x9 optimizations
+            overflow: 'visible',
+            flex: 0,
+          }),
         }}>
+        <Text 
+          allowFontScaling={false}
+          style={{
+            fontSize: MESSAGE_FONT,
+            color: '#000000',
+            lineHeight: MESSAGE_FONT * 1.3,
+            backgroundColor: 'transparent',
+            zIndex: 15,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+            fontWeight: '400',
+            textAlign: 'left',
+            ...(Platform.OS === 'ios' && {
+              // Enhanced iOS ViewShot compatibility for large captures
+              textShadowColor: 'transparent',
+              textShadowOffset: { width: 0, height: 0 },
+              textShadowRadius: 0,
+              includeFontPadding: false,
+              elevation: 10,
+              allowFontScaling: false,
+              overflow: 'visible',
+              // Additional fixes for 6x9 text rendering
+              ...(postcardSize === 'xl' && {
+                textDecorationLine: 'none',
+                textDecorationStyle: 'solid',
+                textDecorationColor: 'transparent',
+                writingDirection: 'ltr',
+                // More aggressive iOS fixes
+                textAlign: 'left',
+                textAlignVertical: 'top',
+              }),
+            }),
+          }}>
           {message}
         </Text>
       </View>
 
-      {/* Address block */}
-      <View style={{
-        position: 'absolute',
-        right: dims.addressRight,
-        bottom: dims.addressBottom,
-        width: dims.addressWidth,
-        height: dims.addressHeight,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-      }}>
+      {/* Address block - simplified for iOS 6x9 compatibility */}
+      <View 
+        collapsable={false}
+        style={{
+          position: 'absolute',
+          right: dims.addressRight,
+          bottom: dims.addressBottom,
+          width: dims.addressWidth,
+          height: dims.addressHeight,
+          backgroundColor: '#FFFFFF',
+          justifyContent: 'center',
+          zIndex: 10,
+          ...(Platform.OS === 'ios' && postcardSize === 'xl' && {
+            // Additional iOS 6x9 optimizations
+            overflow: 'visible',
+            flex: 0,
+          }),
+        }}>
         <Text style={{
           fontSize: ADDRESS_FONT,
           color: '#000000',
           fontWeight: '600',
           backgroundColor: 'transparent',
+          zIndex: 15,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          textAlign: 'left',
+          ...(Platform.OS === 'ios' && {
+            textShadowColor: 'transparent',
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: 0,
+            includeFontPadding: false,
+            elevation: 10,
+            allowFontScaling: false,
+            overflow: 'visible',
+          }),
         }}>
           {recipientInfo.to}
         </Text>
-        <Text style={{ fontSize: ADDRESS_FONT, color: '#000000', backgroundColor: 'transparent' }}>
+        <Text style={{ 
+          fontSize: ADDRESS_FONT,
+          color: '#000000',
+          backgroundColor: 'transparent',
+          zIndex: 15,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          textAlign: 'left',
+          ...(Platform.OS === 'ios' && {
+            textShadowColor: 'transparent',
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: 0,
+            includeFontPadding: false,
+            elevation: 10,
+            allowFontScaling: false,
+            overflow: 'visible',
+          }),
+        }}>
           {recipientInfo.addressLine1}
         </Text>
         {recipientInfo.addressLine2 ? (
-          <Text style={{ fontSize: ADDRESS_FONT, color: '#000000', backgroundColor: 'transparent' }}>
+          <Text style={{ 
+            fontSize: ADDRESS_FONT,
+            color: '#000000',
+            backgroundColor: 'transparent',
+            zIndex: 15,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+            textAlign: 'left',
+            ...(Platform.OS === 'ios' && {
+              textShadowColor: 'transparent',
+              textShadowOffset: { width: 0, height: 0 },
+              textShadowRadius: 0,
+              includeFontPadding: false,
+              elevation: 10,
+              allowFontScaling: false,
+              overflow: 'visible',
+            }),
+          }}>
             {recipientInfo.addressLine2}
           </Text>
         ) : null}
@@ -157,6 +270,18 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
           lineHeight: ADDRESS_FONT * 1.3,
           backgroundColor: 'transparent',
           fontWeight: 'normal',
+          zIndex: 15,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          textAlign: 'left',
+          ...(Platform.OS === 'ios' && {
+            textShadowColor: 'transparent',
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: 0,
+            includeFontPadding: false,
+            elevation: 10,
+            allowFontScaling: false,
+            overflow: 'visible',
+          }),
         }}>
           {`${recipientInfo.city}, ${recipientInfo.state} ${recipientInfo.zipcode}`}
         </Text>
