@@ -20,7 +20,11 @@ class StripeManager {
   private readonly POSTCARD_PRICE_DOLLARS: number;
 
   private constructor() {
-    this.N8N_WEBHOOK_URL = Constants.expoConfig?.extra?.n8nWebhookUrl || '';
+    // Use environment-specific webhook URL
+    const isDev = variant === 'development';
+    this.N8N_WEBHOOK_URL = isDev 
+      ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev || ''
+      : Constants.expoConfig?.extra?.n8nWebhookUrl_prod || '';
     this.POSTCARD_PRICE_CENTS = Constants.expoConfig?.extra?.postcardPriceCents || 199;
     this.POSTCARD_PRICE_DOLLARS = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
     if (!this.N8N_WEBHOOK_URL) {

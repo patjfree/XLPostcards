@@ -2,13 +2,18 @@ import 'dotenv/config';
 
 const PROFILE = process.env.EAS_BUILD_PROFILE || '';
 // Prefer explicit APP_VARIANT; otherwise map common profiles to a variant:
+// Force development for any simulator build
 const APP_VARIANT =
+  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator')) ? 'development' :
   process.env.APP_VARIANT ||
-  (PROFILE === 'development' || PROFILE === 'ios-simulator' ? 'development'
+  (PROFILE === 'development' ? 'development'
    : PROFILE === 'preview' ? 'preview'
    : 'production');
 
 const IS_DEV = APP_VARIANT === 'development';
+const IS_IOS_SIMULATOR = PROFILE === 'ios-simulator';
+// Force test mode for any simulator build, regardless of APP_VARIANT
+const FORCE_TEST_MODE = IS_DEV || IS_IOS_SIMULATOR || PROFILE.includes('simulator');
 const IS_PREVIEW = APP_VARIANT === 'preview';
 
 const getAppName = () => {
@@ -17,7 +22,11 @@ const getAppName = () => {
   return 'XLPostcards';
 };
 
+console.log('EAS_BUILD_PROFILE:', PROFILE);
 console.log('APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
+console.log('IS_DEV:', IS_DEV);
+console.log('Test key available:', !!process.env.STRIPE_PUBLISHABLE_KEY_TEST);
+console.log('Live key available:', !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE);
 
 const getPackageName = () => {
   const basePackage = 'com.patjfree.xlpostcards';
@@ -37,7 +46,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "2.0.4",
+  version: "2.0.12",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -120,13 +129,24 @@ module.exports = {
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
-    stripePublishableKey: APP_VARIANT === 'development' 
-      ? process.env.STRIPE_PUBLISHABLE_KEY_TEST 
-      : process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
+    stripePublishableKey: (() => {
+      // HARDCODE test key for simulator builds to bypass environment issues
+      if (PROFILE === 'ios-simulator' || PROFILE.includes('simulator')) {
+        console.log('🔧 SIMULATOR BUILD: Using hardcoded test key');
+        return process.env.STRIPE_PUBLISHABLE_KEY_TEST || 'pk_test_51QRNBvKwD63LKpuWJ3IWHYKLYWVML6Fia6Yci4mcLRbSwHz7AsfOBtnlighyfJFBi1CxDzFnQ56XaksSUIcUyV6H00rQww6LU0';
+      }
+      
+      const selectedKey = FORCE_TEST_MODE 
+        ? process.env.STRIPE_PUBLISHABLE_KEY_TEST 
+        : process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
+      console.log('FORCE_TEST_MODE:', FORCE_TEST_MODE);
+      console.log('Selected Stripe Key (first 15 chars):', selectedKey?.substring(0, 15) + '...');
+      console.log('Is Test Key (pk_test):', selectedKey?.startsWith('pk_test'));
+      return selectedKey;
+    })(),
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
-    n8nPostcardBackWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-dev2',
-    n8nPostcardBackWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-prod',
+    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified',
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,

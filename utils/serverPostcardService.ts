@@ -18,6 +18,8 @@ interface ServerPostcardRequest {
   postcardSize: PostcardSize;
   transactionId: string;
   dimensions?: { width: number; height: number };
+  testMode?: boolean;
+  variant?: string;
 }
 
 interface ServerPostcardResponse {
@@ -27,10 +29,16 @@ interface ServerPostcardResponse {
   postcardSize?: string;
   dimensions?: { width: number; height: number };
   transactionId?: string;
+  isTestMode?: boolean;
   fileSize?: number;
   messageLines?: number;
+  messageFontSize?: number;
+  addressFontSize?: number;
   cloudinary_url?: string;
+  stannp_id?: string;
+  stannp_status?: string;
   generated_at?: string;
+  message?: string;
   error?: string;
 }
 
@@ -45,11 +53,8 @@ export const generatePostcardBackServer = async (
   console.log('[SERVER_POSTCARD] Postcard size:', request.postcardSize);
   console.log('[SERVER_POSTCARD] Message preview:', request.message.substring(0, 50) + '...');
   
-  // Get N8N webhook URL based on environment
-  const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-  const webhookUrl = isDev 
-    ? Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_dev
-    : Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_prod;
+  // Get unified N8N webhook URL
+  const webhookUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
   
   if (!webhookUrl) {
     throw new Error('N8N webhook URL not configured. Please check your app.config.js');
@@ -60,6 +65,17 @@ export const generatePostcardBackServer = async (
   try {
     const startTime = Date.now();
     
+    // Add environment info to request
+    const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+    const enhancedRequest = {
+      ...request,
+      testMode: isDev,
+      variant: Constants.expoConfig?.extra?.APP_VARIANT || 'production'
+    };
+    
+    console.log('[SERVER_POSTCARD] Test mode:', isDev);
+    console.log('[SERVER_POSTCARD] Variant:', enhancedRequest.variant);
+    
     // Make request to N8N webhook
     console.log('[SERVER_POSTCARD] Sending request to N8N...');
     const response = await fetch(webhookUrl, {
@@ -68,7 +84,7 @@ export const generatePostcardBackServer = async (
         'Content-Type': 'application/json',
         'User-Agent': 'XLPostcards/1.14.0',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(enhancedRequest),
     });
     
     const duration = Date.now() - startTime;
@@ -85,8 +101,14 @@ export const generatePostcardBackServer = async (
     const result: ServerPostcardResponse = await response.json();
     console.log('[SERVER_POSTCARD] N8N response parsed successfully');
     console.log('[SERVER_POSTCARD] Success:', result.success);
+    console.log('[SERVER_POSTCARD] Test mode:', result.isTestMode);
     console.log('[SERVER_POSTCARD] File size:', result.fileSize, 'bytes');
     console.log('[SERVER_POSTCARD] Message lines:', result.messageLines);
+    console.log('[SERVER_POSTCARD] Font sizes: message=' + result.messageFontSize + 'pt, address=' + result.addressFontSize + 'pt');
+    
+    if (result.message) {
+      console.log('[SERVER_POSTCARD] Workflow message:', result.message);
+    }
     
     if (!result.success) {
       console.error('[SERVER_POSTCARD] N8N reported failure:', result.error);
@@ -183,16 +205,13 @@ export const downloadServerImage = async (
  * Validates that the required N8N configuration is present
  */
 export const validateServerConfiguration = (): boolean => {
-  const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-  const webhookUrl = isDev 
-    ? Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_dev
-    : Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_prod;
+  const webhookUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
   
   if (!webhookUrl) {
-    console.error('[SERVER_POSTCARD] N8N webhook URL not configured for environment:', isDev ? 'development' : 'production');
+    console.error('[SERVER_POSTCARD] N8N unified webhook URL not configured');
     return false;
   }
   
-  console.log('[SERVER_POSTCARD] Server configuration validated for:', isDev ? 'development' : 'production');
+  console.log('[SERVER_POSTCARD] Server configuration validated for unified workflow');
   return true;
 };

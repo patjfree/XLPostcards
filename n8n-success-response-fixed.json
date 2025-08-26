@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "postcard_back_url": "{{ $json.secure_url }}",
+  "public_id": "{{ $json.public_id }}",
+  "postcardSize": "{{ $('Convert Binary to Base64').item.json.originalData.postcardSize }}",
+  "dimensions": {
+    "width": {{ $('Convert Binary to Base64').item.json.originalData.dimensions.width }},
+    "height": {{ $('Convert Binary to Base64').item.json.originalData.dimensions.height }}
+  },
+  "transactionId": "{{ $('Convert Binary to Base64').item.json.originalData.transactionId }}",
+  "isTestMode": {{ $('Convert Binary to Base64').item.json.originalData.isTestMode }},
+  "fileSize": {{ $('Convert Binary to Base64').item.json.originalData.fileSize }},
+  "messageLines": {{ $('Convert Binary to Base64').item.json.originalData.messageLines }},
+  "messageFontSize": {{ $('Convert Binary to Base64').item.json.originalData.messageFontSize }},
+  "addressFontSize": {{ $('Convert Binary to Base64').item.json.originalData.addressFontSize }},
+  "cloudinary_url": "{{ $json.url }}",
+  "generated_at": "{{ $now }}"
+}

@@ -939,6 +939,21 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           <Ionicons name="menu" size={28} color="#0a7ea4" />
         </TouchableOpacity>
       </View>
+      
+      {/* Debug Build Info Banner - Show if using test key */}
+      {Constants.expoConfig?.extra?.stripePublishableKey?.startsWith('pk_test') && (
+        <View style={{ 
+          backgroundColor: '#10B981', 
+          paddingVertical: 6, 
+          paddingHorizontal: 12,
+          alignItems: 'center'
+        }}>
+          <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+            🔧 v{Constants.expoConfig?.version} | SIMULATOR | 💳 TEST CARDS OK
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
         keyboardShouldPersistTaps="handled"

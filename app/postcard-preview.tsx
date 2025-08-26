@@ -401,7 +401,7 @@ export default function PostcardPreviewScreen() {
       
       // Add test mode flag and size
       // Force live mode even in development for real postcard testing
-      const isTestMode = false;
+      const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
       console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
       formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', postcardSize === 'regular' ? '4x6' : '6x9');

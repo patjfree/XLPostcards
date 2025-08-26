@@ -4,6 +4,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -39,6 +40,17 @@ export default function RootLayout() {
   }
 
   const stripePublishableKey = Constants.expoConfig?.extra?.stripePublishableKey || '';
+  
+  // Simple debug logging
+  const appVariant = Constants.expoConfig?.extra?.APP_VARIANT;
+  const version = Constants.expoConfig?.version;
+  const isTestKey = stripePublishableKey.startsWith('pk_test');
+  
+  console.log('🔧 ===== BUILD INFO =====');
+  console.log('📱 App Version:', version);
+  console.log('🏷️  App Variant:', appVariant); 
+  console.log('💳 Stripe Key Type:', isTestKey ? 'TEST (pk_test)' : 'LIVE (pk_live)');
+  console.log('🔧 =====================');
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
