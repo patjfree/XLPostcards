@@ -55,7 +55,7 @@ export const generatePostcardBackServerSide = async (
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
   transactionId?: string
-): Promise<{ localPath: string; isTestMode: boolean }> => {
+): Promise<{ cloudinaryUrl: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] Generating postcard back (server-side)');
   
   // Validate configuration first
@@ -71,7 +71,7 @@ export const generatePostcardBackServerSide = async (
   console.log('[SERVER_GENERATOR] Recipient:', recipientInfo.to);
   
   try {
-    // Step 1: Request server generation
+    // Step 1: Request server generation (JPEG output)
     console.log('[SERVER_GENERATOR] Step 1: Requesting server generation...');
     const result = await generatePostcardBackServer({
       message,
@@ -81,13 +81,13 @@ export const generatePostcardBackServerSide = async (
       dimensions
     });
     
-    // Step 2: Download generated image to local storage
-    console.log('[SERVER_GENERATOR] Step 2: Downloading generated image...');
-    const localPath = await downloadServerImage(result.imageUrl, txnId);
+    // Step 2: Return Cloudinary URL directly (no local download needed)
+    console.log('[SERVER_GENERATOR] Step 2: Using Cloudinary URL directly for Stannp...');
+    console.log('[SERVER_GENERATOR] Cloudinary URL:', result.imageUrl);
     
     console.log('[SERVER_GENERATOR] Server-side back generation completed successfully');
     console.log('[SERVER_GENERATOR] Test mode from server:', result.isTestMode);
-    return { localPath, isTestMode: result.isTestMode };
+    return { cloudinaryUrl: result.imageUrl, isTestMode: result.isTestMode };
     
   } catch (error) {
     console.error('[SERVER_GENERATOR] Server-side back generation failed:', error);
@@ -131,7 +131,7 @@ export const generateCompletePostcardServer = async (
     console.log('[SERVER_GENERATOR] ========= SERVER-SIDE POSTCARD GENERATION COMPLETED =========');
     console.log('[SERVER_GENERATOR] Total generation time:', totalDuration, 'ms');
     console.log('[SERVER_GENERATOR] Front URI:', frontUri);
-    console.log('[SERVER_GENERATOR] Back URI:', backResult.localPath);
+    console.log('[SERVER_GENERATOR] Back Cloudinary URL:', backResult.cloudinaryUrl);
     console.log('[SERVER_GENERATOR] Test Mode from N8N:', backResult.isTestMode);
     console.log('[SERVER_GENERATOR] Test Mode type:', typeof backResult.isTestMode);
     console.log('[SERVER_GENERATOR] Transaction ID:', txnId);
@@ -140,7 +140,7 @@ export const generateCompletePostcardServer = async (
     
     return { 
       frontUri, 
-      backUri: backResult.localPath, 
+      backUri: backResult.cloudinaryUrl, 
       isTestMode: backResult.isTestMode 
     };
     

@@ -388,8 +388,8 @@ export default function PostcardPreviewScreen() {
       
       setIsCapturing(false);  // Reset capturing mode after generation
 
-      // Step 2: Scale images to required dimensions
-      console.log('[XLPOSTCARDS][STANNP] Scaling images for Stannp requirements');
+      // Step 2: Prepare images for Stannp (scale front, server back already correct dimensions)
+      console.log('[XLPOSTCARDS][STANNP] Preparing images for Stannp requirements');
       
       // Scale front image with bleed dimensions
       const frontDimensions = getFrontBleedPixels(postcardSize);
@@ -400,9 +400,9 @@ export default function PostcardPreviewScreen() {
       );
       const finalFrontUri = frontScaledResult.uri;
       
-      // Scale back image with standard dimensions  
-      const finalBackUri = await scaleImage(backUri, postcardSize);
-      console.log('[XLPOSTCARDS][STANNP] Images scaled successfully');
+      // Server-generated back image is already at correct dimensions - no scaling needed
+      const finalBackUri = backUri;
+      console.log('[XLPOSTCARDS][STANNP] Front image scaled, back image ready (no scaling needed)');
       console.log('[XLPOSTCARDS][STANNP] Final front URI:', finalFrontUri);
       console.log('[XLPOSTCARDS][STANNP] Final back URI:', finalBackUri);
 
@@ -444,12 +444,20 @@ export default function PostcardPreviewScreen() {
         name: 'front.jpg'
       });
 
-      // @ts-ignore - React Native's FormData accepts this format
-      formData.append('back', {
-        uri: finalBackUri,
-        type: 'image/jpeg',
-        name: 'back.jpg'
-      });
+      // Use Cloudinary URL directly for back image (server-generated JPEG)
+      console.log('[XLPOSTCARDS][STANNP] Back URI type check:', finalBackUri.startsWith('http') ? 'URL' : 'Local file');
+      if (finalBackUri.startsWith('http')) {
+        // Direct Cloudinary URL - let Stannp fetch it
+        formData.append('back', finalBackUri);
+      } else {
+        // Local file (fallback case)
+        // @ts-ignore - React Native's FormData accepts this format
+        formData.append('back', {
+          uri: finalBackUri,
+          type: 'image/jpeg',
+          name: 'back.jpg'
+        });
+      }
       
       console.log('[XLPOSTCARDS][STANNP] FormData created successfully');
       
@@ -490,7 +498,8 @@ export default function PostcardPreviewScreen() {
           country: 'US'
         },
         frontImage: finalFrontUri,
-        backImage: finalBackUri
+        backImage: finalBackUri.startsWith('http') ? 'Cloudinary URL' : 'Local file',
+        backImageType: finalBackUri.startsWith('http') ? 'Direct URL' : 'File upload'
       });
       
       // Make the API request with timeout
