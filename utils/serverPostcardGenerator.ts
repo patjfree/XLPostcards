@@ -55,7 +55,7 @@ export const generatePostcardBackServerSide = async (
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
   transactionId?: string
-): Promise<string> => {
+): Promise<{ localPath: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] Generating postcard back (server-side)');
   
   // Validate configuration first
@@ -73,7 +73,7 @@ export const generatePostcardBackServerSide = async (
   try {
     // Step 1: Request server generation
     console.log('[SERVER_GENERATOR] Step 1: Requesting server generation...');
-    const imageUrl = await generatePostcardBackServer({
+    const result = await generatePostcardBackServer({
       message,
       recipientInfo,
       postcardSize,
@@ -83,10 +83,11 @@ export const generatePostcardBackServerSide = async (
     
     // Step 2: Download generated image to local storage
     console.log('[SERVER_GENERATOR] Step 2: Downloading generated image...');
-    const localPath = await downloadServerImage(imageUrl, txnId);
+    const localPath = await downloadServerImage(result.imageUrl, txnId);
     
     console.log('[SERVER_GENERATOR] Server-side back generation completed successfully');
-    return localPath;
+    console.log('[SERVER_GENERATOR] Test mode from server:', result.isTestMode);
+    return { localPath, isTestMode: result.isTestMode };
     
   } catch (error) {
     console.error('[SERVER_GENERATOR] Server-side back generation failed:', error);
@@ -105,7 +106,7 @@ export const generateCompletePostcardServer = async (
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
   transactionId?: string
-): Promise<{ frontUri: string; backUri: string }> => {
+): Promise<{ frontUri: string; backUri: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] ========= STARTING SERVER-SIDE POSTCARD GENERATION =========');
   console.log('[SERVER_GENERATOR] Platform:', Platform.OS);
   console.log('[SERVER_GENERATOR] Postcard size:', postcardSize);
@@ -120,7 +121,7 @@ export const generateCompletePostcardServer = async (
     // Generate both front and back in parallel for better performance
     console.log('[SERVER_GENERATOR] Starting parallel generation...');
     
-    const [frontUri, backUri] = await Promise.all([
+    const [frontUri, backResult] = await Promise.all([
       generatePostcardFrontServer(frontImageUri, postcardSize),
       generatePostcardBackServerSide(message, recipientInfo, postcardSize, txnId)
     ]);
@@ -130,10 +131,18 @@ export const generateCompletePostcardServer = async (
     console.log('[SERVER_GENERATOR] ========= SERVER-SIDE POSTCARD GENERATION COMPLETED =========');
     console.log('[SERVER_GENERATOR] Total generation time:', totalDuration, 'ms');
     console.log('[SERVER_GENERATOR] Front URI:', frontUri);
-    console.log('[SERVER_GENERATOR] Back URI:', backUri);
+    console.log('[SERVER_GENERATOR] Back URI:', backResult.localPath);
+    console.log('[SERVER_GENERATOR] Test Mode from N8N:', backResult.isTestMode);
+    console.log('[SERVER_GENERATOR] Test Mode type:', typeof backResult.isTestMode);
     console.log('[SERVER_GENERATOR] Transaction ID:', txnId);
+    console.log('[SERVER_GENERATOR] ========= RETURNING TO POSTCARD-PREVIEW =========');
+    console.log('[SERVER_GENERATOR] About to return isTestMode:', backResult.isTestMode);
     
-    return { frontUri, backUri };
+    return { 
+      frontUri, 
+      backUri: backResult.localPath, 
+      isTestMode: backResult.isTestMode 
+    };
     
   } catch (error) {
     const errorDuration = Date.now() - startTime;

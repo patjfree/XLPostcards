@@ -199,6 +199,52 @@ class IAPManager {
       }
       console.log('[XLPOSTCARDS][IAP] Purchase completed successfully');
       
+      // Call N8N webhook for Android to maintain consistency with iOS
+      console.log('[XLPOSTCARDS][IAP] Calling N8N webhook for Android purchase...');
+      const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+      const webhookUrl = isDev 
+        ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev 
+        : Constants.expoConfig?.extra?.n8nWebhookUrl_prod;
+      
+      if (webhookUrl) {
+        try {
+          const transactionId = purchase.transactionId || uuidv4();
+          const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
+          const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
+          
+          const requestBody = {
+            amount: postcardPriceCents,
+            transactionId,
+            APP_VARIANT,
+            platform: 'android',
+            purchaseToken: purchase.purchaseToken
+          };
+          
+          console.log('[XLPOSTCARDS][IAP] Android N8N webhook request:', JSON.stringify(requestBody, null, 2));
+          
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          });
+          
+          const responseText = await response.text();
+          console.log('[XLPOSTCARDS][IAP] N8N webhook response:', responseText);
+          
+          if (response.ok) {
+            console.log('[XLPOSTCARDS][IAP] N8N webhook call successful for Android');
+          } else {
+            console.warn('[XLPOSTCARDS][IAP] N8N webhook returned error status:', response.status);
+          }
+        } catch (webhookError) {
+          console.error('[XLPOSTCARDS][IAP] N8N webhook call failed for Android:', webhookError);
+          // Don't throw error here - the Google Play purchase was successful
+          // The webhook failure shouldn't prevent the purchase from proceeding
+        }
+      } else {
+        console.warn('[XLPOSTCARDS][IAP] N8N webhook URL not configured for Android');
+      }
+      
       return purchase;
     } catch (error) {
       console.error('[XLPOSTCARDS][IAP] Detailed purchase error:', {

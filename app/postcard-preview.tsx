@@ -339,6 +339,7 @@ export default function PostcardPreviewScreen() {
       // Use server-side generation - bypasses all iOS ViewShot limitations
       let frontUri: string;
       let backUri: string;
+      let serverIsTestMode: boolean | undefined;
       
       console.log('[XLPOSTCARDS][STANNP] Using server-side generation approach (N8N + Python)');
       try {
@@ -351,10 +352,17 @@ export default function PostcardPreviewScreen() {
         );
         frontUri = result.frontUri;
         backUri = result.backUri;
+        serverIsTestMode = result.isTestMode;
         
+        console.log('[XLPOSTCARDS][STANNP] ========= RECEIVED RESULT FROM SERVER GENERATOR =========');
         console.log('[XLPOSTCARDS][STANNP] Server-side generation successful');
         console.log('[XLPOSTCARDS][STANNP] Front URI:', frontUri);
         console.log('[XLPOSTCARDS][STANNP] Back URI:', backUri);
+        console.log('[XLPOSTCARDS][STANNP] Raw result.isTestMode:', result.isTestMode);
+        console.log('[XLPOSTCARDS][STANNP] Type of result.isTestMode:', typeof result.isTestMode);
+        console.log('[XLPOSTCARDS][STANNP] Assigned serverIsTestMode:', serverIsTestMode);
+        console.log('[XLPOSTCARDS][STANNP] Type of serverIsTestMode:', typeof serverIsTestMode);
+        console.log('[XLPOSTCARDS][STANNP] ===============================================================');
         
       } catch (serverError) {
         console.error('[XLPOSTCARDS][STANNP] Server-side generation failed, falling back to original SVG:', serverError);
@@ -367,6 +375,9 @@ export default function PostcardPreviewScreen() {
         );
         frontUri = result.frontUri;
         backUri = result.backUri;
+        // Ensure test mode is properly set even in fallback - use same logic as server
+        serverIsTestMode = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+        console.log('[XLPOSTCARDS][STANNP] Fallback test mode set to:', serverIsTestMode);
       }
       
       const totalGenerationDuration = Date.now() - generationStartTime;
@@ -400,9 +411,25 @@ export default function PostcardPreviewScreen() {
       const formData = new FormData();
       
       // Add test mode flag and size
-      // Force live mode even in development for real postcard testing
-      const isTestMode = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-      console.log('[XLPOSTCARDS][STANNP] Using test mode:', isTestMode);
+      // Use server-provided test mode if available, otherwise fallback to environment detection
+      const isTestMode = serverIsTestMode !== undefined 
+        ? serverIsTestMode 
+        : Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+      
+      console.log('[XLPOSTCARDS][STANNP] ========= TEST MODE DIAGNOSIS =========');
+      console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS);
+      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode value:', serverIsTestMode);
+      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode type:', typeof serverIsTestMode);
+      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode === undefined:', serverIsTestMode === undefined);
+      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode !== undefined:', serverIsTestMode !== undefined);
+      console.log('[XLPOSTCARDS][STANNP] APP_VARIANT:', Constants.expoConfig?.extra?.APP_VARIANT);
+      console.log('[XLPOSTCARDS][STANNP] APP_VARIANT === development:', Constants.expoConfig?.extra?.APP_VARIANT === 'development');
+      console.log('[XLPOSTCARDS][STANNP] Ternary condition result:', serverIsTestMode !== undefined ? 'using serverIsTestMode' : 'using APP_VARIANT fallback');
+      console.log('[XLPOSTCARDS][STANNP] Final isTestMode value:', isTestMode);
+      console.log('[XLPOSTCARDS][STANNP] Final isTestMode type:', typeof isTestMode);
+      console.log('[XLPOSTCARDS][STANNP] Sending to Stannp test parameter:', isTestMode ? 'true' : 'false');
+      console.log('[XLPOSTCARDS][STANNP] ==========================================');
+      
       formData.append('test', isTestMode ? 'true' : 'false');
       formData.append('size', postcardSize === 'regular' ? '4x6' : '6x9');
       formData.append('padding', '0');
@@ -811,7 +838,7 @@ export default function PostcardPreviewScreen() {
       if (Platform.OS === 'ios') {
         // Use Stripe Payment Sheet for iOS
         try {
-          const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+          const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
           const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
           
           console.log('[XLPOSTCARDS][PREVIEW] Stripe Payment Details:', {

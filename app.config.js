@@ -46,7 +46,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "2.0.12",
+  version: "2.0.21",
   runtimeVersion: {
     policy: "appVersion"
   },

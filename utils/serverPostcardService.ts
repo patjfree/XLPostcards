@@ -66,7 +66,7 @@ export const generatePostcardBackServer = async (
     const startTime = Date.now();
     
     // Add environment info to request
-    const isDev = __DEV__ || Constants.expoConfig?.extra?.APP_VARIANT === 'development';
+    const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
     const enhancedRequest = {
       ...request,
       testMode: isDev,
@@ -124,7 +124,32 @@ export const generatePostcardBackServer = async (
     console.log('[SERVER_POSTCARD] Image URL:', result.postcard_back_url.substring(0, 50) + '...');
     console.log('[SERVER_POSTCARD] Cloudinary public ID:', result.public_id);
     
-    return result.postcard_back_url;
+    console.log('[SERVER_POSTCARD] ========= N8N RESPONSE TEST MODE ANALYSIS =========');
+    console.log('[SERVER_POSTCARD] Raw result.isTestMode:', result.isTestMode);
+    console.log('[SERVER_POSTCARD] Type of result.isTestMode:', typeof result.isTestMode);
+    console.log('[SERVER_POSTCARD] result.isTestMode === true:', result.isTestMode === true);
+    console.log('[SERVER_POSTCARD] result.isTestMode === false:', result.isTestMode === false);
+    console.log('[SERVER_POSTCARD] result.isTestMode === "true":', result.isTestMode === "true");
+    console.log('[SERVER_POSTCARD] result.isTestMode === "false":', result.isTestMode === "false");
+    
+    // Handle both boolean and string values from N8N
+    let normalizedTestMode: boolean;
+    if (typeof result.isTestMode === 'boolean') {
+      normalizedTestMode = result.isTestMode;
+    } else if (typeof result.isTestMode === 'string') {
+      normalizedTestMode = result.isTestMode.toLowerCase() === 'true';
+    } else {
+      normalizedTestMode = false; // fallback
+    }
+    
+    console.log('[SERVER_POSTCARD] Normalized test mode:', normalizedTestMode);
+    console.log('[SERVER_POSTCARD] Type of normalized test mode:', typeof normalizedTestMode);
+    console.log('[SERVER_POSTCARD] =======================================================');
+    
+    return { 
+      imageUrl: result.postcard_back_url,
+      isTestMode: normalizedTestMode
+    };
     
   } catch (error) {
     console.error('[SERVER_POSTCARD] Server generation failed:', error);

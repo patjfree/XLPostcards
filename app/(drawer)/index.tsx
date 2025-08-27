@@ -1090,6 +1090,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           <Text style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
             Currently postcards can only be sent to the US
           </Text>
+          <Text style={{ textAlign: 'center', fontSize: 10, color: '#999', marginBottom: 8 }}>
+            v{Constants.expoConfig?.version || 'Unknown'}
+          </Text>
           <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
         </View>
       </ScrollView>
