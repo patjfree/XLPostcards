@@ -135,6 +135,7 @@ export default function PostcardPreviewScreen() {
   // Get data from route params
   const imageUri = params.imageUri as string;
   const message = params.message as string;
+  const returnAddress = params.returnAddress as string;
   const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null>(null);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | undefined>(undefined);
   
@@ -348,7 +349,8 @@ export default function PostcardPreviewScreen() {
           message,
           recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
           postcardSize,
-          postcardPurchase.transactionId
+          postcardPurchase.transactionId,
+          returnAddress
         );
         frontUri = result.frontUri;
         backUri = result.backUri;

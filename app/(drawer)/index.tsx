@@ -122,6 +122,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<ExpoImagePicker.ImagePickerAsset | ImagePickerAsset | null>(null);
   const [postcardMessage, setPostcardMessage] = useState('');
+  const [returnAddress, setReturnAddress] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -592,6 +593,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           params: {
             imageUri: (image as any).uri,
             message: postcardMessage,
+            returnAddress: returnAddress,
             recipient: JSON.stringify(recipientInfo),
             postcardSize,
           },
@@ -1019,9 +1021,23 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           </TouchableOpacity>
         </View>
 
+        {/* Return Address Block */}
+        <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
+          <Text style={styles.sectionLabel}>3) Return Address (Optional)</Text>
+          <TextInput
+            style={[styles.input, styles.messageInput]}
+            value={returnAddress}
+            onChangeText={setReturnAddress}
+            multiline={true}
+            numberOfLines={3}
+            placeholder="Your return address (3 lines max)&#10;e.g.:&#10;John Smith&#10;123 Main St&#10;City, ST 12345"
+            placeholderTextColor="#888"
+          />
+        </View>
+
         {/* Message Block */}
         <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <Text style={styles.sectionLabel}>3) Write Message</Text>
+          <Text style={styles.sectionLabel}>4) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
               style={[styles.input, styles.messageInput]}

@@ -54,7 +54,8 @@ export const generatePostcardBackServerSide = async (
   message: string,
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
-  transactionId?: string
+  transactionId?: string,
+  returnAddress?: string
 ): Promise<{ cloudinaryUrl: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] Generating postcard back (server-side)');
   
@@ -78,7 +79,8 @@ export const generatePostcardBackServerSide = async (
       recipientInfo,
       postcardSize,
       transactionId: txnId,
-      dimensions
+      dimensions,
+      returnAddressText: returnAddress
     });
     
     // Step 2: Return Cloudinary URL directly (no local download needed)
@@ -105,7 +107,8 @@ export const generateCompletePostcardServer = async (
   message: string,
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
-  transactionId?: string
+  transactionId?: string,
+  returnAddress?: string
 ): Promise<{ frontUri: string; backUri: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] ========= STARTING SERVER-SIDE POSTCARD GENERATION =========');
   console.log('[SERVER_GENERATOR] Platform:', Platform.OS);
@@ -123,7 +126,7 @@ export const generateCompletePostcardServer = async (
     
     const [frontUri, backResult] = await Promise.all([
       generatePostcardFrontServer(frontImageUri, postcardSize),
-      generatePostcardBackServerSide(message, recipientInfo, postcardSize, txnId)
+      generatePostcardBackServerSide(message, recipientInfo, postcardSize, txnId, returnAddress)
     ]);
     
     const totalDuration = Date.now() - startTime;
