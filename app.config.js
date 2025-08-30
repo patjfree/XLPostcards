@@ -2,9 +2,10 @@ import 'dotenv/config';
 
 const PROFILE = process.env.EAS_BUILD_PROFILE || '';
 // Prefer explicit APP_VARIANT; otherwise map common profiles to a variant:
-// Force development for any simulator build
+// Force development for any simulator build or local development
+const isLocalDev = !process.env.EAS_BUILD_PROFILE; // Running locally via npm start
 const APP_VARIANT =
-  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator')) ? 'development' :
+  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator') || isLocalDev) ? 'development' :
   process.env.APP_VARIANT ||
   (PROFILE === 'development' ? 'development'
    : PROFILE === 'preview' ? 'preview'
@@ -17,6 +18,7 @@ const FORCE_TEST_MODE = IS_DEV || IS_IOS_SIMULATOR || PROFILE.includes('simulato
 const IS_PREVIEW = APP_VARIANT === 'preview';
 
 const getAppName = () => {
+  if (IS_DEV && isLocalDev) return 'Simulator - Test CC OK';
   if (IS_DEV) return 'D:XLPostcards';
   if (IS_PREVIEW) return 'P:XLPostcards';
   return 'XLPostcards';
@@ -46,7 +48,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "2.1.0",
+  version: "2.1.0-dev",
   runtimeVersion: {
     policy: "appVersion"
   },
