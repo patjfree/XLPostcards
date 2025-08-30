@@ -46,7 +46,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "2.0.23",
+  version: "2.1.0",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -146,7 +146,11 @@ module.exports = {
     })(),
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
-    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified',
+    // N8N Postcard Generation Webhooks
+    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified', // Legacy v2.0.13
+    n8nPostcardBackWebhookUrl_v21: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified-2.1', // New v2.1
+    // Feature flag to control which N8N workflow to use
+    useN8nV21: process.env.USE_N8N_V21 === 'true' || APP_VARIANT === 'development', // Enable v2.1 for dev builds
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
     APP_VARIANT: APP_VARIANT,

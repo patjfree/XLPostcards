@@ -20,6 +20,7 @@ interface ServerPostcardRequest {
   dimensions?: { width: number; height: number };
   testMode?: boolean;
   variant?: string;
+  returnAddressText?: string | string[]; // New in v2.1: Support for return address
 }
 
 interface ServerPostcardResponse {
@@ -53,13 +54,17 @@ export const generatePostcardBackServer = async (
   console.log('[SERVER_POSTCARD] Postcard size:', request.postcardSize);
   console.log('[SERVER_POSTCARD] Message preview:', request.message.substring(0, 50) + '...');
   
-  // Get unified N8N webhook URL
-  const webhookUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
+  // Get N8N webhook URL - choose version based on feature flag
+  const useV21 = Constants.expoConfig?.extra?.useN8nV21;
+  const webhookUrl = useV21 
+    ? Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21
+    : Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
   
   if (!webhookUrl) {
     throw new Error('N8N webhook URL not configured. Please check your app.config.js');
   }
   
+  console.log('[SERVER_POSTCARD] Using N8N version:', useV21 ? 'v2.1 (Enhanced)' : 'v2.0.13 (Legacy)');
   console.log('[SERVER_POSTCARD] Using webhook URL:', webhookUrl.replace(/https:\/\/[^/]+/, 'https://***'));
   
   try {
@@ -230,13 +235,17 @@ export const downloadServerImage = async (
  * Validates that the required N8N configuration is present
  */
 export const validateServerConfiguration = (): boolean => {
-  const webhookUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
+  const useV21 = Constants.expoConfig?.extra?.useN8nV21;
+  const legacyUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
+  const v21Url = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21;
   
-  if (!webhookUrl) {
-    console.error('[SERVER_POSTCARD] N8N unified webhook URL not configured');
+  const activeUrl = useV21 ? v21Url : legacyUrl;
+  
+  if (!activeUrl) {
+    console.error('[SERVER_POSTCARD] N8N webhook URL not configured for version:', useV21 ? 'v2.1' : 'v2.0.13');
     return false;
   }
   
-  console.log('[SERVER_POSTCARD] Server configuration validated for unified workflow');
+  console.log('[SERVER_POSTCARD] Server configuration validated for N8N', useV21 ? 'v2.1 workflow' : 'v2.0.13 workflow');
   return true;
 };
