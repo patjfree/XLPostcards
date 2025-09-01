@@ -89,31 +89,28 @@ export default function SettingsScreen() {
         />
       </View>
 
-      {/* Return Address field temporarily hidden */}
-      {/* <View style={styles.section}>
+      <View style={styles.section}>
         <Text style={styles.label}>Return Address</Text>
         <TextInput
           style={[styles.input, styles.multilineInput]}
           value={returnAddress}
           onChangeText={setReturnAddress}
-          placeholder="Enter your return address"
+          placeholder="Your return address (3 lines max)&#10;e.g.:&#10;John Smith&#10;123 Main St"
           placeholderTextColor="#888"
           multiline
           numberOfLines={4}
         />
-      </View> */}
+      </View>
 
-      {/* Always Include Return Address toggle temporarily hidden */}
-      {/* <View style={styles.switchContainer}>
-        <Text style={[styles.label, { flex: 1, flexWrap: 'wrap' }]}>Always Include{`
-`}Return Address</Text>
+      <View style={styles.switchContainer}>
+        <Text style={[styles.label, { flex: 1, flexWrap: 'wrap' }]}>Use Return Address</Text>
         <Switch
           value={includeReturnAddress}
           onValueChange={setIncludeReturnAddress}
           trackColor={{ false: '#767577', true: '#f28914' }}
           thumbColor={includeReturnAddress ? '#fff' : '#f4f3f4'}
         />
-      </View> */}
+      </View>
     </SafeAreaView>
   );
 }

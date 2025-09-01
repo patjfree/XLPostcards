@@ -46,6 +46,8 @@ const processImageForPostcard = async (imageUri: string) => {
 
 const SETTINGS_KEYS = {
   SIGNATURE: 'settings_signature',
+  RETURN_ADDRESS: 'settings_return_address',
+  INCLUDE_RETURN_ADDRESS: 'settings_include_return_address',
 };
 
 // Helper: Normalize abbreviations for comparison
@@ -122,7 +124,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState<ExpoImagePicker.ImagePickerAsset | ImagePickerAsset | null>(null);
   const [postcardMessage, setPostcardMessage] = useState('');
-  const [returnAddress, setReturnAddress] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -588,15 +589,24 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           id: selected.id,
         };
         console.log('[XLPOSTCARDS][MAIN] handleCreatePostcard recipientInfo:', recipientInfo);
-        router.push({
-          pathname: '/postcard-preview',
-          params: {
-            imageUri: (image as any).uri,
-            message: postcardMessage,
-            returnAddress: returnAddress,
-            recipient: JSON.stringify(recipientInfo),
-            postcardSize,
-          },
+        // Get return address settings
+        Promise.all([
+          AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
+          AsyncStorage.getItem(SETTINGS_KEYS.INCLUDE_RETURN_ADDRESS),
+        ]).then(([savedReturnAddress, savedIncludeReturnAddress]) => {
+          const includeReturnAddress = savedIncludeReturnAddress === 'true';
+          const returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
+
+          router.push({
+            pathname: '/postcard-preview',
+            params: {
+              imageUri: (image as any).uri,
+              message: postcardMessage,
+              returnAddress: returnAddressText,
+              recipient: JSON.stringify(recipientInfo),
+              postcardSize,
+            },
+          });
         });
       } else {
         console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
@@ -1021,23 +1031,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           </TouchableOpacity>
         </View>
 
-        {/* Return Address Block */}
-        <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <Text style={styles.sectionLabel}>3) Return Address (Optional)</Text>
-          <TextInput
-            style={[styles.input, styles.messageInput]}
-            value={returnAddress}
-            onChangeText={setReturnAddress}
-            multiline={true}
-            numberOfLines={3}
-            placeholder="Your return address (3 lines max)&#10;e.g.:&#10;John Smith&#10;123 Main St&#10;City, ST 12345"
-            placeholderTextColor="#888"
-          />
-        </View>
-
         {/* Message Block */}
         <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <Text style={styles.sectionLabel}>4) Write Message</Text>
+          <Text style={styles.sectionLabel}>3) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
               style={[styles.input, styles.messageInput]}
