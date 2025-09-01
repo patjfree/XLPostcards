@@ -1,0 +1,330 @@
+{
+  "name": "generate-postcard-back-unified",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-postcard-back-unified",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "219fc417-b2c4-437e-b620-a9d6bbae918e",
+      "name": "Webhook - Unified Generate Postcard Back",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "webhookId": "bb3f1069-4943-4666-a813-6d3d26ab16d3"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# Import required libraries\nfrom PIL import Image, ImageDraw, ImageFont\nimport io\nimport base64\nimport textwrap\nimport re\n\ndef generate_postcard_back():\n    try:\n        config = items[0]['json']\n        dimensions = config['dimensions']\n        layout = config['layout']\n        message = config['message']\n        recipient = config['recipientInfo']\n        postcard_size = config['postcardSize']\n        transaction_id = config['transactionId']\n        is_test_mode = config.get('isTestMode', False)\n        \n        print(f\"[POSTCARD_BACK] Creating {dimensions['width']}x{dimensions['height']} postcard back\")\n        print(f\"[POSTCARD_BACK] Transaction ID: {transaction_id}\")\n        print(f\"[POSTCARD_BACK] Test Mode: {is_test_mode}\")\n        print(f\"[POSTCARD_BACK] Message: {message[:50]}...\")\n        print(f\"[POSTCARD_BACK] LARGE Font sizes: message={layout['messageFontSize']}pt, address={layout['addressFontSize']}pt\")\n        \n        # Create white canvas\n        canvas = Image.new('RGB', (dimensions['width'], dimensions['height']), 'white')\n        draw = ImageDraw.Draw(canvas)\n        print(f\"[POSTCARD_BACK] Created white canvas: {canvas.size}\")\n        \n        # ENHANCED Font loading with better size handling\n        def load_font_with_size(size, bold=False):\n            size = int(size)\n            print(f\"[POSTCARD_BACK] Loading font with size {size}pt (bold: {bold})\")\n            \n            font_paths = [\n                # macOS fonts\n                f\"/System/Library/Fonts/Arial{'Bold' if bold else ''}.ttf\",\n                f\"/System/Library/Fonts/Helvetica{'Bold' if bold else ''}.ttc\",\n                # Linux fonts\n                f\"/usr/share/fonts/truetype/liberation/Liberation{'Bold' if bold else 'Sans'}-Regular.ttf\",\n                f\"/usr/share/fonts/truetype/dejavu/DejaVuSans{'Bold' if bold else ''}.ttf\",\n                # Windows fonts (if available)\n                f\"C:/Windows/Fonts/arial{'bd' if bold else ''}.ttf\"\n            ]\n            \n            for font_path in font_paths:\n                try:\n                    font = ImageFont.truetype(font_path, size)\n                    print(f\"[POSTCARD_BACK] SUCCESS: Loaded {font_path} at {size}pt\")\n                    return font\n                except (OSError, IOError) as e:\n                    print(f\"[POSTCARD_BACK] Failed to load {font_path}: {e}\")\n                    continue\n            \n            # Enhanced fallback that tries to respect size\n            print(f\"[POSTCARD_BACK] All TrueType fonts failed, trying fallback with size {size}\")\n            try:\n                # Try load_default with size parameter (newer Pillow versions)\n                fallback_font = ImageFont.load_default(size=size)\n                print(f\"[POSTCARD_BACK] SUCCESS: Using load_default with size {size}\")\n                return fallback_font\n            except Exception as e:\n                print(f\"[POSTCARD_BACK] load_default with size failed: {e}\")\n                try:\n                    # Try load_default_font with size parameter\n                    fallback_font = ImageFont.load_default_font(size=size)\n                    print(f\"[POSTCARD_BACK] SUCCESS: Using load_default_font with size {size}\")\n                    return fallback_font\n                except Exception as e2:\n                    print(f\"[POSTCARD_BACK] load_default_font failed: {e2}\")\n                    # Absolute last resort\n                    print(f\"[POSTCARD_BACK] WARNING: Using basic default font (size ignored)\")\n                    return ImageFont.load_default()\n        \n        # Load fonts with the calculated LARGE sizes\n        message_font_size = int(layout['messageFontSize'])\n        address_font_size = int(layout['addressFontSize'])\n        \n        message_font = load_font_with_size(message_font_size)\n        address_font = load_font_with_size(address_font_size)\n        address_font_bold = load_font_with_size(address_font_size, bold=True)\n        \n        print(f\"[POSTCARD_BACK] Fonts loaded successfully: message={message_font_size}pt, address={address_font_size}pt\")\n        \n        # Word wrap message text with better calculation for large fonts\n        # Estimate characters per line based on actual font size\n        avg_char_width = message_font_size * 0.55  # Slightly tighter for large fonts\n        max_chars_per_line = int(layout['messageWidth'] / avg_char_width)\n        \n        # Ensure reasonable line lengths for readability with large fonts\n        max_chars_per_line = max(12, min(max_chars_per_line, 50))  # Shorter lines for large fonts\n        \n        print(f\"[POSTCARD_BACK] Text wrapping: {max_chars_per_line} chars per line (font size {message_font_size}pt)\")\n        \n        # Wrap the text\n        wrapped_lines = textwrap.fill(message, width=max_chars_per_line).split('\\n')\n        \n        # Calculate line height with proper spacing for large fonts\n        line_height = message_font_size * 1.15  # Tight line spacing for large fonts\n        \n        # Draw message text line by line\n        current_y = layout['messageTop']\n        lines_drawn = 0\n        for i, line in enumerate(wrapped_lines):\n            if current_y + line_height > layout['messageTop'] + layout['messageHeight']:\n                print(f\"[POSTCARD_BACK] Message truncated at line {i} due to height limit\")\n                break\n            \n            draw.text(\n                (layout['messageLeft'], current_y),\n                line,\n                font=message_font,\n                fill='black'\n            )\n            current_y += line_height\n            lines_drawn += 1\n        \n        print(f\"[POSTCARD_BACK] Drew {lines_drawn} lines of message text with {message_font_size}pt font\")\n        \n        # Draw address section with proper spacing for large fonts\n        address_line_height = address_font_size * 1.1\n        current_y = layout['addressY']\n        \n        # Name (bold)\n        draw.text(\n            (layout['addressX'], current_y), \n            recipient['to'], \n            font=address_font_bold, \n            fill='black'\n        )\n        current_y += address_line_height\n        print(f\"[POSTCARD_BACK] Drew recipient name: {recipient['to']} with {address_font_size}pt bold font\")\n        \n        # Address line 1\n        draw.text(\n            (layout['addressX'], current_y), \n            recipient['addressLine1'], \n            font=address_font, \n            fill='black'\n        )\n        current_y += address_line_height\n        print(f\"[POSTCARD_BACK] Drew address line 1: {recipient['addressLine1']} with {address_font_size}pt font\")\n        \n        # Address line 2 (if exists)\n        if recipient.get('addressLine2') and recipient['addressLine2'].strip():\n            draw.text(\n                (layout['addressX'], current_y), \n                recipient['addressLine2'], \n                font=address_font, \n                fill='black'\n            )\n            current_y += address_line_height\n            print(f\"[POSTCARD_BACK] Drew address line 2: {recipient['addressLine2']} with {address_font_size}pt font\")\n        \n        # City, State ZIP (with small gap)\n        current_y += address_line_height * 0.15\n        city_state_zip = f\"{recipient['city']}, {recipient['state']} {recipient['zipcode']}\"\n        draw.text(\n            (layout['addressX'], current_y), \n            city_state_zip, \n            font=address_font, \n            fill='black'\n        )\n        print(f\"[POSTCARD_BACK] Drew city/state/zip: {city_state_zip} with {address_font_size}pt font\")\n        \n        # Convert to base64 PNG\n        buffer = io.BytesIO()\n        canvas.save(buffer, format='JPEG', quality=95, optimize=True)\n        buffer.seek(0)\n        \n        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')\n        file_size = len(buffer.getvalue())\n        \n        print(f\"[POSTCARD_BACK] Generated postcard back: {file_size} bytes\")\n        print(f\"[POSTCARD_BACK] Canvas size: {canvas.size[0]}x{canvas.size[1]}\")\n        print(f\"[POSTCARD_BACK] FINAL Font sizes used: message={message_font_size}pt, address={address_font_size}pt\")\n        \n        return [{\n            'json': {\n                'success': True,\n                'postcardSize': postcard_size,\n                'dimensions': dimensions,\n                'transactionId': transaction_id,\n                'isTestMode': is_test_mode,\n                'fileSize': file_size,\n                'messageLines': lines_drawn,\n                'messageFontSize': message_font_size,\n                'addressFontSize': address_font_size\n            },\n            'binary': {\n                'postcard_back': {\n                    'data': img_base64,\n                    'mimeType': 'image/jpeg',\n                    'fileName': f\"postcard-back-{transaction_id}.jpg\"\n                }\n            }\n        }]\n        \n    except Exception as e:\n        error_msg = str(e)\n        print(f\"[POSTCARD_BACK] Fatal error: {error_msg}\")\n        return [{\n            'json': {\n                'success': False,\n                'error': error_msg,\n                'postcardSize': config.get('postcardSize', 'unknown') if 'config' in locals() else 'unknown',\n                'transactionId': config.get('transactionId', 'unknown') if 'config' in locals() else 'unknown',\n                'isTestMode': config.get('isTestMode', False) if 'config' in locals() else False\n            }\n        }]\n\n# Execute the postcard back generation\nresult = generate_postcard_back()\nreturn result"
+      },
+      "id": "d6970001-667f-4e7c-843b-e3c0f98ceff0",
+      "name": "Generate Postcard Back Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert binary to base64 for Cloudinary upload\nconst input = $input.all()[0];\nconst binaryData = input.binary.postcard_back;\n\nif (!binaryData) {\n  throw new Error('No binary data found');\n}\n\nconst base64String = `data:${binaryData.mimeType};base64,${binaryData.data}`;\n\nreturn [{\n  json: {\n    file_data: base64String,\n    upload_preset: 'xlpostcards-unsigned',\n    // Pass through metadata\n    originalData: input.json\n  }\n}];"
+      },
+      "id": "7dfc0261-47ef-4db5-ab5e-41a13a22c252",
+      "name": "Convert Binary to Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [752, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/db9totnmb/image/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $json.file_data }}"
+            },
+            {
+              "name": "upload_preset",
+              "value": "={{ $json.upload_preset }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "0d192434-ea9f-4ea4-95a4-ee1832ae02c3",
+      "name": "Upload to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"postcard_back_url\": \"{{ $json.secure_url }}\",\n  \"public_id\": \"{{ $json.public_id }}\",\n  \"postcardSize\": \"{{ $('Convert Binary to Base64').item.json.originalData.postcardSize }}\",\n  \"dimensions\": {\n    \"width\": \"{{ $('Convert Binary to Base64').item.json.originalData.dimensions.width }}\",\n    \"height\": \"{{ $('Convert Binary to Base64').item.json.originalData.dimensions.height }}\"\n  },\n  \"transactionId\": \"{{ $('Convert Binary to Base64').item.json.originalData.transactionId }}\",\n  \"isTestMode\": \"{{ $('Convert Binary to Base64').item.json.originalData.isTestMode }}\",\n  \"fileSize\": \"{{ $('Convert Binary to Base64').item.json.originalData.fileSize }}\",\n  \"messageLines\": \"{{ $('Convert Binary to Base64').item.json.originalData.messageLines }}\",\n  \"messageFontSize\": \"{{ $('Convert Binary to Base64').item.json.originalData.messageFontSize }}\",\n  \"addressFontSize\": \"{{ $('Convert Binary to Base64').item.json.originalData.addressFontSize }}\",\n  \"cloudinary_url\": \"{{ $json.secure_url }}\",\n  \"generated_at\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "533c8029-fdcc-443f-9e94-b9cef231ac00",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1152, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input and calculate layout with LARGE fonts\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\n// Validation\nif (!input.message || typeof input.message !== 'string') {\n  throw new Error('Message is required and must be a string');\n}\n\nif (!input.recipientInfo || !input.recipientInfo.to) {\n  throw new Error('Recipient information is required');\n}\n\nif (!input.postcardSize || !['regular', 'xl'].includes(input.postcardSize)) {\n  throw new Error('Invalid postcard size');\n}\n\n// Detect test mode from request\nconst isTestMode = input.testMode === true || input.variant === 'development' || input.isTest === true;\n\n// Base dimensions for layout calculations (matching printSpecs.ts)\nconst baseDimensions = {\n  regular: { width: 1800, height: 1200 },\n  xl: { width: 2754, height: 1872 }\n};\n\nconst base = baseDimensions[input.postcardSize];\nconst dimensions = input.dimensions || base;\nconst scaleX = dimensions.width / base.width;\nconst scaleY = dimensions.height / base.height;\n\n// MUCH LARGER Layout calculations - FIXED FONT SIZES\nlet layout;\nif (input.postcardSize === 'regular') {\n  // 4x6 layout - SIGNIFICANTLY LARGER FONTS\n  layout = {\n    messageLeft: 72 * scaleX,\n    messageTop: 72 * scaleY,\n    messageWidth: 900 * scaleX,\n    messageHeight: (base.height - 144) * scaleY,\n    addressRight: 72 * scaleX,\n    addressBottom: 172 * scaleY,\n    addressWidth: 600 * scaleX,\n    addressHeight: 300 * scaleY,\n    messageFontSize: Math.max(30, 40 * Math.min(scaleX, scaleY)), // MUCH LARGER: 96-120pt\n    addressFontSize: Math.max(30, 40 * Math.min(scaleX, scaleY)),   // MUCH LARGER: 80-96pt\n  };\n} else {\n  // 6x9 layout - SIGNIFICANTLY LARGER FONTS \n  layout = {\n    messageLeft: 108 * scaleX,\n    messageTop: 108 * scaleY,\n    messageWidth: 1400 * scaleX, // Increased message area width\n    messageHeight: (base.height - 300) * scaleY, // Increased message area height\n    addressRight: 108 * scaleX,\n    addressBottom: 228 * scaleY,\n    addressWidth: 700 * scaleX,\n    addressHeight: 300 * scaleY,\n    messageFontSize: Math.max(40, 60 * Math.min(scaleX, scaleY)), // MUCH LARGER: 120-72pt was 144\n    addressFontSize: Math.max(40, 60 * Math.min(scaleX, scaleY)),   // MUCH LARGER: 96-72pt was 112\n  };\n}\n\n// Calculate address position\nconst addressX = dimensions.width - layout.addressRight - layout.addressWidth;\nconst addressY = dimensions.height - layout.addressBottom - layout.addressHeight;\n\nconsole.log(`[POSTCARD_BACK] Processing ${input.postcardSize} postcard: ${dimensions.width}x${dimensions.height}`);\nconsole.log(`[POSTCARD_BACK] Test Mode: ${isTestMode}`);\nconsole.log(`[POSTCARD_BACK] Message area: ${layout.messageWidth}x${layout.messageHeight} at (${layout.messageLeft}, ${layout.messageTop})`);\nconsole.log(`[POSTCARD_BACK] Address area: ${layout.addressWidth}x${layout.addressHeight} at (${addressX}, ${addressY})`);\nconsole.log(`[POSTCARD_BACK] LARGE Font sizes: message=${layout.messageFontSize}pt, address=${layout.addressFontSize}pt`);\n\nreturn [{\n  json: {\n    ...input,\n    dimensions,\n    layout: {\n      ...layout,\n      addressX,\n      addressY\n    },\n    isTestMode,\n    transactionId: input.transactionId || `postcard-${Date.now()}`\n  }\n}];"
+      },
+      "id": "444eca01-3c3b-4792-9552-8d0e4176642c",
+      "name": "Validate Input & Calculate Layout1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [288, 0]
+    },
+    {
+      "parameters": {
+        "content": "## ACTIVE WORKFLOW 2.0.34\n**This supports app release 2.0.34. Do not delete until all users have upgraded.",
+        "height": 288,
+        "width": 1584,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-160, -80],
+      "typeVersion": 1,
+      "id": "ec1febe9-f6cd-4060-811d-17fb35a1ca9d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.error || 'Failed to generate postcard back' }}\",\n  \"postcardSize\": \"{{ $json.postcardSize || 'unknown' }}\",\n  \"transactionId\": \"{{ $json.transactionId || 'unknown' }}\",\n  \"isTestMode\": {{ $json.isTestMode || false }},\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "da2b5bc7-5131-4a14-8e43-67373313104c",
+      "name": "Error Response1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [816, 592]
+    },
+    {
+      "parameters": {
+        "content": "## SIMPLE WORKFLOW 2.1.xx\n**Dead simple workflow with 13pt fonts and proper font loading.",
+        "height": 416,
+        "width": 1584
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-160, 336],
+      "typeVersion": 1,
+      "id": "efaa8a13-20e2-4216-8047-5a8ee107bfb9",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-postcard-back-unified-2.1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "379e84b8-f8bb-4546-aa9c-623288af126b",
+      "name": "Webhook - Unified Generate Postcard Back-2.1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 416],
+      "webhookId": "bb3f1069-4943-4666-a813-6d3d26ab16d3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dead simple layout - just 13pt fonts\nconst input = $input.all()[0].json.body || $input.all()[0].json;\n\nif (!input.message) throw new Error('Message required');\nif (!input.recipientInfo?.to) throw new Error('Recipient required');\nif (!['regular', 'xl'].includes(input.postcardSize)) throw new Error('Invalid size');\n\nconst dimensions = input.dimensions || (input.postcardSize === 'regular' ? {width: 1800, height: 1200} : {width: 2754, height: 1872});\n\nlet layout;\nif (input.postcardSize === 'regular') {\n  // 4x6 layout\n  layout = {\n    messageFontSize: 13,\n    addressFontSize: 13,\n    returnAddressFontSize: 13,\n    messageLeft: 72,\n    messageTop: 120,\n    messageWidth: 900,\n    messageHeight: 900,\n    addressX: 1000,\n    addressY: 800,\n    returnAddressLeft: 72,\n    returnAddressTop: 72\n  };\n} else {\n  // 6x9 layout (bigger message box)\n  layout = {\n    messageFontSize: 13,\n    addressFontSize: 13,\n    returnAddressFontSize: 13,\n    messageLeft: 108,\n    messageTop: 150,\n    messageWidth: 1400,\n    messageHeight: 1400,\n    addressX: 1600,\n    addressY: 1200,\n    returnAddressLeft: 108,\n    returnAddressTop: 108\n  };\n}\n\nreturn [{\n  json: {\n    ...input,\n    dimensions,\n    layout,\n    isTestMode: input.testMode === true || input.variant === 'development',\n    transactionId: input.transactionId || `postcard-${Date.now()}`,\n    returnAddressText: input.returnAddressText || ''\n  }\n}];"
+      },
+      "id": "7bc4c63a-06fa-48b7-8ada-063a50d38d15",
+      "name": "Simple Layout 2.1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [288, 416]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "from PIL import Image, ImageDraw, ImageFont\nimport io, base64, os, tempfile, urllib.request\n\ndef _load_font(pt_size):\n    pt_size = int(pt_size)\n    print(f\"[FONT] Loading {pt_size}pt font\")\n    \n    # Try to download a reliable font first\n    try:\n        font_url = \"https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf\"\n        font_path = os.path.join(tempfile.gettempdir(), \"DejaVuSans.ttf\")\n        if not os.path.exists(font_path):\n            urllib.request.urlretrieve(font_url, font_path)\n        font = ImageFont.truetype(font_path, pt_size)\n        print(f\"[FONT] SUCCESS: Downloaded DejaVu Sans {pt_size}pt\")\n        return font\n    except Exception as e:\n        print(f\"[FONT] Download failed: {e}\")\n    \n    # Try system fonts\n    font_paths = [\n        \"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf\",\n        \"/System/Library/Fonts/Arial.ttf\",\n        \"/System/Library/Fonts/Helvetica.ttc\"\n    ]\n    \n    for font_path in font_paths:\n        try:\n            if os.path.exists(font_path):\n                font = ImageFont.truetype(font_path, pt_size)\n                print(f\"[FONT] SUCCESS: System font {font_path} {pt_size}pt\")\n                return font\n        except:\n            continue\n    \n    print(f\"[FONT] WARNING: Using default font (will be tiny)\")\n    return ImageFont.load_default()\n\ndef generate_postcard_back():\n    try:\n        cfg = items[0][\"json\"]\n        dims = cfg[\"dimensions\"]\n        L = cfg[\"layout\"]\n        msg = cfg[\"message\"]\n        rcpt = cfg[\"recipientInfo\"]\n        ret_txt = cfg.get(\"returnAddressText\", \"\")\n        txid = cfg.get(\"transactionId\", \"postcard\")\n\n        print(f\"[POSTCARD] Creating {dims['width']}x{dims['height']} postcard\")\n        print(f\"[POSTCARD] Font sizes: message={L['messageFontSize']}pt, address={L['addressFontSize']}pt\")\n\n        W, H = int(dims[\"width\"]), int(dims[\"height\"])\n        img = Image.new(\"RGB\", (W, H), \"white\")\n        draw = ImageDraw.Draw(img)\n\n        # Load all fonts as 13pt\n        f_msg = _load_font(13)\n        f_addr = _load_font(13)\n        f_ret = _load_font(13)\n\n        # Return address\n        if ret_txt and ret_txt != \"{{RETURN_ADDRESS}}\":\n            lines = ret_txt.split(\"\\n\")[:3]\n            y = L[\"returnAddressTop\"]\n            for line in lines:\n                if line.strip():\n                    draw.text((L[\"returnAddressLeft\"], y), line.strip(), font=f_ret, fill=\"black\")\n                    y += 20\n\n        # Message - simple word wrapping\n        words = msg.split()\n        lines = []\n        current_line = \"\"\n        \n        for word in words:\n            test_line = (current_line + \" \" + word).strip()\n            if draw.textlength(test_line, font=f_msg) <= L[\"messageWidth\"]:\n                current_line = test_line\n            else:\n                if current_line:\n                    lines.append(current_line)\n                current_line = word\n        \n        if current_line:\n            lines.append(current_line)\n\n        # Draw message\n        y = L[\"messageTop\"]\n        lines_drawn = 0\n        for line in lines:\n            if y > L[\"messageTop\"] + L[\"messageHeight\"]:\n                break\n            draw.text((L[\"messageLeft\"], y), line, font=f_msg, fill=\"black\")\n            y += 20\n            lines_drawn += 1\n\n        # Address\n        y = L[\"addressY\"]\n        draw.text((L[\"addressX\"], y), rcpt[\"to\"], font=f_addr, fill=\"black\")\n        y += 20\n        draw.text((L[\"addressX\"], y), rcpt[\"addressLine1\"], font=f_addr, fill=\"black\")\n        y += 20\n        \n        if rcpt.get(\"addressLine2\"):\n            draw.text((L[\"addressX\"], y), rcpt[\"addressLine2\"], font=f_addr, fill=\"black\")\n            y += 20\n        \n        city_st_zip = f\"{rcpt['city']}, {rcpt['state']} {rcpt['zipcode']}\"\n        draw.text((L[\"addressX\"], y), city_st_zip, font=f_addr, fill=\"black\")\n\n        # Export\n        buf = io.BytesIO()\n        img.save(buf, format=\"JPEG\", quality=95, optimize=True)\n        data = buf.getvalue()\n        b64 = base64.b64encode(data).decode(\"utf-8\")\n\n        print(f\"[POSTCARD] Generated {len(data)} bytes, {lines_drawn} message lines\")\n\n        return [{\n            \"json\": {\n                \"success\": True,\n                \"transactionId\": txid,\n                \"fileSize\": len(data),\n                \"messageLines\": lines_drawn,\n                \"messageFontSize\": 13,\n                \"addressFontSize\": 13\n            },\n            \"binary\": {\n                \"postcard_back\": {\n                    \"data\": b64,\n                    \"mimeType\": \"image/jpeg\",\n                    \"fileName\": f\"postcard-back-{txid}.jpg\"\n                }\n            }\n        }]\n    except Exception as e:\n        return [{\"json\": {\"success\": False, \"error\": str(e)}}]\n\nresult = generate_postcard_back()\nreturn result"
+      },
+      "id": "23233150-4d2a-4f12-9ff1-e5e4d1a6851b",
+      "name": "Simple Python Generator 2.1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [512, 416]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert binary to data URL for Cloudinary upload\nconst item = $input.all()[0];\n\nif (!item.binary || !item.binary.postcard_back) {\n  return [{\n    json: {\n      success: false,\n      reason: 'Missing postcard_back binary from renderer'\n    }\n  }];\n}\n\nconst b = item.binary.postcard_back;\nconst base64String = `data:${b.mimeType || 'image/jpeg'};base64,${b.data}`;\n\nreturn [{\n  json: {\n    success: true,\n    file_data: base64String,\n    upload_preset: 'xlpostcards-unsigned',\n    originalData: item.json\n  }\n}];"
+      },
+      "id": "10609fc0-d96f-414c-88ef-fd0d5e2be9e4",
+      "name": "Convert Binary 2.1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [752, 416]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/db9totnmb/image/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $json.file_data }}"
+            },
+            {
+              "name": "upload_preset",
+              "value": "={{ $json.upload_preset }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8d56e2d5-470e-4465-8aa0-2b92230fda39",
+      "name": "Upload to Cloudinary 2.1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 416]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"postcard_back_url\": \"{{ $json.secure_url }}\",\n  \"public_id\": \"{{ $json.public_id }}\",\n  \"postcardSize\": \"{{ $('Convert Binary 2.1').item.json.originalData.postcardSize }}\",\n  \"transactionId\": \"{{ $('Convert Binary 2.1').item.json.originalData.transactionId }}\",\n  \"isTestMode\": \"{{ $('Convert Binary 2.1').item.json.originalData.isTestMode }}\",\n  \"cloudinary_url\": \"{{ $json.secure_url }}\",\n  \"generated_at\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "a1b73b1c-e3e1-4f4c-b66e-64db7307bb73",
+      "name": "Success Response 2.1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1152, 416]
+    }
+  ],
+  "connections": {
+    "Webhook - Unified Generate Postcard Back": {
+      "main": [
+        [
+          {
+            "node": "Validate Input & Calculate Layout1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Postcard Back Image": {
+      "main": [
+        [
+          {
+            "node": "Convert Binary to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Binary to Base64": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input & Calculate Layout1": {
+      "main": [
+        [
+          {
+            "node": "Generate Postcard Back Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Unified Generate Postcard Back-2.1": {
+      "main": [
+        [
+          {
+            "node": "Simple Layout 2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Layout 2.1": {
+      "main": [
+        [
+          {
+            "node": "Simple Python Generator 2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Python Generator 2.1": {
+      "main": [
+        [
+          {
+            "node": "Convert Binary 2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Binary 2.1": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary 2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary 2.1": {
+      "main": [
+        [
+          {
+            "node": "Success Response 2.1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "simple-2-1",
+  "id": "L21A7CjWaHzGC7Id"
+}

@@ -54,18 +54,28 @@ export const generatePostcardBackServer = async (
   console.log('[SERVER_POSTCARD] Postcard size:', request.postcardSize);
   console.log('[SERVER_POSTCARD] Message preview:', request.message.substring(0, 50) + '...');
   
-  // Get N8N webhook URL - choose version based on feature flag
+  // Choose service: Railway > N8N v2.1 > N8N v2.0.13
+  const useRailway = Constants.expoConfig?.extra?.useRailway;
   const useV21 = Constants.expoConfig?.extra?.useN8nV21;
-  const webhookUrl = useV21 
-    ? Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21
-    : Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
   
-  if (!webhookUrl) {
-    throw new Error('N8N webhook URL not configured. Please check your app.config.js');
+  let serviceUrl, serviceName;
+  if (useRailway) {
+    serviceUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
+    serviceName = 'Railway';
+  } else if (useV21) {
+    serviceUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21;
+    serviceName = 'N8N v2.1';
+  } else {
+    serviceUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
+    serviceName = 'N8N v2.0.13';
   }
   
-  console.log('[SERVER_POSTCARD] Using N8N version:', useV21 ? 'v2.1 (Enhanced)' : 'v2.0.13 (Legacy)');
-  console.log('[SERVER_POSTCARD] Using webhook URL:', webhookUrl.replace(/https:\/\/[^/]+/, 'https://***'));
+  if (!serviceUrl) {
+    throw new Error(`${serviceName} URL not configured. Please check your app.config.js`);
+  }
+  
+  console.log('[SERVER_POSTCARD] Using service:', serviceName);
+  console.log('[SERVER_POSTCARD] Using URL:', serviceUrl.replace(/https:\/\/[^/]+/, 'https://***'));
   
   try {
     const startTime = Date.now();
@@ -81,9 +91,9 @@ export const generatePostcardBackServer = async (
     console.log('[SERVER_POSTCARD] Test mode:', isDev);
     console.log('[SERVER_POSTCARD] Variant:', enhancedRequest.variant);
     
-    // Make request to N8N webhook
-    console.log('[SERVER_POSTCARD] Sending request to N8N...');
-    const response = await fetch(webhookUrl, {
+    // Make request to service
+    console.log(`[SERVER_POSTCARD] Sending request to ${serviceName}...`);
+    const response = await fetch(serviceUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,14 +103,14 @@ export const generatePostcardBackServer = async (
     });
     
     const duration = Date.now() - startTime;
-    console.log('[SERVER_POSTCARD] N8N response received in', duration, 'ms');
+    console.log(`[SERVER_POSTCARD] ${serviceName} response received in`, duration, 'ms');
     console.log('[SERVER_POSTCARD] Response status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[SERVER_POSTCARD] N8N returned error status:', response.status);
+      console.error(`[SERVER_POSTCARD] ${serviceName} returned error status:`, response.status);
       console.error('[SERVER_POSTCARD] Error response:', errorText);
-      throw new Error(`N8N server responded with ${response.status}: ${errorText}`);
+      throw new Error(`${serviceName} server responded with ${response.status}: ${errorText}`);
     }
     
     const result: ServerPostcardResponse = await response.json();
