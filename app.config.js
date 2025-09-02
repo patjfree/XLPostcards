@@ -48,7 +48,7 @@ module.exports = {
   // ✅ You can switch this back to dynamic later
   name: "Postcard", // This will be the display name on the home screen
   slug: "XLPostcards",
-  version: "2.1.0-dev",
+  version: "2.1.1.11-dev",
   runtimeVersion: {
     policy: "appVersion"
   },
@@ -131,6 +131,9 @@ module.exports = {
   extra: {
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
+    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
     stripePublishableKey: (() => {
       // HARDCODE test key for simulator builds to bypass environment issues
       if (PROFILE === 'ios-simulator' || PROFILE.includes('simulator')) {

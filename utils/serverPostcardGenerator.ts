@@ -1,7 +1,9 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { PostcardSize, getPrintPixels, getFrontBleedPixels } from './printSpecs';
 import { generatePostcardBackServer, downloadServerImage, validateServerConfiguration } from './serverPostcardService';
+import { uploadToCloudinary } from './cloudinaryUpload';
 
 interface RecipientInfo {
   to: string;
@@ -121,31 +123,57 @@ export const generateCompletePostcardServer = async (
   try {
     console.log('[SERVER_GENERATOR] Transaction ID:', txnId);
     
-    // Generate both front and back in parallel for better performance
-    console.log('[SERVER_GENERATOR] Starting parallel generation...');
+    // Check if using Railway complete generation or separate front/back
+    const useRailway = Constants.expoConfig?.extra?.useRailway;
     
-    const [frontUri, backResult] = await Promise.all([
-      generatePostcardFrontServer(frontImageUri, postcardSize),
-      generatePostcardBackServerSide(message, recipientInfo, postcardSize, txnId, returnAddress)
-    ]);
+    if (useRailway) {
+      console.log('[SERVER_GENERATOR] Using Railway complete postcard generation...');
+      
+      // Option A: Upload front image to Cloudinary first
+      let frontCloudinaryUrl = '';
+      try {
+        console.log('[SERVER_GENERATOR] Step 1: Uploading front image to Cloudinary...');
+        frontCloudinaryUrl = await uploadToCloudinary(frontImageUri, `front-${txnId}`);
+        console.log('[SERVER_GENERATOR] Front image uploaded to Cloudinary:', frontCloudinaryUrl);
+      } catch (error) {
+        console.error('[SERVER_GENERATOR] Failed to upload front image to Cloudinary:', error);
+        // Continue with empty URL - Railway will handle fallback
+      }
+      
+      // Railway handles both front and back with Cloudinary URLs
+      const result = await generatePostcardBackServer({
+        message,
+        recipientInfo,
+        postcardSize,
+        transactionId: txnId,
+        frontImageUri: frontCloudinaryUrl, // Send Cloudinary URL instead of local path
+        returnAddressText: returnAddress
+      });
+      
+      return {
+        frontUri: result.frontUrl || frontImageUri, // Use Railway front or fallback to original
+        backUri: result.imageUrl,
+        isTestMode: result.isTestMode
+      };
+    } else {
+      // Traditional approach: parallel front/back generation
+      console.log('[SERVER_GENERATOR] Using traditional parallel generation...');
+      
+      const [frontUri, backResult] = await Promise.all([
+        generatePostcardFrontServer(frontImageUri, postcardSize),
+        generatePostcardBackServerSide(message, recipientInfo, postcardSize, txnId, returnAddress)
+      ]);
+      
+      return { 
+        frontUri, 
+        backUri: backResult.cloudinaryUrl, 
+        isTestMode: backResult.isTestMode 
+      };
+    }
     
     const totalDuration = Date.now() - startTime;
-    
     console.log('[SERVER_GENERATOR] ========= SERVER-SIDE POSTCARD GENERATION COMPLETED =========');
     console.log('[SERVER_GENERATOR] Total generation time:', totalDuration, 'ms');
-    console.log('[SERVER_GENERATOR] Front URI:', frontUri);
-    console.log('[SERVER_GENERATOR] Back Cloudinary URL:', backResult.cloudinaryUrl);
-    console.log('[SERVER_GENERATOR] Test Mode from N8N:', backResult.isTestMode);
-    console.log('[SERVER_GENERATOR] Test Mode type:', typeof backResult.isTestMode);
-    console.log('[SERVER_GENERATOR] Transaction ID:', txnId);
-    console.log('[SERVER_GENERATOR] ========= RETURNING TO POSTCARD-PREVIEW =========');
-    console.log('[SERVER_GENERATOR] About to return isTestMode:', backResult.isTestMode);
-    
-    return { 
-      frontUri, 
-      backUri: backResult.cloudinaryUrl, 
-      isTestMode: backResult.isTestMode 
-    };
     
   } catch (error) {
     const errorDuration = Date.now() - startTime;

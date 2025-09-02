@@ -282,375 +282,114 @@ export default function PostcardPreviewScreen() {
     }
   };
   
-  // Function to handle the Stannp API call (ViewShot-free)
-  const sendToStannp = async (postcardPurchase: Purchase) => {
-    const stannpStartTime = Date.now();
-    console.log('[XLPOSTCARDS][STANNP] ========= ENTERING SENDTOSTANNP FUNCTION (VIEWSHOT-FREE) =========');
-    console.log('[XLPOSTCARDS][STANNP] Entry timestamp:', new Date().toISOString());
-    console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS, Platform.Version);
-    console.log('[XLPOSTCARDS][STANNP] Purchase object type:', typeof postcardPurchase);
-    console.log('[XLPOSTCARDS][STANNP] Purchase details:', JSON.stringify(postcardPurchase, null, 2));
+  // Function to handle Railway API call (includes Stannp submission)
+  const sendToRailway = async (postcardPurchase: Purchase) => {
+    const railwayStartTime = Date.now();
+    console.log('[XLPOSTCARDS][RAILWAY] ========= ENTERING RAILWAY FLOW =========');
+    console.log('[XLPOSTCARDS][RAILWAY] Transaction ID:', postcardPurchase.transactionId);
     
     try {
-      console.log('[XLPOSTCARDS][STANNP] ====== STARTING STANNP API CALL ======');
-      
       // Ensure we have a transaction ID
       if (!postcardPurchase.transactionId) {
-        console.error('[XLPOSTCARDS][STANNP] No transaction ID received');
         throw new Error('No transaction ID received from purchase');
       }
 
-      // Get API key
-      const apiKey = Constants.expoConfig?.extra?.stannpApiKey;
-      console.log('[XLPOSTCARDS][STANNP] API key available:', !!apiKey);
-      
-      if (!apiKey) {
-        console.error('[XLPOSTCARDS][STANNP] API key is missing!');
-        throw new Error('Stannp API key not found. Please check your .env file and app.config.js.');
-      }
-
-      // Check if this transaction has already been processed
-      console.log('[XLPOSTCARDS][STANNP] Checking transaction status:', postcardPurchase.transactionId);
+      // Check transaction status
       const existingStatus = await postcardService.checkTransactionStatus(postcardPurchase.transactionId);
-      console.log('[XLPOSTCARDS][STANNP] Transaction status:', existingStatus);
-      
       if (existingStatus === 'completed') {
-        console.error('[XLPOSTCARDS][STANNP] Transaction already completed');
         throw new Error('This postcard has already been sent');
       }
       if (existingStatus === 'pending') {
-        console.error('[XLPOSTCARDS][STANNP] Transaction is pending');
         throw new Error('This postcard is currently being processed');
       }
 
-      // Create a new transaction record
-      console.log('[XLPOSTCARDS][STANNP] Creating transaction record');
+      // Create transaction record
       await postcardService.createTransaction(postcardPurchase.transactionId);
 
-      // Step 1: Generate postcard images programmatically (ViewShot-free)
-      console.log('[XLPOSTCARDS][STANNP] ========= GENERATING POSTCARD IMAGES PROGRAMMATICALLY =========');
-      const generationStartTime = Date.now();
-      
-      // Ensure we have the original image URI
-      if (!params.imageUri) {
-        console.error('[XLPOSTCARDS][STANNP] No image URI available for front postcard');
-        throw new Error('No image selected for postcard front');
-      }
-
-      // Use server-side generation - bypasses all iOS ViewShot limitations
-      let frontUri: string;
-      let backUri: string;
-      let serverIsTestMode: boolean | undefined;
-      
-      console.log('[XLPOSTCARDS][STANNP] Using server-side generation approach (N8N + Python)');
-      try {
-        const result = await generateCompletePostcardServer(
-          params.imageUri as string,
-          message,
-          recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
-          postcardSize,
-          postcardPurchase.transactionId,
-          returnAddress
-        );
-        frontUri = result.frontUri;
-        backUri = result.backUri;
-        serverIsTestMode = result.isTestMode;
-        
-        console.log('[XLPOSTCARDS][STANNP] ========= RECEIVED RESULT FROM SERVER GENERATOR =========');
-        console.log('[XLPOSTCARDS][STANNP] Server-side generation successful');
-        console.log('[XLPOSTCARDS][STANNP] Front URI:', frontUri);
-        console.log('[XLPOSTCARDS][STANNP] Back URI:', backUri);
-        console.log('[XLPOSTCARDS][STANNP] Raw result.isTestMode:', result.isTestMode);
-        console.log('[XLPOSTCARDS][STANNP] Type of result.isTestMode:', typeof result.isTestMode);
-        console.log('[XLPOSTCARDS][STANNP] Assigned serverIsTestMode:', serverIsTestMode);
-        console.log('[XLPOSTCARDS][STANNP] Type of serverIsTestMode:', typeof serverIsTestMode);
-        console.log('[XLPOSTCARDS][STANNP] ===============================================================');
-        
-      } catch (serverError) {
-        console.error('[XLPOSTCARDS][STANNP] Server-side generation failed, falling back to original SVG:', serverError);
-        // Fallback to original SVG approach
-        const result = await generateCompletePostcard(
-          params.imageUri as string,
-          message,
-          recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
-          postcardSize
-        );
-        frontUri = result.frontUri;
-        backUri = result.backUri;
-        // Ensure test mode is properly set even in fallback - use same logic as server
-        serverIsTestMode = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-        console.log('[XLPOSTCARDS][STANNP] Fallback test mode set to:', serverIsTestMode);
-      }
-      
-      const totalGenerationDuration = Date.now() - generationStartTime;
-      console.log('[XLPOSTCARDS][STANNP] ========= IMAGES GENERATED SUCCESSFULLY =========');
-      console.log('[XLPOSTCARDS][STANNP] Total generation time:', totalGenerationDuration, 'ms');
-      console.log('[XLPOSTCARDS][STANNP] Front image URI:', frontUri);
-      console.log('[XLPOSTCARDS][STANNP] Back image URI:', backUri);
-      
-      setIsCapturing(false);  // Reset capturing mode after generation
-
-      // Step 2: Prepare images for Stannp (scale front, server back already correct dimensions)
-      console.log('[XLPOSTCARDS][STANNP] Preparing images for Stannp requirements');
-      
-      // Scale front image with bleed dimensions
-      const frontDimensions = getFrontBleedPixels(postcardSize);
-      const frontScaledResult = await ImageManipulator.manipulateAsync(
-        frontUri,
-        [{ resize: { width: frontDimensions.width, height: frontDimensions.height } }],
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: false }
+      // Step 1: Generate complete postcard via Railway (includes Stannp submission)
+      console.log('[XLPOSTCARDS][RAILWAY] Calling Railway complete flow...');
+      const result = await generateCompletePostcardServer(
+        params.imageUri as string,
+        message,
+        recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
+        postcardSize,
+        postcardPurchase.transactionId,
+        returnAddress
       );
-      const finalFrontUri = frontScaledResult.uri;
-      
-      // Server-generated back image is already at correct dimensions - no scaling needed
-      const finalBackUri = backUri;
-      console.log('[XLPOSTCARDS][STANNP] Front image scaled, back image ready (no scaling needed)');
-      console.log('[XLPOSTCARDS][STANNP] Final front URI:', finalFrontUri);
-      console.log('[XLPOSTCARDS][STANNP] Final back URI:', finalBackUri);
 
-      // Step 3: Create FormData and send to Stannp
-      console.log('[XLPOSTCARDS][STANNP] Preparing FormData');
-      const formData = new FormData();
+      console.log('[XLPOSTCARDS][RAILWAY] Railway flow completed successfully');
       
-      // Add test mode flag and size
-      // Use server-provided test mode if available, otherwise fallback to environment detection
-      const isTestMode = serverIsTestMode !== undefined 
-        ? serverIsTestMode 
-        : Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-      
-      console.log('[XLPOSTCARDS][STANNP] ========= TEST MODE DIAGNOSIS =========');
-      console.log('[XLPOSTCARDS][STANNP] Platform:', Platform.OS);
-      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode value:', serverIsTestMode);
-      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode type:', typeof serverIsTestMode);
-      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode === undefined:', serverIsTestMode === undefined);
-      console.log('[XLPOSTCARDS][STANNP] serverIsTestMode !== undefined:', serverIsTestMode !== undefined);
-      console.log('[XLPOSTCARDS][STANNP] APP_VARIANT:', Constants.expoConfig?.extra?.APP_VARIANT);
-      console.log('[XLPOSTCARDS][STANNP] APP_VARIANT === development:', Constants.expoConfig?.extra?.APP_VARIANT === 'development');
-      console.log('[XLPOSTCARDS][STANNP] Ternary condition result:', serverIsTestMode !== undefined ? 'using serverIsTestMode' : 'using APP_VARIANT fallback');
-      console.log('[XLPOSTCARDS][STANNP] Final isTestMode value:', isTestMode);
-      console.log('[XLPOSTCARDS][STANNP] Final isTestMode type:', typeof isTestMode);
-      console.log('[XLPOSTCARDS][STANNP] Sending to Stannp test parameter:', isTestMode ? 'true' : 'false');
-      console.log('[XLPOSTCARDS][STANNP] ==========================================');
-      
-      formData.append('test', isTestMode ? 'true' : 'false');
-      formData.append('size', postcardSize === 'regular' ? '4x6' : '6x9');
-      formData.append('padding', '0');
-      
-      // Add scaled front and back images
-      console.log('[XLPOSTCARDS][STANNP] Adding images to FormData');
-      
-      // @ts-ignore - React Native's FormData accepts this format
-      formData.append('front', {
-        uri: finalFrontUri,
-        type: 'image/jpeg',
-        name: 'front.jpg'
-      });
-
-      // Use Cloudinary URL directly for back image (server-generated JPEG)
-      console.log('[XLPOSTCARDS][STANNP] Back URI type check:', finalBackUri.startsWith('http') ? 'URL' : 'Local file');
-      if (finalBackUri.startsWith('http')) {
-        // Direct Cloudinary URL - let Stannp fetch it
-        formData.append('back', finalBackUri);
-      } else {
-        // Local file (fallback case)
-        // @ts-ignore - React Native's FormData accepts this format
-        formData.append('back', {
-          uri: finalBackUri,
-          type: 'image/jpeg',
-          name: 'back.jpg'
-        });
-      }
-      
-      console.log('[XLPOSTCARDS][STANNP] FormData created successfully');
-      
-      // Format recipient data
-      console.log('[XLPOSTCARDS][STANNP] Adding recipient data to FormData');
-      const nameParts = recipientInfo?.to.split(' ') || [];
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-      
-      formData.append('recipient[firstname]', firstName);
-      formData.append('recipient[lastname]', lastName);
-      formData.append('recipient[address1]', recipientInfo?.addressLine1 || '');
-      if (recipientInfo?.addressLine2) {
-        formData.append('recipient[address2]', recipientInfo.addressLine2);
-      }
-      formData.append('recipient[city]', recipientInfo?.city || '');
-      formData.append('recipient[state]', recipientInfo?.state || '');
-      formData.append('recipient[postcode]', recipientInfo?.zipcode || '');
-      formData.append('recipient[country]', 'US');
-      
-      formData.append('clearzone', 'true');
-      
-      // Create authorization header
-      const authHeader = 'Basic ' + btoa(`${apiKey}:`);
-      
-      // Log the complete FormData for debugging
-      console.log('[XLPOSTCARDS][STANNP] FormData contents:', {
-        test: isTestMode ? 'true' : 'false',
-        size: postcardSize === 'regular' ? '4x6' : '6x9',
-        recipient: {
-          firstname: firstName,
-          lastname: lastName,
-          address1: recipientInfo?.addressLine1 || '',
-          address2: recipientInfo?.addressLine2 || '',
-          city: recipientInfo?.city || '',
-          state: recipientInfo?.state || '',
-          postcode: recipientInfo?.zipcode || '',
-          country: 'US'
-        },
-        frontImage: finalFrontUri,
-        backImage: finalBackUri.startsWith('http') ? 'Cloudinary URL' : 'Local file',
-        backImageType: finalBackUri.startsWith('http') ? 'Direct URL' : 'File upload'
+      // Step 2: Confirm payment with Railway  
+      console.log('[XLPOSTCARDS][RAILWAY] Confirming payment with Railway...');
+      const paymentResponse = await fetch('https://postcardservice-production.up.railway.app/payment-confirmed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: postcardPurchase.transactionId,
+          stripePaymentIntentId: postcardPurchase.paymentIntentId || 'mobile-payment',
+          userEmail: '' // TODO: Get from settings
+        })
       });
       
-      // Make the API request with timeout
-      console.log('[XLPOSTCARDS][STANNP] ========= PREPARING STANNP NETWORK REQUEST =========');
-      console.log('[XLPOSTCARDS][STANNP] FormData created, sending to Stannp API');
-      console.log('[XLPOSTCARDS][STANNP] Device info:', Platform.OS, Platform.Version);
-      console.log('[XLPOSTCARDS][STANNP] Network request URL: https://api-us1.stannp.com/v1/postcards/create');
-      
-      console.log('[XLPOSTCARDS][STANNP] Creating AbortController...');
-      const controller = new AbortController();
-      console.log('[XLPOSTCARDS][STANNP] Setting 30-second timeout...');
-      const timeoutId = setTimeout(() => {
-        console.error('[XLPOSTCARDS][STANNP] ========= NETWORK TIMEOUT - ABORTING REQUEST =========');
-        controller.abort();
-      }, 30000); // 30 second timeout
-      
-      console.log('[XLPOSTCARDS][STANNP] ========= SENDING FETCH REQUEST TO STANNP =========');
-      const fetchStartTime = Date.now();
-      
-      try {
-        const response = await fetch('https://api-us1.stannp.com/v1/postcards/create', {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Accept': 'application/json',
-            // Don't set Content-Type - let React Native set it automatically with boundary
-          },
-          body: formData,
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        
-        console.log('[XLPOSTCARDS][STANNP] Response received. Status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[XLPOSTCARDS][STANNP] Bad response from API:', errorText);
-        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-        throw new Error(`API returned status ${response.status}: ${errorText}`);
+      if (!paymentResponse.ok) {
+        throw new Error(`Payment confirmation failed: ${paymentResponse.status}`);
       }
       
-      const responseText = await response.text();
-      console.log('[XLPOSTCARDS][STANNP] Raw API Response:', responseText);
+      // Step 3: Submit to Stannp via Railway
+      console.log('[XLPOSTCARDS][RAILWAY] Submitting to Stannp via Railway...');
+      const stannpResponse = await fetch('https://postcardservice-production.up.railway.app/submit-to-stannp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: postcardPurchase.transactionId
+        })
+      });
       
-      const data = JSON.parse(responseText);
-      console.log('[XLPOSTCARDS][STANNP] Parsed API Response:', JSON.stringify(data, null, 2));
-      
-      console.log('[XLPOSTCARDS][STANNP] ========= CRITICAL STANNP SUCCESS CHECK =========');
-      console.log('[XLPOSTCARDS][STANNP] data.success value:', data.success);
-      console.log('[XLPOSTCARDS][STANNP] data.success type:', typeof data.success);
-      console.log('[XLPOSTCARDS][STANNP] data object keys:', Object.keys(data));
-      
-      if (!data.success) {
-        console.error('[XLPOSTCARDS][STANNP] ========= STANNP API REPORTED FAILURE =========');
-        console.error('[XLPOSTCARDS][STANNP] API failure reason:', data.error);
-        console.error('[XLPOSTCARDS][STANNP] Full response data:', JSON.stringify(data, null, 2));
-        await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-        throw new Error(data.error || 'Failed to send postcard');
+      if (!stannpResponse.ok) {
+        const errorText = await stannpResponse.text();
+        throw new Error(`Stannp submission failed: ${stannpResponse.status} - ${errorText}`);
       }
       
-      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CONFIRMED SUCCESS =========');
-      console.log('[XLPOSTCARDS][STANNP] Proceeding with success flow...');
+      const stannpResult = await stannpResponse.json();
+      console.log('[XLPOSTCARDS][RAILWAY] Stannp submission successful:', stannpResult);
       
-      // Set the Stannp confirmation flag
+      // Set the confirmation flag
       setStannpConfirmed(true);
       
       // Mark transaction as completed
-      console.log('[XLPOSTCARDS][STANNP] Marking transaction as complete');
       await postcardService.markTransactionComplete(postcardPurchase.transactionId);
       
-      // Extract PDF preview URL
-      const pdfUrl = data.data.pdf || data.data.pdf_url;
-      console.log('[XLPOSTCARDS][STANNP] PDF URL received:', pdfUrl);
-      
-      // Success case - update all states in one batch
-      console.log('[XLPOSTCARDS][STANNP] Updating UI states for success');
-      const updates = async () => {
-        setStannpAttempts(0);
-        setSendResult({
-          success: true,
-          message: `Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.`,
-          pdfUrl: pdfUrl
-        });
-        if (stannpConfirmed) {
-          console.log('[XLPOSTCARDS][STANNP] ========= SHOWING SUCCESS MODAL AFTER STANNP CONFIRMATION =========');
-          console.log('[XLPOSTCARDS][STANNP] Success modal triggered because Stannp API returned success: true');
-          showOnlyModal('success');
-        } else {
-          console.error('[XLPOSTCARDS][STANNP] ========= WARNING: ATTEMPTING SUCCESS MODAL WITHOUT STANNP CONFIRMATION =========');
-          console.error('[XLPOSTCARDS][STANNP] This should not happen - blocking success modal');
-        }
-        setSending(false);
-        setIsCapturing(false);
-
-        // Removed automatic timeout - let user manually dismiss success modal
-      };
-      await updates();
-      const stannpEndTime = Date.now();
-      const totalStannpDuration = stannpEndTime - stannpStartTime;
-      console.log('[XLPOSTCARDS][STANNP] ========= STANNP API CALL COMPLETED SUCCESSFULLY (VIEWSHOT-FREE) =========');
-      console.log('[XLPOSTCARDS][STANNP] Total Stannp function duration:', totalStannpDuration, 'ms');
-      console.log('[XLPOSTCARDS][STANNP] Success timestamp:', new Date().toISOString());
-      
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        const fetchEndTime = Date.now();
-        const fetchDuration = fetchEndTime - fetchStartTime;
-        const totalStannpDuration = fetchEndTime - stannpStartTime;
-        
-        console.error('[XLPOSTCARDS][STANNP] ========= NETWORK/TIMEOUT ERROR =========');
-        console.error('[XLPOSTCARDS][STANNP] Error type:', fetchError.name);
-        console.error('[XLPOSTCARDS][STANNP] Error message:', fetchError.message);
-        console.error('[XLPOSTCARDS][STANNP] Fetch duration before error:', fetchDuration, 'ms');
-        console.error('[XLPOSTCARDS][STANNP] Total Stannp duration before error:', totalStannpDuration, 'ms');
-        console.error('[XLPOSTCARDS][STANNP] Full error object:', fetchError);
-        
-        if (fetchError.name === 'AbortError') {
-          console.error('[XLPOSTCARDS][STANNP] ========= REQUEST TIMED OUT AFTER 30 SECONDS =========');
-          await postcardService.markTransactionFailed(postcardPurchase.transactionId);
-          throw new Error('Request timed out. Please check your internet connection and try again.');
-        }
-        
-        // Re-throw other fetch errors to be caught by main catch block
-        console.error('[XLPOSTCARDS][STANNP] Re-throwing fetch error to main catch block');
-        throw fetchError;
-      }
-    } catch (error) {
-      const stannpErrorTime = Date.now();
-      const totalStannpDuration = stannpErrorTime - stannpStartTime;
-      
-      console.error('[XLPOSTCARDS][STANNP] ========= MAIN CATCH BLOCK - STANNP ERROR =========');
-      console.error('[XLPOSTCARDS][STANNP] Error timestamp:', new Date().toISOString());
-      console.error('[XLPOSTCARDS][STANNP] Total duration before error:', totalStannpDuration, 'ms');
-      const err = error as Error;
-      console.error('[XLPOSTCARDS][STANNP] ====== ERROR IN STANNP API CALL ======');
-      console.error('[XLPOSTCARDS][STANNP] Error details:', {
-        error: err,
-        message: err.message,
-        stack: err.stack,
-        sendResult,
-        lastPurchase,
-        showSuccessModal,
-        showErrorModal,
-        showRefundModal,
-        showRefundSuccessModal
+      // Success - update UI states
+      setStannpAttempts(0);
+      setSendResult({
+        success: true,
+        message: `Your postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.`,
       });
+      
+      if (stannpConfirmed) {
+        console.log('[XLPOSTCARDS][RAILWAY] Showing success modal after Railway confirmation');
+        showOnlyModal('success');
+      }
+      
+      setSending(false);
+      setIsCapturing(false);
+
+      const railwayEndTime = Date.now();
+      const totalDuration = railwayEndTime - railwayStartTime;
+      console.log('[XLPOSTCARDS][RAILWAY] ========= RAILWAY FLOW COMPLETED SUCCESSFULLY =========');
+      console.log('[XLPOSTCARDS][RAILWAY] Total duration:', totalDuration, 'ms');
+      
+    } catch (error) {
+      const railwayErrorTime = Date.now();
+      const totalDuration = railwayErrorTime - railwayStartTime;
+      
+      console.error('[XLPOSTCARDS][RAILWAY] ========= RAILWAY FLOW FAILED =========');
+      console.error('[XLPOSTCARDS][RAILWAY] Duration before failure:', totalDuration, 'ms');
+      console.error('[XLPOSTCARDS][RAILWAY] Error details:', error);
+      
+      const err = error as Error;
       setLastErrorMessage(err.message);
-      throw error;  // Re-throw to be handled by the calling function
+      throw error;
     }
   };
 
@@ -769,8 +508,8 @@ export default function PostcardPreviewScreen() {
       setSendResult(null);
       setIsCapturing(true);
 
-      // Send to Stannp using existing purchase
-      await sendToStannp(purchase);
+      // Send to Railway using existing purchase (Railway handles Stannp)
+      await sendToRailway(purchase);
       
     } catch (error) {
       console.error('ERROR in retry:', error);
@@ -944,7 +683,7 @@ export default function PostcardPreviewScreen() {
       
       try {
         await Promise.race([
-          sendToStannp(purchase),
+          sendToRailway(purchase),
           stannpTimeout
         ]);
         
@@ -1313,6 +1052,7 @@ export default function PostcardPreviewScreen() {
                   message={message}
                   recipientInfo={recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' }}
                   postcardSize={postcardSize}
+                  returnAddress={returnAddress}
                 />
               </View>
             </ViewShot>

@@ -18,6 +18,7 @@ interface PostcardBackLayoutProps {
   message: string;
   recipientInfo: RecipientInfo;
   postcardSize: PostcardSize;
+  returnAddress?: string;
   postageImage?: { uri: string };
   stampImage?: { uri: string };
 }
@@ -68,6 +69,7 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
   message,
   recipientInfo,
   postcardSize,
+  returnAddress,
 }) => {
   const dims = getScaledDims(postcardSize, width, height);
   
@@ -131,6 +133,42 @@ const PostcardBackLayout: React.FC<PostcardBackLayoutProps> = ({
           borderColor: '#FFFFFF',
         }),
       }} />
+
+      {/* Return address area */}
+      {returnAddress && (
+        <View 
+          collapsable={false}
+          style={{
+            position: 'absolute',
+            left: dims.messageLeft,
+            top: dims.messageTop - (postcardSize === 'regular' ? 120 : 150),
+            width: dims.messageWidth,
+            zIndex: 10,
+            backgroundColor: 'transparent',
+          }}>
+          <Text 
+            allowFontScaling={false}
+            style={{
+              fontSize: postcardSize === 'regular' ? 14 : 18,
+              color: '#000000',
+              lineHeight: (postcardSize === 'regular' ? 14 : 18) * 1.2,
+              backgroundColor: 'transparent',
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              fontWeight: '400',
+              textAlign: 'left',
+            }}>
+            {returnAddress}
+          </Text>
+          {/* Separator line */}
+          <View style={{
+            height: 1,
+            backgroundColor: '#000000',
+            marginTop: 8,
+            marginBottom: 8,
+            width: '70%',
+          }} />
+        </View>
+      )}
 
       {/* Message area - simplified for iOS 6x9 compatibility */}
       <View 

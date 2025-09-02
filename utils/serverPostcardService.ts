@@ -17,6 +17,8 @@ interface ServerPostcardRequest {
   recipientInfo: RecipientInfo;
   postcardSize: PostcardSize;
   transactionId: string;
+  frontImageUri?: string;
+  frontImageBase64?: string;
   dimensions?: { width: number; height: number };
   testMode?: boolean;
   variant?: string;
@@ -26,6 +28,9 @@ interface ServerPostcardRequest {
 interface ServerPostcardResponse {
   success: boolean;
   postcard_back_url?: string;
+  frontUrl?: string;
+  backUrl?: string;
+  status?: string;
   public_id?: string;
   postcardSize?: string;
   dimensions?: { width: number; height: number };
@@ -60,8 +65,8 @@ export const generatePostcardBackServer = async (
   
   let serviceUrl, serviceName;
   if (useRailway) {
-    serviceUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
-    serviceName = 'Railway';
+    serviceUrl = 'https://postcardservice-production.up.railway.app/generate-complete-postcard';
+    serviceName = 'Railway Complete';
   } else if (useV21) {
     serviceUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21;
     serviceName = 'N8N v2.1';
@@ -130,40 +135,34 @@ export const generatePostcardBackServer = async (
       throw new Error(result.error || 'N8N server generation failed');
     }
     
-    if (!result.postcard_back_url) {
-      console.error('[SERVER_POSTCARD] No image URL returned from N8N');
-      throw new Error('No image URL returned from N8N server');
+    // Handle different response formats (Railway vs N8N)
+    const imageUrl = result.backUrl || result.postcard_back_url;
+    
+    if (!imageUrl) {
+      console.error('[SERVER_POSTCARD] No image URL returned from server');
+      throw new Error('No image URL returned from server');
     }
     
     console.log('[SERVER_POSTCARD] Server generation successful!');
-    console.log('[SERVER_POSTCARD] Image URL:', result.postcard_back_url.substring(0, 50) + '...');
-    console.log('[SERVER_POSTCARD] Cloudinary public ID:', result.public_id);
+    console.log('[SERVER_POSTCARD] Image URL:', imageUrl.substring(0, 50) + '...');
+    console.log('[SERVER_POSTCARD] Service:', serviceName);
     
-    console.log('[SERVER_POSTCARD] ========= N8N RESPONSE TEST MODE ANALYSIS =========');
-    console.log('[SERVER_POSTCARD] Raw result.isTestMode:', result.isTestMode);
-    console.log('[SERVER_POSTCARD] Type of result.isTestMode:', typeof result.isTestMode);
-    console.log('[SERVER_POSTCARD] result.isTestMode === true:', result.isTestMode === true);
-    console.log('[SERVER_POSTCARD] result.isTestMode === false:', result.isTestMode === false);
-    console.log('[SERVER_POSTCARD] result.isTestMode === "true":', result.isTestMode === "true");
-    console.log('[SERVER_POSTCARD] result.isTestMode === "false":', result.isTestMode === "false");
-    
-    // Handle both boolean and string values from N8N
-    let normalizedTestMode: boolean;
-    if (typeof result.isTestMode === 'boolean') {
-      normalizedTestMode = result.isTestMode;
-    } else if (typeof result.isTestMode === 'string') {
-      normalizedTestMode = result.isTestMode.toLowerCase() === 'true';
+    if (useRailway) {
+      console.log('[SERVER_POSTCARD] Railway status:', result.status);
+      console.log('[SERVER_POSTCARD] Front URL:', result.frontUrl?.substring(0, 50) + '...');
     } else {
-      normalizedTestMode = false; // fallback
+      console.log('[SERVER_POSTCARD] Cloudinary public ID:', result.public_id);
     }
     
-    console.log('[SERVER_POSTCARD] Normalized test mode:', normalizedTestMode);
-    console.log('[SERVER_POSTCARD] Type of normalized test mode:', typeof normalizedTestMode);
-    console.log('[SERVER_POSTCARD] =======================================================');
+    // Handle test mode (Railway always returns true for dev, N8N varies)
+    const isTestMode = useRailway ? true : (result.isTestMode === true || result.isTestMode === 'true');
+    
+    console.log('[SERVER_POSTCARD] Test mode:', isTestMode);
     
     return { 
-      imageUrl: result.postcard_back_url,
-      isTestMode: normalizedTestMode
+      imageUrl,
+      isTestMode,
+      frontUrl: result.frontUrl // Railway-specific
     };
     
   } catch (error) {

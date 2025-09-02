@@ -1,10 +1,25 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from PIL import Image, ImageDraw, ImageFont
-import io, base64, os, tempfile, urllib.request
+import io, base64, os, tempfile, urllib.request, requests
+import asyncio, time
+from datetime import datetime
+import cloudinary
+import cloudinary.uploader
 
 app = FastAPI()
+
+# Configure Cloudinary SDK
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "db9totnmb"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
+
+# In-memory transaction storage (avoiding database for now)
+transaction_store = {}
 
 class Recipient(BaseModel):
     to: str = Field(default="")
@@ -20,6 +35,15 @@ class PostcardRequest(BaseModel):
     postcardSize: str
     returnAddressText: str = ""
     transactionId: str = ""
+    frontImageUri: Optional[str] = ""
+
+class PaymentConfirmedRequest(BaseModel):
+    transactionId: str
+    stripePaymentIntentId: str
+    userEmail: Optional[str] = ""
+
+class StannpSubmissionRequest(BaseModel):
+    transactionId: str
 
 def load_font(size: int) -> ImageFont.FreeTypeFont:
     """Load font with fallback options"""
@@ -59,47 +83,72 @@ def load_font(size: int) -> ImageFont.FreeTypeFont:
     print("[FONT] WARNING: Using default font (will be small)")
     return ImageFont.load_default()
 
-@app.post("/generate-postcard-back")
-async def generate_postcard_back(request: PostcardRequest):
+def upload_to_cloudinary(image_data: bytes, filename: str) -> str:
+    """Upload image to Cloudinary using official SDK"""
     try:
-        print(f"[POSTCARD] Generating {request.postcardSize} postcard")
-        print(f"[POSTCARD] Message: {request.message[:50]}...")
-        print(f"[POSTCARD] Return address: {request.returnAddressText[:30]}...")
+        print(f"[CLOUDINARY] SDK Upload: {filename}, size: {len(image_data)} bytes")
         
+        # Upload using official Cloudinary SDK
+        result = cloudinary.uploader.upload(
+            image_data,
+            resource_type="image",
+            folder="postcards/backs",
+            public_id=filename.replace('.jpg', '').replace('.jpeg', ''),
+            overwrite=True,
+            unique_filename=False
+        )
+        
+        print(f"[CLOUDINARY] SDK upload successful: {result['secure_url']}")
+        print(f"[CLOUDINARY] Public ID created: {result['public_id']}")
+        return result["secure_url"]
+        
+    except Exception as e:
+        print(f"[CLOUDINARY] SDK upload failed: {e}")
+        raise
+
+def send_email_notification(to_email: str, subject: str, message: str):
+    """Send email notification (placeholder for SendGrid/SES)"""
+    print(f"[EMAIL] Would send to {to_email}: {subject}")
+    print(f"[EMAIL] Message: {message}")
+    # TODO: Implement actual email service
+
+@app.post("/generate-complete-postcard")
+async def generate_complete_postcard(request: PostcardRequest):
+    """Generate both front and back images, upload to Cloudinary"""
+    try:
+        print(f"[COMPLETE] Railway PostcardService v2.1.1.11-dev")
+        print(f"[COMPLETE] Generating complete {request.postcardSize} postcard")
+        
+        # Generate back image (existing logic)
         if request.postcardSize == "regular":
             W, H = 1800, 1200
         else:
             W, H = 2754, 1872
 
-        img = Image.new("RGB", (W, H), "white")
-        draw = ImageDraw.Draw(img)
+        back_img = Image.new("RGB", (W, H), "white")
+        draw = ImageDraw.Draw(back_img)
 
-        # Load fonts - bigger return address font
+        # Load fonts
         body_font = load_font(40)
         addr_font = load_font(36)
-        ret_font = load_font(32)  # Bigger return address font
+        ret_font = load_font(32)
 
-        # Return address (top-left) with better spacing
+        # Return address with separator
+        message_start_y = 150
         if request.returnAddressText and request.returnAddressText != "{{RETURN_ADDRESS}}":
             y = 108
             for line in request.returnAddressText.split("\n")[:3]:
                 if line.strip():
                     draw.text((108, y), line.strip(), font=ret_font, fill="black")
-                    y += 40  # More spacing between lines
+                    y += 40
             
-            # Add separator line between return address and message
-            line_y = y + 20  # 20px gap after return address
-            line_start_x = 108
+            # Separator line
+            line_y = y + 20
             line_end_x = 1400 if request.postcardSize == "xl" else 900
-            draw.line([(line_start_x, line_y), (line_end_x, line_y)], fill="black", width=2)
-            
-            # Adjust message start position to be below the line
+            draw.line([(108, line_y), (line_end_x, line_y)], fill="black", width=2)
             message_start_y = line_y + 30
-        else:
-            # No return address, start message higher
-            message_start_y = 150
 
-        # Message block (left side)
+        # Message block
         words = request.message.split()
         lines = []
         current_line = ""
@@ -110,7 +159,7 @@ async def generate_postcard_back(request: PostcardRequest):
             try:
                 text_width = draw.textlength(test_line, font=body_font)
             except:
-                text_width = len(test_line) * 20  # fallback estimate
+                text_width = len(test_line) * 20
                 
             if text_width <= max_width:
                 current_line = test_line
@@ -128,12 +177,11 @@ async def generate_postcard_back(request: PostcardRequest):
             draw.text((108, y), line, font=body_font, fill="black")
             y += 50
 
-        # Address block (right side)
+        # Address block
         x = W - 700
         y = H - 360
         r = request.recipientInfo
         
-        # Draw address lines
         for line in filter(None, [
             r.to,
             r.addressLine1,
@@ -143,12 +191,295 @@ async def generate_postcard_back(request: PostcardRequest):
             draw.text((x, y), line, font=addr_font, fill="black")
             y += 46
 
-        # Export as JPEG
+        # Generate back image data
+        back_buf = io.BytesIO()
+        back_img.save(back_buf, format="JPEG", quality=95)
+        back_data = back_buf.getvalue()
+
+        # Front image is already uploaded to Cloudinary by the app
+        if request.frontImageUri and request.frontImageUri.startswith('http'):
+            print(f"[FRONT] Using app-provided Cloudinary URL: {request.frontImageUri[:50]}...")
+            front_url = request.frontImageUri
+        else:
+            print(f"[FRONT] No Cloudinary front image URL provided, creating fallback")
+            # Create fallback front image if needed
+            front_buf = io.BytesIO()
+            back_img.save(front_buf, format="JPEG", quality=95)
+            front_data = front_buf.getvalue()
+            front_b64 = base64.b64encode(front_data).decode('utf-8')
+            front_url = f"data:image/jpeg;base64,{front_b64}"
+        
+        # Upload back to Cloudinary (front already uploaded by app)
+        try:
+            back_url = upload_to_cloudinary(back_data, f"postcard-back-{request.transactionId}")
+        except Exception as e:
+            print(f"[CLOUDINARY] Back upload failed, using data URL: {e}")
+            back_b64 = base64.b64encode(back_data).decode('utf-8')
+            back_url = f"data:image/jpeg;base64,{back_b64}"
+            
+        
+        # Store transaction info in memory
+        transaction_store[request.transactionId] = {
+            "frontUrl": front_url,
+            "backUrl": back_url,
+            "recipientInfo": request.recipientInfo.model_dump(),
+            "message": request.message,
+            "postcardSize": request.postcardSize,
+            "status": "ready_for_payment",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        print(f"[COMPLETE] Generated complete postcard for transaction {request.transactionId}")
+        
+        return {
+            "success": True,
+            "transactionId": request.transactionId,
+            "frontUrl": front_url,
+            "backUrl": back_url,
+            "status": "ready_for_payment"
+        }
+
+    except Exception as e:
+        print(f"[ERROR] Complete postcard generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/payment-confirmed")
+async def payment_confirmed(request: PaymentConfirmedRequest):
+    """N8N calls this when Stripe payment succeeds"""
+    try:
+        print(f"[PAYMENT] Payment confirmed for transaction {request.transactionId}")
+        
+        # Update transaction status
+        if request.transactionId in transaction_store:
+            transaction_store[request.transactionId]["status"] = "payment_confirmed"
+            transaction_store[request.transactionId]["stripePaymentIntentId"] = request.stripePaymentIntentId
+            transaction_store[request.transactionId]["userEmail"] = request.userEmail
+            
+            return {"success": True, "status": "payment_confirmed"}
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+            
+    except Exception as e:
+        print(f"[ERROR] Payment confirmation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/submit-to-stannp")
+async def submit_to_stannp(request: StannpSubmissionRequest):
+    """Submit postcard to Stannp after payment confirmation"""
+    try:
+        print(f"[STANNP] Submitting transaction {request.transactionId} to Stannp")
+        
+        # Get transaction data
+        if request.transactionId not in transaction_store:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+            
+        txn = transaction_store[request.transactionId]
+        
+        if txn["status"] != "payment_confirmed":
+            raise HTTPException(status_code=400, detail="Payment not confirmed")
+        
+        # Submit to Stannp API
+        stannp_result = await submit_to_stannp_api(txn)
+        
+        txn["status"] = "submitted_to_stannp"
+        txn["stannp_id"] = stannp_result.get("id", f"stannp_{request.transactionId}")
+        
+        # Send confirmation email
+        if txn.get("userEmail"):
+            send_email_notification(
+                txn["userEmail"],
+                "Postcard Sent Successfully!",
+                f"Your postcard has been submitted for printing and mailing. Transaction ID: {request.transactionId}"
+            )
+        
+        return {
+            "success": True,
+            "status": "submitted_to_stannp",
+            "stannp_id": txn.get("stannp_id")
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Stannp submission failed: {str(e)}")
+        
+        # Handle failure - notify user and admin
+        if request.transactionId in transaction_store:
+            txn = transaction_store[request.transactionId]
+            
+            # Email user about failure
+            if txn.get("userEmail"):
+                send_email_notification(
+                    txn["userEmail"],
+                    "Postcard Processing Issue",
+                    "Your postcard could not be processed. You will receive a credit within 24 hours."
+                )
+            
+            # Email admin for manual refund
+            send_email_notification(
+                "info@xlpostcards.com",
+                f"Manual Refund Required - {request.transactionId}",
+                f"Transaction {request.transactionId} failed Stannp submission. Please issue Stripe refund for payment {txn.get('stripePaymentIntentId')}"
+            )
+            
+            txn["status"] = "failed"
+        
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def submit_to_stannp_api(txn: dict) -> dict:
+    """Submit postcard to Stannp API"""
+    try:
+        stannp_api_key = os.getenv("STANNP_API_KEY")
+        if not stannp_api_key:
+            raise Exception("STANNP_API_KEY not configured")
+        
+        print(f"[STANNP] Submitting postcard to Stannp API")
+        
+        # Map recipient info to Stannp format
+        recipient = txn["recipientInfo"]
+        
+        # Prepare Stannp API payload
+        stannp_payload = {
+            "test": "true",  # Always test mode for now
+            "size": "6x9" if txn["postcardSize"] == "xl" else "A6",
+            "front": txn["frontUrl"],
+            "back": txn["backUrl"],
+            "recipient": {
+                "firstname": recipient["to"].split()[0] if recipient["to"] else "Recipient",
+                "lastname": " ".join(recipient["to"].split()[1:]) if len(recipient["to"].split()) > 1 else "",
+                "address1": recipient["addressLine1"],
+                "address2": recipient.get("addressLine2", ""),
+                "city": recipient["city"],
+                "state": recipient["state"],
+                "postcode": recipient["zipcode"],
+                "country": "US"
+            },
+            "clearzone": "true"
+        }
+        
+        # Remove empty address2 if not provided
+        if not stannp_payload["recipient"]["address2"]:
+            del stannp_payload["recipient"]["address2"]
+        
+        print(f"[STANNP] Payload: {stannp_payload}")
+        
+        # Submit to Stannp (Basic auth like the app)
+        headers = {
+            "Authorization": f"Basic {base64.b64encode(f'{stannp_api_key}:'.encode()).decode()}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            "https://us.stannp.com/api/v1/postcards/create",
+            json=stannp_payload,
+            headers=headers,
+            timeout=30
+        )
+        
+        print(f"[STANNP] Response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"[STANNP] Postcard submitted successfully: {result.get('id')}")
+            return result
+        else:
+            error_text = response.text
+            print(f"[STANNP] Submission failed: {response.status_code} - {error_text}")
+            raise Exception(f"Stannp submission failed: {response.status_code} - {error_text}")
+            
+    except Exception as e:
+        print(f"[STANNP] Error: {e}")
+        raise
+
+@app.get("/transaction-status/{transaction_id}")
+async def get_transaction_status(transaction_id: str):
+    """Get current status of a transaction"""
+    if transaction_id in transaction_store:
+        return {
+            "success": True,
+            "transactionId": transaction_id,
+            "status": transaction_store[transaction_id]["status"],
+            "data": transaction_store[transaction_id]
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+# Keep existing endpoint for backward compatibility
+@app.post("/generate-postcard-back")
+async def generate_postcard_back(request: PostcardRequest):
+    """Legacy endpoint - generate only back image"""
+    try:
+        print(f"[LEGACY] Generating {request.postcardSize} postcard back only")
+        
+        if request.postcardSize == "regular":
+            W, H = 1800, 1200
+        else:
+            W, H = 2754, 1872
+
+        img = Image.new("RGB", (W, H), "white")
+        draw = ImageDraw.Draw(img)
+
+        # Load fonts
+        body_font = load_font(40)
+        addr_font = load_font(36)
+        ret_font = load_font(32)
+
+        # Return address with separator
+        message_start_y = 150
+        if request.returnAddressText and request.returnAddressText != "{{RETURN_ADDRESS}}":
+            y = 108
+            for line in request.returnAddressText.split("\n")[:3]:
+                if line.strip():
+                    draw.text((108, y), line.strip(), font=ret_font, fill="black")
+                    y += 40
+            
+            line_y = y + 20
+            line_end_x = 1400 if request.postcardSize == "xl" else 900
+            draw.line([(108, line_y), (line_end_x, line_y)], fill="black", width=2)
+            message_start_y = line_y + 30
+
+        # Message and address (same as before)
+        words = request.message.split()
+        lines = []
+        current_line = ""
+        max_width = 1400 if request.postcardSize == "xl" else 900
+        
+        for word in words:
+            test_line = (current_line + " " + word).strip()
+            try:
+                text_width = draw.textlength(test_line, font=body_font)
+            except:
+                text_width = len(test_line) * 20
+                
+            if text_width <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+        
+        if current_line:
+            lines.append(current_line)
+
+        y = message_start_y
+        for line in lines[:20]:
+            draw.text((108, y), line, font=body_font, fill="black")
+            y += 50
+
+        x = W - 700
+        y = H - 360
+        r = request.recipientInfo
+        
+        for line in filter(None, [
+            r.to,
+            r.addressLine1,
+            r.addressLine2,
+            f"{r.city}, {r.state} {r.zipcode}".strip(", ")
+        ]):
+            draw.text((x, y), line, font=addr_font, fill="black")
+            y += 46
+
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=95)
         b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-        print(f"[POSTCARD] Generated successfully: {len(buf.getvalue())} bytes")
 
         return {
             "success": True,
@@ -164,7 +495,7 @@ async def generate_postcard_back(request: PostcardRequest):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "PostcardService"}
+    return {"status": "healthy", "service": "PostcardService", "version": "2.1.0"}
 
 if __name__ == "__main__":
     import uvicorn

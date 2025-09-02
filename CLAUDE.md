@@ -176,3 +176,15 @@ Required environment variables (configured in `babel.config.js`):
 ### Metro Bundler
 - Clear cache: `npx expo start --clear`
 - Reset Metro: `npx react-native start --reset-cache`
+
+## Memories
+
+### Railway Server Notes
+- Always check the postcard service folder for potential railway server updates before deployment
+
+### Manual Update Reminders
+- Always tell Patrick when he needs to update main.py or other files to GitHub manually
+
+### Version Update Guidelines
+- Update the version on the bottom of the main index screen for every minor change
+- Increment the 4th digit for minor changes (e.g., 2.1.1 → 2.1.1.1)

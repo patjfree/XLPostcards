@@ -952,19 +952,6 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         </TouchableOpacity>
       </View>
       
-      {/* Debug Build Info Banner - Show if using test key */}
-      {Constants.expoConfig?.extra?.stripePublishableKey?.startsWith('pk_test') && (
-        <View style={{ 
-          backgroundColor: '#10B981', 
-          paddingVertical: 6, 
-          paddingHorizontal: 12,
-          alignItems: 'center'
-        }}>
-          <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
-            🔧 v{Constants.expoConfig?.version} | SIMULATOR | 💳 TEST CARDS OK
-          </Text>
-        </View>
-      )}
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
@@ -1102,8 +1089,11 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           <Text style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 8 }}>
             Currently postcards can only be sent to the US
           </Text>
-          <Text style={{ textAlign: 'center', fontSize: 10, color: '#999', marginBottom: 8 }}>
+          <Text style={{ textAlign: 'center', fontSize: 10, color: '#999', marginBottom: 4 }}>
             v{Constants.expoConfig?.version || 'Unknown'}
+          </Text>
+          <Text style={{ textAlign: 'center', fontSize: 9, color: '#999', marginBottom: 8 }}>
+            Simulator - Test cards okay
           </Text>
           <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
         </View>

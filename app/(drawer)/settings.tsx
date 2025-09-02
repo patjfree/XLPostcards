@@ -62,9 +62,9 @@ export default function SettingsScreen() {
         <Text style={styles.title}>Settings</Text>
       </View>
       
-      {/* Email field temporarily hidden */}
-      {/* <View style={styles.section}>
+      <View style={styles.section}>
         <Text style={styles.label}>Email</Text>
+        <Text style={styles.emailNote}>For postcard confirmation</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -74,7 +74,7 @@ export default function SettingsScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
-      </View> */}
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>Signature Block</Text>
@@ -153,5 +153,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 10,
+  },
+  emailNote: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
 }); 
