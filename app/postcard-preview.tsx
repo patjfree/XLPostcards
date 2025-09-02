@@ -136,12 +136,14 @@ export default function PostcardPreviewScreen() {
   const imageUri = params.imageUri as string;
   const message = params.message as string;
   const returnAddress = params.returnAddress as string;
+  const railwayBackUrl = params.railwayBackUrl as string;
   const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null>(null);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | undefined>(undefined);
   
   // Add a new state to hold the last error message
   const [lastErrorMessage, setLastErrorMessage] = useState<string | null>(null);
   const [stannpConfirmed, setStannpConfirmed] = useState<boolean>(false);
+  const [railwayBackImageUrl, setRailwayBackImageUrl] = useState<string | null>(null);
   
   // Update the initial params effect
   useEffect(() => {
@@ -150,6 +152,8 @@ export default function PostcardPreviewScreen() {
       message,
       recipientInfo,
       selectedRecipientId,
+      hasRailwayBackUrl: !!railwayBackUrl,
+      railwayBackUrl: railwayBackUrl,
       allParams: params
     });
 
@@ -172,6 +176,12 @@ export default function PostcardPreviewScreen() {
       }
     }
 
+    // Set Railway back URL if provided
+    if (railwayBackUrl) {
+      console.log('[RAILWAY] Using Railway-generated back image URL:', railwayBackUrl);
+      setRailwayBackImageUrl(railwayBackUrl);
+    }
+
     // Verify the image exists
     const checkImage = async () => {
       try {
@@ -189,6 +199,38 @@ export default function PostcardPreviewScreen() {
     };
 
     void checkImage();
+    
+    // Only generate Railway preview if not already provided from index screen
+    if (!railwayBackUrl) {
+      console.log('[XLPOSTCARDS][PREVIEW] No Railway URL provided, generating preview...');
+      const generatePreview = async () => {
+        try {
+          console.log('[XLPOSTCARDS][PREVIEW] Generating Railway preview...');
+          const result = await generateCompletePostcardServer(
+            imageUri,
+            message,
+            recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
+            postcardSize,
+            `preview-${Date.now()}`,
+            returnAddress
+          );
+          setRailwayBackImageUrl(result.imageUrl);
+          console.log('[XLPOSTCARDS][PREVIEW] Railway preview generated:', result.imageUrl);
+        } catch (error) {
+          console.error('[XLPOSTCARDS][PREVIEW] Failed to generate Railway preview:', error);
+        }
+      };
+      
+      // Generate preview after recipient info is parsed
+      setTimeout(() => {
+        if (imageUri && message) {
+          void generatePreview();
+        }
+      }, 500);
+    } else {
+      console.log('[XLPOSTCARDS][PREVIEW] Using Railway URL from index screen:', railwayBackUrl);
+    }
+    
   }, []); // Empty dependency array since this is initialization
   
   // Function to flip the postcard
@@ -318,6 +360,9 @@ export default function PostcardPreviewScreen() {
       );
 
       console.log('[XLPOSTCARDS][RAILWAY] Railway flow completed successfully');
+      
+      // Store Railway-generated back image URL for preview
+      setRailwayBackImageUrl(result.imageUrl);
       
       // Step 2: Confirm payment with Railway  
       console.log('[XLPOSTCARDS][RAILWAY] Confirming payment with Railway...');
@@ -1035,26 +1080,42 @@ export default function PostcardPreviewScreen() {
                 fileName: "postcard-back"
               }}
             >
-              <View 
-                ref={postcardBackLayoutRef}
-                style={{
-                  width: currentDimensions.width,
-                  height: currentDimensions.height,
-                  transform: [{ scale: designWidth / currentDimensions.width }],
-                  transformOrigin: 'top left',
-                  backgroundColor: '#FFFFFF',
-                  overflow: 'hidden',
-                }}
-                collapsable={false}>
-                <PostcardBackLayout
-                  width={currentDimensions.width}
-                  height={currentDimensions.height}
-                  message={message}
-                  recipientInfo={recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' }}
-                  postcardSize={postcardSize}
-                  returnAddress={returnAddress}
+              {railwayBackImageUrl ? (
+                // Show Railway-generated back image (exact final result)
+                <Image
+                  source={{ uri: railwayBackImageUrl }}
+                  style={{
+                    width: currentDimensions.width,
+                    height: currentDimensions.height,
+                    transform: [{ scale: designWidth / currentDimensions.width }],
+                    transformOrigin: 'top left',
+                    backgroundColor: '#FFFFFF',
+                    resizeMode: 'cover',
+                  }}
                 />
-              </View>
+              ) : (
+                // Fallback to local PostcardBackLayout component
+                <View 
+                  ref={postcardBackLayoutRef}
+                  style={{
+                    width: currentDimensions.width,
+                    height: currentDimensions.height,
+                    transform: [{ scale: designWidth / currentDimensions.width }],
+                    transformOrigin: 'top left',
+                    backgroundColor: '#FFFFFF',
+                    overflow: 'hidden',
+                  }}
+                  collapsable={false}>
+                  <PostcardBackLayout
+                    width={currentDimensions.width}
+                    height={currentDimensions.height}
+                    message={message}
+                    recipientInfo={recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' }}
+                    postcardSize={postcardSize}
+                    returnAddress={returnAddress}
+                  />
+                </View>
+              )}
             </ViewShot>
             {/* Footer content */}
             <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 

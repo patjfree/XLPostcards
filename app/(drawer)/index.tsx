@@ -589,24 +589,86 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           id: selected.id,
         };
         console.log('[XLPOSTCARDS][MAIN] handleCreatePostcard recipientInfo:', recipientInfo);
-        // Get return address settings
+        // Get return address settings and generate Railway preview
         Promise.all([
           AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
           AsyncStorage.getItem(SETTINGS_KEYS.INCLUDE_RETURN_ADDRESS),
-        ]).then(([savedReturnAddress, savedIncludeReturnAddress]) => {
+        ]).then(async ([savedReturnAddress, savedIncludeReturnAddress]) => {
           const includeReturnAddress = savedIncludeReturnAddress === 'true';
           const returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
-
-          router.push({
-            pathname: '/postcard-preview',
-            params: {
-              imageUri: (image as any).uri,
+          
+          // Generate Railway preview before navigation
+          try {
+            console.log('[RAILWAY] Generating preview for postcard...');
+            const railwayUrl = 'https://postcardservice-production.up.railway.app/generate-complete-postcard';
+            
+            const railwayPayload = {
               message: postcardMessage,
-              returnAddress: returnAddressText,
-              recipient: JSON.stringify(recipientInfo),
+              recipientInfo,
               postcardSize,
-            },
-          });
+              returnAddressText,
+              transactionId: `preview_${Date.now()}`,
+              frontImageUri: (image as any).uri,
+            };
+            
+            const railwayResponse = await fetch(railwayUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(railwayPayload),
+            });
+            
+            if (railwayResponse.ok) {
+              const railwayResult = await railwayResponse.json();
+              console.log('[RAILWAY] Preview generated successfully:', railwayResult);
+              console.log('[RAILWAY] Front URL:', railwayResult.frontUrl);
+              console.log('[RAILWAY] Back URL:', railwayResult.backUrl);
+              console.log('[RAILWAY] Status:', railwayResult.status);
+              
+              // Navigate with Railway back URL
+              router.push({
+                pathname: '/postcard-preview',
+                params: {
+                  imageUri: (image as any).uri,
+                  message: postcardMessage,
+                  returnAddress: returnAddressText,
+                  recipient: JSON.stringify(recipientInfo),
+                  postcardSize,
+                  railwayBackUrl: railwayResult.backUrl,
+                },
+              });
+              console.log('[RAILWAY] Navigation with back URL:', railwayResult.backUrl);
+            } else {
+              console.error('[RAILWAY] Preview generation failed, proceeding without Railway preview');
+              
+              // Navigate without Railway URL (fallback to local rendering)
+              router.push({
+                pathname: '/postcard-preview',
+                params: {
+                  imageUri: (image as any).uri,
+                  message: postcardMessage,
+                  returnAddress: returnAddressText,
+                  recipient: JSON.stringify(recipientInfo),
+                  postcardSize,
+                },
+              });
+            }
+          } catch (error) {
+            console.error('[RAILWAY] Preview generation error:', error);
+            
+            // Navigate without Railway URL (fallback to local rendering)
+            router.push({
+              pathname: '/postcard-preview',
+              params: {
+                imageUri: (image as any).uri,
+                message: postcardMessage,
+                returnAddress: returnAddressText,
+                recipient: JSON.stringify(recipientInfo),
+                postcardSize,
+              },
+            });
+          }
         });
       } else {
         console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
