@@ -48,6 +48,7 @@ const SETTINGS_KEYS = {
   SIGNATURE: 'settings_signature',
   RETURN_ADDRESS: 'settings_return_address',
   INCLUDE_RETURN_ADDRESS: 'settings_include_return_address',
+  EMAIL: 'settings_email',
 };
 
 // Helper: Normalize abbreviations for comparison
@@ -593,7 +594,8 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         Promise.all([
           AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
           AsyncStorage.getItem(SETTINGS_KEYS.INCLUDE_RETURN_ADDRESS),
-        ]).then(async ([savedReturnAddress, savedIncludeReturnAddress]) => {
+          AsyncStorage.getItem(SETTINGS_KEYS.EMAIL),
+        ]).then(async ([savedReturnAddress, savedIncludeReturnAddress, savedUserEmail]) => {
           const includeReturnAddress = savedIncludeReturnAddress === 'true';
           const returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
           
@@ -609,7 +611,10 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               returnAddressText,
               transactionId: `preview_${Date.now()}`,
               frontImageUri: (image as any).uri,
+              userEmail: savedUserEmail || '',
             };
+            
+            console.log('[RAILWAY] User email from settings:', savedUserEmail);
             
             const railwayResponse = await fetch(railwayUrl, {
               method: 'POST',

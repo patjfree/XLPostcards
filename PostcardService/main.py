@@ -7,6 +7,7 @@ import asyncio, time
 from datetime import datetime
 import cloudinary
 import cloudinary.uploader
+import resend
 
 app = FastAPI()
 
@@ -17,6 +18,9 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True,
 )
+
+# Configure Resend for email notifications
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 # In-memory transaction storage (avoiding database for now)
 transaction_store = {}
@@ -36,6 +40,7 @@ class PostcardRequest(BaseModel):
     returnAddressText: str = ""
     transactionId: str = ""
     frontImageUri: Optional[str] = ""
+    userEmail: Optional[str] = ""
 
 class PaymentConfirmedRequest(BaseModel):
     transactionId: str
@@ -106,18 +111,54 @@ def upload_to_cloudinary(image_data: bytes, filename: str) -> str:
         print(f"[CLOUDINARY] SDK upload failed: {e}")
         raise
 
-def send_email_notification(to_email: str, subject: str, message: str):
-    """Send email notification (placeholder for SendGrid/SES)"""
-    print(f"[EMAIL] Would send to {to_email}: {subject}")
-    print(f"[EMAIL] Message: {message}")
-    # TODO: Implement actual email service
+def send_email_notification(to_email: str, subject: str, message: str, pdf_url: Optional[str] = None):
+    """Send email notification using Resend"""
+    try:
+        if not resend.api_key:
+            print(f"[EMAIL] WARNING: Resend API key not configured, skipping email to {to_email}")
+            return
+            
+        print(f"[EMAIL] Sending email to {to_email}: {subject}")
+        
+        # Create HTML message with optional PDF link
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50;">XLPostcards</h2>
+                <p>{message}</p>
+                {f'<p><strong>PDF Link:</strong> <a href="{pdf_url}" target="_blank">View your postcard</a></p>' if pdf_url else ''}
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 12px; color: #666;">
+                    This email was sent automatically by XLPostcards.<br>
+                    If you have any questions, please contact support.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        params = {
+            "from": "XLPostcards <notifications@xlpostcards.com>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_message,
+        }
+        
+        result = resend.Emails.send(params)
+        print(f"[EMAIL] Email sent successfully to {to_email}, ID: {result.get('id', 'unknown')}")
+        
+    except Exception as e:
+        print(f"[EMAIL] Failed to send email to {to_email}: {e}")
+        # Don't raise exception - email failure shouldn't break postcard processing
 
 @app.post("/generate-complete-postcard")
 async def generate_complete_postcard(request: PostcardRequest):
     """Generate both front and back images, upload to Cloudinary"""
     try:
-        print(f"[COMPLETE] Railway PostcardService v2.1.1.11-dev")
+        print(f"[COMPLETE] Railway PostcardService v2.1.1.14-dev")
         print(f"[COMPLETE] Generating complete {request.postcardSize} postcard")
+        print(f"[COMPLETE] Received userEmail: '{request.userEmail}'")
         
         # Generate back image (existing logic)
         if request.postcardSize == "regular":
@@ -226,8 +267,11 @@ async def generate_complete_postcard(request: PostcardRequest):
             "message": request.message,
             "postcardSize": request.postcardSize,
             "status": "ready_for_payment",
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
+            "userEmail": request.userEmail or ""
         }
+        
+        print(f"[COMPLETE] Stored user email: '{request.userEmail}' for transaction {request.transactionId}")
         
         print(f"[COMPLETE] Generated complete postcard for transaction {request.transactionId}")
         
@@ -251,9 +295,18 @@ async def payment_confirmed(request: PaymentConfirmedRequest):
         
         # Update transaction status
         if request.transactionId in transaction_store:
+            existing_email = transaction_store[request.transactionId].get("userEmail", "")
+            print(f"[PAYMENT] Preserving existing email: '{existing_email}'")
+            
             transaction_store[request.transactionId]["status"] = "payment_confirmed"
             transaction_store[request.transactionId]["stripePaymentIntentId"] = request.stripePaymentIntentId
-            transaction_store[request.transactionId]["userEmail"] = request.userEmail
+            
+            # Only update email if we don't already have one and the request provides one
+            if not existing_email and request.userEmail:
+                transaction_store[request.transactionId]["userEmail"] = request.userEmail
+                print(f"[PAYMENT] Updated email to: '{request.userEmail}'")
+            else:
+                print(f"[PAYMENT] Keeping existing email: '{existing_email}'")
             
             return {"success": True, "status": "payment_confirmed"}
         else:
@@ -274,6 +327,9 @@ async def submit_to_stannp(request: StannpSubmissionRequest):
             raise HTTPException(status_code=404, detail="Transaction not found")
             
         txn = transaction_store[request.transactionId]
+        print(f"[DEBUG] Full transaction data: {txn}")
+        print(f"[DEBUG] Transaction keys: {list(txn.keys())}")
+        print(f"[DEBUG] UserEmail value: '{txn.get('userEmail')}' (type: {type(txn.get('userEmail'))})")
         
         if txn["status"] != "payment_confirmed":
             raise HTTPException(status_code=400, detail="Payment not confirmed")
@@ -284,13 +340,23 @@ async def submit_to_stannp(request: StannpSubmissionRequest):
         txn["status"] = "submitted_to_stannp"
         txn["stannp_id"] = stannp_result.get("id", f"stannp_{request.transactionId}")
         
-        # Send confirmation email
-        if txn.get("userEmail"):
+        # Extract PDF URL from Stannp response (nested under 'data')
+        pdf_url = stannp_result.get("data", {}).get("pdf")
+        print(f"[STANNP] PDF URL from response: {pdf_url}")
+        
+        # Send confirmation email with PDF link
+        stored_email = txn.get("userEmail", "").strip()
+        print(f"[EMAIL] Transaction data: userEmail='{stored_email}', hasEmail={bool(stored_email)}")
+        if stored_email:
+            print(f"[EMAIL] Sending confirmation email to {stored_email}")
             send_email_notification(
-                txn["userEmail"],
-                "Postcard Sent Successfully!",
-                f"Your postcard has been submitted for printing and mailing. Transaction ID: {request.transactionId}"
+                stored_email,
+                "Your Postcard Was Delivered Successfully!",
+                "Your postcard has been submitted for printing and mailing. You can view a copy of your postcard using the link below.",
+                pdf_url
             )
+        else:
+            print(f"[EMAIL] No user email available in transaction {request.transactionId}")
         
         return {
             "success": True,
@@ -325,69 +391,99 @@ async def submit_to_stannp(request: StannpSubmissionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 async def submit_to_stannp_api(txn: dict) -> dict:
-    """Submit postcard to Stannp API"""
-    try:
-        stannp_api_key = os.getenv("STANNP_API_KEY")
-        if not stannp_api_key:
-            raise Exception("STANNP_API_KEY not configured")
-        
-        print(f"[STANNP] Submitting postcard to Stannp API")
-        
-        # Map recipient info to Stannp format
-        recipient = txn["recipientInfo"]
-        
-        # Prepare Stannp API payload
-        stannp_payload = {
-            "test": "true",  # Always test mode for now
-            "size": "6x9" if txn["postcardSize"] == "xl" else "A6",
-            "front": txn["frontUrl"],
-            "back": txn["backUrl"],
-            "recipient": {
-                "firstname": recipient["to"].split()[0] if recipient["to"] else "Recipient",
-                "lastname": " ".join(recipient["to"].split()[1:]) if len(recipient["to"].split()) > 1 else "",
-                "address1": recipient["addressLine1"],
-                "address2": recipient.get("addressLine2", ""),
-                "city": recipient["city"],
-                "state": recipient["state"],
-                "postcode": recipient["zipcode"],
-                "country": "US"
-            },
-            "clearzone": "true"
-        }
-        
-        # Remove empty address2 if not provided
-        if not stannp_payload["recipient"]["address2"]:
-            del stannp_payload["recipient"]["address2"]
-        
-        print(f"[STANNP] Payload: {stannp_payload}")
-        
-        # Submit to Stannp (Basic auth like the app)
-        headers = {
-            "Authorization": f"Basic {base64.b64encode(f'{stannp_api_key}:'.encode()).decode()}",
-            "Content-Type": "application/json"
-        }
-        
-        response = requests.post(
-            "https://us.stannp.com/api/v1/postcards/create",
-            json=stannp_payload,
-            headers=headers,
-            timeout=30
-        )
-        
-        print(f"[STANNP] Response status: {response.status_code}")
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"[STANNP] Postcard submitted successfully: {result.get('id')}")
-            return result
-        else:
-            error_text = response.text
-            print(f"[STANNP] Submission failed: {response.status_code} - {error_text}")
-            raise Exception(f"Stannp submission failed: {response.status_code} - {error_text}")
+    """Submit postcard to Stannp API with retry logic"""
+    stannp_api_key = os.getenv("STANNP_API_KEY")
+    if not stannp_api_key:
+        raise Exception("STANNP_API_KEY not configured")
+    
+    print(f"[STANNP] Submitting postcard to Stannp API")
+    
+    # Map recipient info to Stannp format
+    recipient = txn["recipientInfo"]
+    
+    # Prepare Stannp API payload
+    stannp_payload = {
+        "test": "true",  # Always test mode for now
+        "size": "6x9" if txn["postcardSize"] == "xl" else "A6",
+        "front": txn["frontUrl"],
+        "back": txn["backUrl"],
+        "recipient": {
+            "firstname": recipient["to"].split()[0] if recipient["to"] else "Recipient",
+            "lastname": " ".join(recipient["to"].split()[1:]) if len(recipient["to"].split()) > 1 else "",
+            "address1": recipient["addressLine1"],
+            "address2": recipient.get("addressLine2", ""),
+            "city": recipient["city"],
+            "state": recipient["state"],
+            "postcode": recipient["zipcode"],
+            "country": "US"
+        },
+        "clearzone": "true"
+    }
+    
+    # Remove empty address2 if not provided
+    if not stannp_payload["recipient"]["address2"]:
+        del stannp_payload["recipient"]["address2"]
+    
+    print(f"[STANNP] Payload: {stannp_payload}")
+    
+    # Submit to Stannp with retry logic
+    headers = {
+        "Authorization": f"Basic {base64.b64encode(f'{stannp_api_key}:'.encode()).decode()}",
+        "Content-Type": "application/json"
+    }
+    
+    # Retry up to 3 times with increasing timeouts
+    for attempt in range(3):
+        try:
+            timeout = 30 + (attempt * 15)  # 30s, 45s, 60s
+            print(f"[STANNP] Attempt {attempt + 1}/3, timeout: {timeout}s")
             
-    except Exception as e:
-        print(f"[STANNP] Error: {e}")
-        raise
+            response = requests.post(
+                "https://us.stannp.com/api/v1/postcards/create",
+                json=stannp_payload,
+                headers=headers,
+                timeout=timeout
+            )
+            
+            print(f"[STANNP] Response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"[STANNP] Postcard submitted successfully: {result.get('id')}")
+                print(f"[STANNP] Full response keys: {list(result.keys())}")
+                print(f"[STANNP] PDF URL: {result.get('data', {}).get('pdf', 'Not provided')}")
+                return result
+            else:
+                error_text = response.text
+                print(f"[STANNP] Submission failed: {response.status_code} - {error_text}")
+                # Don't retry on HTTP errors, only timeouts
+                raise Exception(f"Stannp submission failed: {response.status_code} - {error_text}")
+                
+        except requests.exceptions.Timeout as e:
+            print(f"[STANNP] Timeout on attempt {attempt + 1}: {e}")
+            if attempt < 2:
+                wait_time = 5 * (attempt + 1)  # 5s, 10s
+                print(f"[STANNP] Waiting {wait_time}s before retry...")
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                raise Exception(f"Stannp API timeout after 3 attempts: {e}")
+                
+        except requests.exceptions.ConnectionError as e:
+            print(f"[STANNP] Connection error on attempt {attempt + 1}: {e}")
+            if attempt < 2:
+                wait_time = 5 * (attempt + 1)
+                print(f"[STANNP] Waiting {wait_time}s before retry...")
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                raise Exception(f"Stannp API connection error after 3 attempts: {e}")
+                
+        except Exception as e:
+            print(f"[STANNP] Unexpected error on attempt {attempt + 1}: {e}")
+            raise Exception(f"Stannp API error: {e}")
+    
+    raise Exception("Stannp submission failed after all retry attempts")
 
 @app.get("/transaction-status/{transaction_id}")
 async def get_transaction_status(transaction_id: str):
@@ -495,7 +591,21 @@ async def generate_postcard_back(request: PostcardRequest):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "PostcardService", "version": "2.1.0"}
+    return {"status": "healthy", "service": "PostcardService", "version": "2.1.1"}
+
+@app.post("/test-email")
+async def test_email(email: str = "test@example.com"):
+    """Test endpoint for Resend email functionality"""
+    try:
+        send_email_notification(
+            email,
+            "XLPostcards Test Email",
+            "This is a test email to verify Resend integration is working correctly.",
+            "https://example.com/test-pdf"
+        )
+        return {"success": True, "message": f"Test email sent to {email}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

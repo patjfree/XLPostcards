@@ -110,7 +110,8 @@ export const generateCompletePostcardServer = async (
   recipientInfo: RecipientInfo,
   postcardSize: PostcardSize,
   transactionId?: string,
-  returnAddress?: string
+  returnAddress?: string,
+  userEmail?: string
 ): Promise<{ frontUri: string; backUri: string; isTestMode: boolean }> => {
   console.log('[SERVER_GENERATOR] ========= STARTING SERVER-SIDE POSTCARD GENERATION =========');
   console.log('[SERVER_GENERATOR] Platform:', Platform.OS);
@@ -147,7 +148,8 @@ export const generateCompletePostcardServer = async (
         postcardSize,
         transactionId: txnId,
         frontImageUri: frontCloudinaryUrl, // Send Cloudinary URL instead of local path
-        returnAddressText: returnAddress
+        returnAddressText: returnAddress,
+        userEmail: userEmail
       });
       
       return {

@@ -23,6 +23,7 @@ interface ServerPostcardRequest {
   testMode?: boolean;
   variant?: string;
   returnAddressText?: string | string[]; // New in v2.1: Support for return address
+  userEmail?: string; // User email for confirmation
 }
 
 interface ServerPostcardResponse {

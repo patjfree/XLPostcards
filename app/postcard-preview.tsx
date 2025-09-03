@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Image, TouchableOpacity, Share, Platform, ActivityIndicator, Linking, ScrollView, Dimensions, Modal, TextInput, Alert, GestureResponderEvent, SafeAreaView, Text, Keyboard } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -348,15 +349,19 @@ export default function PostcardPreviewScreen() {
       // Create transaction record
       await postcardService.createTransaction(postcardPurchase.transactionId);
 
-      // Step 1: Generate complete postcard via Railway (includes Stannp submission)
+      // Step 1: Get user email from settings and generate complete postcard via Railway
       console.log('[XLPOSTCARDS][RAILWAY] Calling Railway complete flow...');
+      const savedUserEmail = await AsyncStorage.getItem('settings_email');
+      console.log('[XLPOSTCARDS][RAILWAY] User email for final postcard:', savedUserEmail);
+      
       const result = await generateCompletePostcardServer(
         params.imageUri as string,
         message,
         recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
         postcardSize,
         postcardPurchase.transactionId,
-        returnAddress
+        returnAddress,
+        savedUserEmail || ''
       );
 
       console.log('[XLPOSTCARDS][RAILWAY] Railway flow completed successfully');
