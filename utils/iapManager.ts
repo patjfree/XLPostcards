@@ -87,7 +87,7 @@ class IAPManager {
         : Constants.expoConfig?.extra?.n8nWebhookUrl_prod;
       
       if (!webhookUrl) {
-        console.error('[NANAGRAM][STRIPE] Webhook URL is undefined!', {
+        console.error('[XLPOSTCARDS][STRIPE] Webhook URL is undefined!', {
           isDev,
           APP_VARIANT: Constants.expoConfig?.extra?.APP_VARIANT,
           availableUrls: {
@@ -98,8 +98,8 @@ class IAPManager {
         throw new Error('Webhook URL is not configured');
       }
       
-      console.log('[NANAGRAM][STRIPE] Using webhook URL:', webhookUrl);
-      console.log('[NANAGRAM][STRIPE] Device info:', {
+      console.log('[XLPOSTCARDS][STRIPE] Using webhook URL:', webhookUrl);
+      console.log('[XLPOSTCARDS][STRIPE] Device info:', {
         platform: Platform.OS,
         version: Platform.Version,
         constants: Platform.constants
@@ -107,7 +107,7 @@ class IAPManager {
       
       const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
       const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
-      console.log('[NANAGRAM][STRIPE] Config values:', {
+      console.log('[XLPOSTCARDS][STRIPE] Config values:', {
         APP_VARIANT,
         isDev,
         webhookUrl
@@ -127,7 +127,7 @@ class IAPManager {
         transactionId,
         APP_VARIANT
       };
-      console.log('[NANAGRAM][STRIPE] Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('[XLPOSTCARDS][STRIPE] Request body:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -287,7 +287,7 @@ export async function clearStalePurchases() {
         }
       }
     } catch (error) {
-      console.error('[NANAGRAM][IAP] Error clearing stale purchases:', error);
+      console.error('[XLPOSTCARDS][IAP] Error clearing stale purchases:', error);
     }
   }
 } 

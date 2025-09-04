@@ -120,7 +120,7 @@ export const generatePostcardBackServer = async (
     }
     
     const result: ServerPostcardResponse = await response.json();
-    console.log('[SERVER_POSTCARD] N8N response parsed successfully');
+    console.log(`[SERVER_POSTCARD] ${serviceName} response parsed successfully`);
     console.log('[SERVER_POSTCARD] Success:', result.success);
     console.log('[SERVER_POSTCARD] Test mode:', result.isTestMode);
     console.log('[SERVER_POSTCARD] File size:', result.fileSize, 'bytes');
@@ -132,8 +132,8 @@ export const generatePostcardBackServer = async (
     }
     
     if (!result.success) {
-      console.error('[SERVER_POSTCARD] N8N reported failure:', result.error);
-      throw new Error(result.error || 'N8N server generation failed');
+      console.error(`[SERVER_POSTCARD] ${serviceName} reported failure:`, result.error);
+      throw new Error(result.error || `${serviceName} server generation failed`);
     }
     
     // Handle different response formats (Railway vs N8N)

@@ -11,6 +11,7 @@ import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { PostcardSize, supportedPostcardSizes } from '@/utils/printSpecs';
+import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 
 import AIDisclaimer from '../components/AIDisclaimer';
 
@@ -604,15 +605,30 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
             console.log('[RAILWAY] Generating preview for postcard...');
             const railwayUrl = 'https://postcardservice-production.up.railway.app/generate-complete-postcard';
             
+            // Generate real transaction ID for the postcard
+            const realTransactionId = require('react-native-get-random-values');
+            const { v4: uuidv4 } = require('uuid');
+            const transactionId = uuidv4();
+            
+            // Upload front image to Cloudinary before sending to Railway
+            console.log('[RAILWAY] Uploading front image to Cloudinary...');
+            const frontImageCloudinaryUrl = await uploadToCloudinary(
+              (image as any).uri,
+              `postcard-front-${transactionId}`
+            );
+            console.log('[RAILWAY] Front image uploaded successfully:', frontImageCloudinaryUrl);
+            
             const railwayPayload = {
               message: postcardMessage,
               recipientInfo,
               postcardSize,
               returnAddressText,
-              transactionId: `preview_${Date.now()}`,
-              frontImageUri: (image as any).uri,
+              transactionId: transactionId,
+              frontImageUri: frontImageCloudinaryUrl,
               userEmail: savedUserEmail || '',
             };
+            
+            console.log('[RAILWAY] Using real transaction ID:', transactionId);
             
             console.log('[RAILWAY] User email from settings:', savedUserEmail);
             
@@ -631,7 +647,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               console.log('[RAILWAY] Back URL:', railwayResult.backUrl);
               console.log('[RAILWAY] Status:', railwayResult.status);
               
-              // Navigate with Railway back URL
+              // Navigate with Railway URLs and transaction ID
               router.push({
                 pathname: '/postcard-preview',
                 params: {
@@ -641,6 +657,8 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
                   recipient: JSON.stringify(recipientInfo),
                   postcardSize,
                   railwayBackUrl: railwayResult.backUrl,
+                  railwayFrontUrl: railwayResult.frontUrl,
+                  transactionId: transactionId,
                 },
               });
               console.log('[RAILWAY] Navigation with back URL:', railwayResult.backUrl);

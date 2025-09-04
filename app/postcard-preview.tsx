@@ -138,6 +138,8 @@ export default function PostcardPreviewScreen() {
   const message = params.message as string;
   const returnAddress = params.returnAddress as string;
   const railwayBackUrl = params.railwayBackUrl as string;
+  const railwayFrontUrl = params.railwayFrontUrl as string;
+  const existingTransactionId = params.transactionId as string;
   const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null>(null);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | undefined>(undefined);
   
@@ -154,7 +156,9 @@ export default function PostcardPreviewScreen() {
       recipientInfo,
       selectedRecipientId,
       hasRailwayBackUrl: !!railwayBackUrl,
-      railwayBackUrl: railwayBackUrl,
+      hasRailwayFrontUrl: !!railwayFrontUrl,
+      hasExistingTransaction: !!existingTransactionId,
+      existingTransactionId,
       allParams: params
     });
 
@@ -349,25 +353,99 @@ export default function PostcardPreviewScreen() {
       // Create transaction record
       await postcardService.createTransaction(postcardPurchase.transactionId);
 
-      // Step 1: Get user email from settings and generate complete postcard via Railway
-      console.log('[XLPOSTCARDS][RAILWAY] Calling Railway complete flow...');
-      const savedUserEmail = await AsyncStorage.getItem('settings_email');
-      console.log('[XLPOSTCARDS][RAILWAY] User email for final postcard:', savedUserEmail);
-      
-      const result = await generateCompletePostcardServer(
-        params.imageUri as string,
-        message,
-        recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
-        postcardSize,
-        postcardPurchase.transactionId,
-        returnAddress,
-        savedUserEmail || ''
-      );
-
-      console.log('[XLPOSTCARDS][RAILWAY] Railway flow completed successfully');
-      
-      // Store Railway-generated back image URL for preview
-      setRailwayBackImageUrl(result.imageUrl);
+      // Always use the payment transaction ID, but link to existing Railway transaction if available
+      if (existingTransactionId) {
+        console.log('[XLPOSTCARDS][RAILWAY] Linking payment transaction to existing Railway transaction');
+        console.log('[XLPOSTCARDS][RAILWAY] Payment ID:', postcardPurchase.transactionId);
+        console.log('[XLPOSTCARDS][RAILWAY] Railway ID:', existingTransactionId);
+        
+        // Copy existing Railway transaction data to new payment transaction ID
+        const railwayUrl = 'https://postcardservice-production.up.railway.app/transaction-status/' + existingTransactionId;
+        console.log('[DEBUG][COPY] Fetching existing transaction data from:', railwayUrl);
+        const statusResponse = await fetch(railwayUrl);
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          console.log('[DEBUG][COPY] Retrieved transaction data:', {
+            transactionId: statusData.transactionId,
+            status: statusData.status,
+            dataKeys: Object.keys(statusData.data || {}),
+            frontUrl: statusData.data?.frontUrl?.substring(0, 50) + '...',
+            backUrl: statusData.data?.backUrl?.substring(0, 50) + '...',
+            userEmail: statusData.data?.userEmail,
+            message: statusData.data?.message?.substring(0, 30) + '...',
+            postcardSize: statusData.data?.postcardSize
+          });
+          
+          // Validate the data before copying
+          if (!statusData.data?.frontUrl || !statusData.data?.backUrl) {
+            console.error('[DEBUG][COPY] ERROR: Missing image URLs in original transaction');
+            console.error('[DEBUG][COPY] frontUrl present:', !!statusData.data?.frontUrl);
+            console.error('[DEBUG][COPY] backUrl present:', !!statusData.data?.backUrl);
+            throw new Error('Original transaction missing image URLs');
+          }
+          
+          // Create new transaction with payment ID using Railway data
+          const copyPayload = {
+            message: statusData.data.message,
+            recipientInfo: statusData.data.recipientInfo,
+            postcardSize: statusData.data.postcardSize,
+            returnAddressText: returnAddress,
+            transactionId: postcardPurchase.transactionId,
+            frontImageUri: statusData.data.frontUrl,
+            userEmail: statusData.data.userEmail
+          };
+          
+          console.log('[DEBUG][COPY] Copy payload being sent:', {
+            message: copyPayload.message?.substring(0, 30) + '...',
+            recipientInfo: copyPayload.recipientInfo,
+            postcardSize: copyPayload.postcardSize,
+            returnAddressText: copyPayload.returnAddressText?.substring(0, 30) + '...',
+            transactionId: copyPayload.transactionId,
+            frontImageUri: copyPayload.frontImageUri?.substring(0, 50) + '...',
+            userEmail: copyPayload.userEmail
+          });
+          
+          const copyResponse = await fetch('https://postcardservice-production.up.railway.app/generate-complete-postcard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(copyPayload),
+          });
+          
+          if (copyResponse.ok) {
+            const copyResult = await copyResponse.json();
+            console.log('[DEBUG][COPY] Transaction copied successfully:', {
+              success: copyResult.success,
+              transactionId: copyResult.transactionId,
+              status: copyResult.status,
+              frontUrl: copyResult.frontUrl?.substring(0, 50) + '...',
+              backUrl: copyResult.backUrl?.substring(0, 50) + '...'
+            });
+          } else {
+            const errorText = await copyResponse.text();
+            console.error('[DEBUG][COPY] Copy response error:', copyResponse.status, errorText);
+            throw new Error(`Transaction copy failed: ${copyResponse.status} - ${errorText}`);
+          }
+        } else {
+          const errorText = await statusResponse.text();
+          console.error('[DEBUG][COPY] Status response error:', statusResponse.status, errorText);
+          throw new Error(`Failed to fetch original transaction: ${statusResponse.status} - ${errorText}`);
+        }
+      } else {
+        console.log('[XLPOSTCARDS][RAILWAY] No existing transaction, generating new postcard...');
+        const savedUserEmail = await AsyncStorage.getItem('settings_email');
+        
+        const result = await generateCompletePostcardServer(
+          params.imageUri as string,
+          message,
+          recipientInfo || { to: '', addressLine1: '', city: '', state: '', zipcode: '' },
+          postcardSize,
+          postcardPurchase.transactionId,
+          returnAddress,
+          savedUserEmail || ''
+        );
+        console.log('[XLPOSTCARDS][RAILWAY] Railway generation completed');
+      }
       
       // Step 2: Confirm payment with Railway  
       console.log('[XLPOSTCARDS][RAILWAY] Confirming payment with Railway...');
@@ -377,12 +455,14 @@ export default function PostcardPreviewScreen() {
         body: JSON.stringify({
           transactionId: postcardPurchase.transactionId,
           stripePaymentIntentId: postcardPurchase.paymentIntentId || 'mobile-payment',
-          userEmail: '' // TODO: Get from settings
+          userEmail: ''
         })
       });
       
       if (!paymentResponse.ok) {
-        throw new Error(`Payment confirmation failed: ${paymentResponse.status}`);
+        const errorText = await paymentResponse.text();
+        console.error('[XLPOSTCARDS][RAILWAY] Payment confirmation error:', errorText);
+        throw new Error(`Payment confirmation failed: ${paymentResponse.status} - ${errorText}`);
       }
       
       // Step 3: Submit to Stannp via Railway
@@ -718,36 +798,17 @@ export default function PostcardPreviewScreen() {
       
       console.log('[XLPOSTCARDS][PREVIEW] ========= UI STATE STABILIZED - CALLING STANNP API =========');
       
-      // Send to Stannp with timeout protection and comprehensive logging
-      console.log('[XLPOSTCARDS][PREVIEW] Creating timeout protection (60 seconds)...');
-      const stannpTimeout = new Promise((_, reject) => {
-        const timeoutId = setTimeout(() => {
-          console.error('[XLPOSTCARDS][PREVIEW] ========= STANNP API TIMEOUT - 60 SECONDS EXCEEDED =========');
-          reject(new Error('Stannp API call timed out after 60 seconds'));
-        }, 60000);
-        return timeoutId;
-      });
-      
-      console.log('[XLPOSTCARDS][PREVIEW] Starting Promise.race with sendToStannp and timeout...');
-      const raceStartTime = Date.now();
+      // Send to Railway for processing
+      console.log('[XLPOSTCARDS][PREVIEW] Starting Railway postcard submission...');
       
       try {
-        await Promise.race([
-          sendToRailway(purchase),
-          stannpTimeout
-        ]);
+        await sendToRailway(purchase);
         
-        const raceEndTime = Date.now();
-        const duration = raceEndTime - raceStartTime;
-        console.log('[XLPOSTCARDS][PREVIEW] ========= STANNP API COMPLETED SUCCESSFULLY =========');
-        console.log('[XLPOSTCARDS][PREVIEW] Total duration:', duration, 'ms');
-        console.log('[XLPOSTCARDS][PREVIEW] sendToStannp finished successfully');
+        console.log('[XLPOSTCARDS][PREVIEW] ========= RAILWAY SUBMISSION COMPLETED SUCCESSFULLY =========');
+        console.log('[XLPOSTCARDS][PREVIEW] Railway submission finished successfully');
         
       } catch (error) {
-        const raceEndTime = Date.now();
-        const duration = raceEndTime - raceStartTime;
-        console.error('[XLPOSTCARDS][PREVIEW] ========= STANNP API FAILED =========');
-        console.error('[XLPOSTCARDS][PREVIEW] Duration before failure:', duration, 'ms');
+        console.error('[XLPOSTCARDS][PREVIEW] ========= RAILWAY SUBMISSION FAILED =========');
         console.error('[XLPOSTCARDS][PREVIEW] Error details:', error);
         throw error; // Re-throw to be caught by outer catch
       }

@@ -156,7 +156,7 @@ def send_email_notification(to_email: str, subject: str, message: str, pdf_url: 
 async def generate_complete_postcard(request: PostcardRequest):
     """Generate both front and back images, upload to Cloudinary"""
     try:
-        print(f"[COMPLETE] Railway PostcardService v2.1.1.14-dev")
+        print(f"[COMPLETE] Railway PostcardService v2.1.1.17-dev")
         print(f"[COMPLETE] Generating complete {request.postcardSize} postcard")
         print(f"[COMPLETE] Received userEmail: '{request.userEmail}'")
         
@@ -401,12 +401,34 @@ async def submit_to_stannp_api(txn: dict) -> dict:
     # Map recipient info to Stannp format
     recipient = txn["recipientInfo"]
     
+    # Debug: Log transaction data before creating Stannp payload
+    print(f"[DEBUG][STANNP] Transaction data before Stannp submission:")
+    print(f"[DEBUG][STANNP] - frontUrl: {txn.get('frontUrl', 'MISSING')[:80]}{'...' if len(str(txn.get('frontUrl', ''))) > 80 else ''}")
+    print(f"[DEBUG][STANNP] - backUrl: {txn.get('backUrl', 'MISSING')[:80]}{'...' if len(str(txn.get('backUrl', ''))) > 80 else ''}")
+    print(f"[DEBUG][STANNP] - postcardSize: {txn.get('postcardSize', 'MISSING')}")
+    print(f"[DEBUG][STANNP] - recipient keys: {list(recipient.keys())}")
+    print(f"[DEBUG][STANNP] - frontUrl type: {type(txn.get('frontUrl'))}")
+    print(f"[DEBUG][STANNP] - backUrl type: {type(txn.get('backUrl'))}")
+    
+    # Validate URLs before sending to Stannp
+    front_url = txn.get("frontUrl")
+    back_url = txn.get("backUrl")
+    
+    if not front_url or not back_url:
+        raise Exception(f"Missing image URLs - front: {bool(front_url)}, back: {bool(back_url)}")
+    
+    # Check if URLs are valid Cloudinary URLs (not data URLs)
+    if front_url.startswith('data:') or back_url.startswith('data:'):
+        print(f"[DEBUG][STANNP] WARNING: Found data URLs instead of Cloudinary URLs")
+        print(f"[DEBUG][STANNP] - frontUrl is data URL: {front_url.startswith('data:')}")
+        print(f"[DEBUG][STANNP] - backUrl is data URL: {back_url.startswith('data:')}")
+
     # Prepare Stannp API payload
     stannp_payload = {
         "test": "true",  # Always test mode for now
         "size": "6x9" if txn["postcardSize"] == "xl" else "A6",
-        "front": txn["frontUrl"],
-        "back": txn["backUrl"],
+        "front": front_url,
+        "back": back_url,
         "recipient": {
             "firstname": recipient["to"].split()[0] if recipient["to"] else "Recipient",
             "lastname": " ".join(recipient["to"].split()[1:]) if len(recipient["to"].split()) > 1 else "",
