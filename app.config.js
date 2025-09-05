@@ -1,22 +1,36 @@
 import 'dotenv/config';
 
+// ------- Profile & variant resolution -------
 const PROFILE = process.env.EAS_BUILD_PROFILE || '';
-// Prefer explicit APP_VARIANT; otherwise map common profiles to a variant:
-// Force development for any simulator build or local development
-const isLocalDev = !process.env.EAS_BUILD_PROFILE; // Running locally via npm start
+const isLocalDev = !process.env.EAS_BUILD_PROFILE;
+
 const APP_VARIANT =
-  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator') || isLocalDev) ? 'development' :
-  process.env.APP_VARIANT ||
-  (PROFILE === 'development' ? 'development'
-   : PROFILE === 'preview' ? 'preview'
-   : 'production');
+  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator') || isLocalDev)
+    ? 'development'
+    : (process.env.APP_VARIANT ||
+        (PROFILE === 'development' ? 'development'
+         : PROFILE === 'preview' ? 'preview'
+         : 'production'));
 
 const IS_DEV = APP_VARIANT === 'development';
-const IS_IOS_SIMULATOR = PROFILE === 'ios-simulator';
-// Force test mode for any simulator build, regardless of APP_VARIANT
-const FORCE_TEST_MODE = IS_DEV || IS_IOS_SIMULATOR || PROFILE.includes('simulator');
 const IS_PREVIEW = APP_VARIANT === 'preview';
+const IS_IOS_SIMULATOR = PROFILE === 'ios-simulator';
+const FORCE_TEST_MODE = IS_DEV || IS_IOS_SIMULATOR || PROFILE.includes('simulator');
 
+// ------- IDs -------
+const baseId = 'com.patjfree.xlpostcards';
+const getBundleIdentifier = () => {
+  if (IS_DEV) return `${baseId}.dev`;
+  if (IS_PREVIEW) return `${baseId}.preview`;
+  return baseId;
+};
+const getPackageName = () => {
+  if (IS_DEV) return `${baseId}.dev`;
+  if (IS_PREVIEW) return `${baseId}.preview`;
+  return baseId;
+};
+
+// ------- App name shown on device (optional, keep your current scheme) -------
 const getAppName = () => {
   if (IS_DEV && isLocalDev) return 'Simulator - Test CC OK';
   if (IS_DEV) return 'D:XLPostcards';
@@ -24,61 +38,55 @@ const getAppName = () => {
   return 'XLPostcards';
 };
 
-console.log('EAS_BUILD_PROFILE:', PROFILE);
-console.log('APP_VARIANT:', APP_VARIANT, 'App Name:', getAppName());
-console.log('IS_DEV:', IS_DEV);
-console.log('Test key available:', !!process.env.STRIPE_PUBLISHABLE_KEY_TEST);
-console.log('Live key available:', !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE);
-
-const getPackageName = () => {
-  const basePackage = 'com.patjfree.xlpostcards';
-  if (IS_DEV) return `${basePackage}.dev`;
-  if (IS_PREVIEW) return `${basePackage}.preview`;
-  return basePackage;
-};
-
-const getBundleIdentifier = () => {
-  const baseIdentifier = 'com.patjfree.xlpostcards';
-  if (IS_DEV) return `${baseIdentifier}.dev`;
-  if (IS_PREVIEW) return `${baseIdentifier}.preview`;
-  return baseIdentifier;
-};
+// ------- Exposed remote version values from EAS -------
+// EAS injects these when appVersionSource=remote
+const REMOTE_APP_VERSION = process.env.EAS_BUILD_VERSION;          // e.g. "2.1.18"
+const REMOTE_IOS_BUILD_NUMBER = process.env.EAS_BUILD_BUILD_NUMBER; // e.g. "23"
+const REMOTE_ANDROID_VERSION_CODE = process.env.EAS_BUILD_VERSION_CODE; // e.g. "61"
 
 module.exports = {
-  // ✅ You can switch this back to dynamic later
-  name: "Postcard", // This will be the display name on the home screen
+  name: getAppName(),
   slug: "XLPostcards",
-  version: "2.1.18",
-  runtimeVersion: {
-    policy: "appVersion"
-  },
+
+  // Use EAS remote app version when available (falls back to a string if missing)
+  version: REMOTE_APP_VERSION || "2.1.18",
+  runtimeVersion: { policy: "appVersion" },
+
   orientation: "portrait",
   icon: "./assets/images/icon1024.png",
   scheme: "XLPostcards",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+
   splash: {
     image: "./assets/images/icon1024.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#ffffff"
   },
+
   assetBundlePatterns: ["**/*"],
+
   ios: {
-    bundleIdentifier: getBundleIdentifier(),
+    // Force prod bundle on the production profile; otherwise use computed
+    bundleIdentifier: (PROFILE === 'production') ? baseId : getBundleIdentifier(),
     supportsTablet: true,
     deploymentTarget: "13.0",
-    buildNumber: process.env.IOS_BUILD_NUMBER || "4",
+    // Prefer EAS remote buildNumber; allow manual override via IOS_BUILD_NUMBER
+    buildNumber: (REMOTE_IOS_BUILD_NUMBER || process.env.IOS_BUILD_NUMBER || "1"),
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       ITSAppUsesNonExemptEncryption: false
     }
   },
+
   android: {
     package: getPackageName(),
-    versionCode: process.env.ANDROID_VERSION_CODE
-      ? parseInt(process.env.ANDROID_VERSION_CODE, 10)
-      : 6,
+    // Prefer EAS remote versionCode; allow manual override via ANDROID_VERSION_CODE
+    versionCode: parseInt(
+      (process.env.ANDROID_VERSION_CODE ?? REMOTE_ANDROID_VERSION_CODE ?? '1'),
+      10
+    ),
     compileSdkVersion: 35,
     targetSdkVersion: 35,
     adaptiveIcon: {
@@ -90,13 +98,15 @@ module.exports = {
       "ACCESS_FINE_LOCATION",
       "android.permission.ACCESS_MEDIA_LOCATION",
       "com.android.vending.BILLING"
-    ],
+    ]
   },
+
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/images/favicon.png",
+    favicon: "./assets/images/favicon.png"
   },
+
   plugins: [
     "expo-font",
     ["expo-router", { origin: "https://xlpostcards.app" }],
@@ -104,64 +114,60 @@ module.exports = {
       image: "./assets/images/icon1024.png",
       imageWidth: 200,
       resizeMode: "contain",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#ffffff"
     }],
     ["expo-location", {
       locationAlwaysAndWhenInUsePermission:
-        "Allow $(PRODUCT_NAME) to use your location to attach it to your photos.",
+        "Allow $(PRODUCT_NAME) to use your location to attach it to your photos."
     }],
     ["expo-media-library", {
-      photosPermission: "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
-      savePhotosPermission: "Allow XLPostcards to save photos you create.",
-      isAccessMediaLocationEnabled: true,
+      photosPermission:
+        "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
+      savePhotosPermission:
+        "Allow XLPostcards to save photos you create.",
+      isAccessMediaLocationEnabled: true
     }],
     ["expo-build-properties", {
       android: {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0"
-      },
+      }
     }],
     "react-native-iap"
   ],
+
   experiments: {
     tsconfigPaths: true,
     newArchEnabled: true
   },
+
   extra: {
+    // (Read these from your env; don’t hardcode secrets)
     openaiApiKey: process.env.OPENAI_API_KEY,
     stannpApiKey: process.env.STANNP_API_KEY,
     cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
     cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
     cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
+
+    // Stripe: test for dev/sim, live for prod unless FORCE_TEST_MODE is true
     stripePublishableKey: (() => {
-      // HARDCODE test key for simulator builds to bypass environment issues
-      if (PROFILE === 'ios-simulator' || PROFILE.includes('simulator')) {
-        console.log('🔧 SIMULATOR BUILD: Using hardcoded test key');
-        return process.env.STRIPE_PUBLISHABLE_KEY_TEST || 'pk_test_51QRNBvKwD63LKpuWJ3IWHYKLYWVML6Fia6Yci4mcLRbSwHz7AsfOBtnlighyfJFBi1CxDzFnQ56XaksSUIcUyV6H00rQww6LU0';
-      }
-      
-      const selectedKey = FORCE_TEST_MODE 
-        ? process.env.STRIPE_PUBLISHABLE_KEY_TEST 
-        : process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
-      console.log('FORCE_TEST_MODE:', FORCE_TEST_MODE);
-      console.log('Selected Stripe Key (first 15 chars):', selectedKey?.substring(0, 15) + '...');
-      console.log('Is Test Key (pk_test):', selectedKey?.startsWith('pk_test'));
-      return selectedKey;
+      const test = process.env.STRIPE_PUBLISHABLE_KEY_TEST;
+      const live = process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
+      return (FORCE_TEST_MODE ? test : live);
     })(),
+
     n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
     n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
-    // N8N Postcard Generation Webhooks
-    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified', // Legacy v2.0.13
-    n8nPostcardBackWebhookUrl_v21: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified-2.1', // New v2.1
-    // Railway Postcard Service (better font support)
+    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified',
+    n8nPostcardBackWebhookUrl_v21: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified-2.1',
     railwayPostcardUrl: 'https://postcardservice-production.up.railway.app/generate-postcard-back',
-    // Feature flags
-    useN8nV21: process.env.USE_N8N_V21 === 'true' || APP_VARIANT === 'development', // Enable v2.1 for dev builds
-    useRailway: process.env.USE_RAILWAY === 'true' || APP_VARIANT === 'development', // Enable Railway for dev builds
+    useN8nV21: process.env.USE_N8N_V21 === 'true' || APP_VARIANT === 'development',
+    useRailway: process.env.USE_RAILWAY === 'true' || APP_VARIANT === 'development',
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,
-    APP_VARIANT: APP_VARIANT,
-    eas: { projectId: "19ca6de3-2925-45e9-afb3-08d23548a9a4" }
+
+    APP_VARIANT,
+    eas: { projectId: "f4dc464b-4ae2-4850-820b-015a17901641" }
   }
 };
