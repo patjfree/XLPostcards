@@ -86,7 +86,7 @@ module.exports = {
     package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
     // Prefer EAS remote versionCode; allow manual override via ANDROID_VERSION_CODE
     versionCode: parseInt(
-      (process.env.ANDROID_VERSION_CODE ?? REMOTE_ANDROID_VERSION_CODE ?? '1'),
+      (process.env.ANDROID_VERSION_CODE ?? '61'),
       10
     ),
     compileSdkVersion: 35,
