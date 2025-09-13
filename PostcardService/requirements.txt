@@ -4,3 +4,4 @@ pillow==10.1.0
 requests==2.31.0
 cloudinary==1.36.0
 resend==0.8.0
+stripe==10.12.0

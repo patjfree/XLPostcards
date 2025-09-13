@@ -15,20 +15,17 @@ export interface StripePurchase {
 
 class StripeManager {
   private static instance: StripeManager;
-  private readonly N8N_WEBHOOK_URL: string;
+  private readonly RAILWAY_POSTCARD_URL: string;
   private readonly POSTCARD_PRICE_CENTS: number;
   private readonly POSTCARD_PRICE_DOLLARS: number;
 
   private constructor() {
-    // Use environment-specific webhook URL
-    const isDev = variant === 'development';
-    this.N8N_WEBHOOK_URL = isDev 
-      ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev || ''
-      : Constants.expoConfig?.extra?.n8nWebhookUrl_prod || '';
+    // Use Railway PostcardService URL
+    this.RAILWAY_POSTCARD_URL = Constants.expoConfig?.extra?.railwayPostcardUrl || '';
     this.POSTCARD_PRICE_CENTS = Constants.expoConfig?.extra?.postcardPriceCents || 199;
     this.POSTCARD_PRICE_DOLLARS = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
-    if (!this.N8N_WEBHOOK_URL) {
-      console.warn('N8N_WEBHOOK_URL is not set in app config');
+    if (!this.RAILWAY_POSTCARD_URL) {
+      console.warn('Railway PostcardService URL is not set in app config');
     }
   }
 
@@ -53,17 +50,35 @@ class StripeManager {
         amount: this.POSTCARD_PRICE_CENTS,
         currency: 'usd',
       };
-      // 1. Call n8n webhook to create PaymentIntent
-      const response = await fetch(this.N8N_WEBHOOK_URL, {
+      // 1. Call Railway PostcardService to create Stripe checkout session
+      const response = await fetch(`${this.RAILWAY_POSTCARD_URL}/create-payment-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: this.POSTCARD_PRICE_CENTS, transactionId }),
+        body: JSON.stringify({ 
+          amount: this.POSTCARD_PRICE_CENTS,
+          transactionId,
+          successUrl: 'https://stripe.com/docs/payments/checkout/custom-success-page',
+          cancelUrl: 'https://stripe.com/docs/payments/checkout'
+        }),
       });
-      const { clientSecret } = await response.json();
-      if (!clientSecret) throw new Error('Payment initialization failed.');
-      // 2. Init and present Payment Sheet
+      const { sessionId, checkoutUrl } = await response.json();
+      if (!sessionId) throw new Error('Payment session creation failed.');
+      // 2. For mobile app, we need to create PaymentIntent directly (not checkout session)
+      // Let's use a different endpoint for mobile payment intent creation
+      const piResponse = await fetch(`${this.RAILWAY_POSTCARD_URL}/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          amount: this.POSTCARD_PRICE_CENTS,
+          transactionId
+        }),
+      });
+      const { clientSecret: paymentClientSecret } = await piResponse.json();
+      if (!paymentClientSecret) throw new Error('Payment intent creation failed.');
+      
+      // Init and present Payment Sheet
       const initResult = await stripe.initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
+        paymentIntentClientSecret: paymentClientSecret,
         merchantDisplayName: 'XLPostcards',
       });
       if (initResult.error) throw new Error(initResult.error.message);

@@ -360,7 +360,8 @@ export default function PostcardPreviewScreen() {
         console.log('[XLPOSTCARDS][RAILWAY] Railway ID:', existingTransactionId);
         
         // Copy existing Railway transaction data to new payment transaction ID
-        const railwayUrl = 'https://postcardservice-production.up.railway.app/transaction-status/' + existingTransactionId;
+        const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+        const railwayUrl = `${railwayBaseUrl}/transaction-status/${existingTransactionId}`;
         console.log('[DEBUG][COPY] Fetching existing transaction data from:', railwayUrl);
         const statusResponse = await fetch(railwayUrl);
         
@@ -406,7 +407,8 @@ export default function PostcardPreviewScreen() {
             userEmail: copyPayload.userEmail
           });
           
-          const copyResponse = await fetch('https://postcardservice-production.up.railway.app/generate-complete-postcard', {
+          const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+          const copyResponse = await fetch(`${railwayBaseUrl}/generate-complete-postcard`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(copyPayload),
@@ -449,7 +451,8 @@ export default function PostcardPreviewScreen() {
       
       // Step 2: Confirm payment with Railway  
       console.log('[XLPOSTCARDS][RAILWAY] Confirming payment with Railway...');
-      const paymentResponse = await fetch('https://postcardservice-production.up.railway.app/payment-confirmed', {
+      const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+      const paymentResponse = await fetch(`${railwayBaseUrl}/payment-confirmed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -467,7 +470,7 @@ export default function PostcardPreviewScreen() {
       
       // Step 3: Submit to Stannp via Railway
       console.log('[XLPOSTCARDS][RAILWAY] Submitting to Stannp via Railway...');
-      const stannpResponse = await fetch('https://postcardservice-production.up.railway.app/submit-to-stannp', {
+      const stannpResponse = await fetch(`${railwayBaseUrl}/submit-to-stannp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -702,147 +705,182 @@ export default function PostcardPreviewScreen() {
     }
   }, [sendResult?.success, showSuccessModal, stannpConfirmed, showOnlyModal]);
 
-  // Function to start a new purchase flow
+  // Function to start new Railway Stripe Checkout flow
   const startNewPurchaseFlow = async () => {
     try {
-      console.log('[XLPOSTCARDS][PREVIEW] Continue button pressed');
+      console.log('[XLPOSTCARDS][PREVIEW] Continue button pressed - Using Railway Stripe Checkout');
       setSending(true);
       setSendResult(null);
       setStannpConfirmed(false);
       setIsCapturing(true);
 
-      // Start the purchase flow
-      console.log('[XLPOSTCARDS][PREVIEW] Starting purchase flow');
-      let purchase;
-      
-      if (Platform.OS === 'ios') {
-        // Use Stripe Payment Sheet for iOS
-        try {
-          const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-          const stripeKey = Constants.expoConfig?.extra?.stripePublishableKey;
-          
-          console.log('[XLPOSTCARDS][PREVIEW] Stripe Payment Details:', {
-            isDev,
-            hasStripeKey: !!stripeKey,
-            keyLength: stripeKey?.length,
-            hasStripeInstance: !!stripe
-          });
-
-          if (!stripeKey) {
-            throw new Error('Stripe configuration is missing. Please check your environment variables.');
-          }
-
-          if (!stripe) {
-            throw new Error('Stripe is not properly initialized. Please check your configuration.');
-          }
-
-          purchase = await iapManager.purchasePostcard(stripe);
-        } catch (error) {
-          const stripeError = error as Error;
-          console.error('[XLPOSTCARDS][PREVIEW] Stripe error details:', {
-            error: stripeError,
-            message: stripeError.message,
-            stack: stripeError.stack
-          });
-          throw new Error('Payment failed. Please try again or contact support if the issue persists.');
-        }
-      } else if (Platform.OS === 'android') {
-        // Use Google Pay for Android
-        try {
-          purchase = await iapManager.purchasePostcard();
-        } catch (googlePayError) {
-          console.error('[XLPOSTCARDS][PREVIEW] Google Pay error:', googlePayError);
-          throw new Error('Google Pay failed. Please try again or contact support if the issue persists.');
-        }
-      }
-      
-      console.log('[XLPOSTCARDS][PREVIEW] Purchase result:', purchase);
-      
-      // Check if purchase is valid
-      if (!purchase) {
-        console.error('[XLPOSTCARDS][PREVIEW] Invalid purchase received');
-        throw new Error('Invalid purchase received');
-      }
-      
-      setLastPurchase(purchase);
-      
-      // Critical: Add memory management and UI cleanup before Stannp call
-      console.log('[XLPOSTCARDS][PREVIEW] ========= PAYMENT SUCCESSFUL - STARTING STANNP PREPARATION =========');
-      console.log('[XLPOSTCARDS][PREVIEW] Purchase object:', JSON.stringify(purchase, null, 2));
-      console.log('[XLPOSTCARDS][PREVIEW] Device info:', {
-        platform: Platform.OS,
-        version: Platform.Version,
-        memoryUsage: Platform.constants?.systemVersion,
-        timestamp: new Date().toISOString()
-      });
-      
-      console.log('[XLPOSTCARDS][PREVIEW] Starting memory cleanup...');
-      // Force garbage collection hint (iOS memory management)
-      if (global.gc) {
-        console.log('[XLPOSTCARDS][PREVIEW] Calling global.gc()');
-        global.gc();
-        console.log('[XLPOSTCARDS][PREVIEW] global.gc() completed');
-      } else {
-        console.log('[XLPOSTCARDS][PREVIEW] global.gc() not available');
-      }
-      
-      console.log('[XLPOSTCARDS][PREVIEW] Dismissing keyboard...');
-      // Dismiss any active keyboards/modals that might interfere
-      Keyboard.dismiss();
-      console.log('[XLPOSTCARDS][PREVIEW] Keyboard dismissed');
-      
-      console.log('[XLPOSTCARDS][PREVIEW] Starting UI stabilization delay...');
-      // Small delay to ensure UI state is stable before heavy operations
-      await new Promise(resolve => setTimeout(resolve, 100));
-      console.log('[XLPOSTCARDS][PREVIEW] UI stabilization completed');
-      
-      console.log('[XLPOSTCARDS][PREVIEW] ========= UI STATE STABILIZED - CALLING STANNP API =========');
-      
-      // Send to Railway for processing
-      console.log('[XLPOSTCARDS][PREVIEW] Starting Railway postcard submission...');
-      
+      // Get user email from AsyncStorage for receipts
+      let userEmail = '';
       try {
-        await sendToRailway(purchase);
-        
-        console.log('[XLPOSTCARDS][PREVIEW] ========= RAILWAY SUBMISSION COMPLETED SUCCESSFULLY =========');
-        console.log('[XLPOSTCARDS][PREVIEW] Railway submission finished successfully');
-        
-      } catch (error) {
-        console.error('[XLPOSTCARDS][PREVIEW] ========= RAILWAY SUBMISSION FAILED =========');
-        console.error('[XLPOSTCARDS][PREVIEW] Error details:', error);
-        throw error; // Re-throw to be caught by outer catch
+        userEmail = await AsyncStorage.getItem('userEmail') || '';
+      } catch (e) {
+        console.log('[XLPOSTCARDS][PREVIEW] Could not get user email:', e);
       }
+
+      // Step 1: Create postcard data in Railway
+      console.log('[XLPOSTCARDS][PREVIEW] Creating postcard data with Railway...');
+      const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+      
+      const postcardResponse = await fetch(`${railwayBaseUrl}/generate-complete-postcard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          recipientInfo: {
+            to: recipientInfo?.to || '',
+            addressLine1: recipientInfo?.addressLine1 || '',
+            addressLine2: recipientInfo?.addressLine2 || '',
+            city: recipientInfo?.city || '',
+            state: recipientInfo?.state || '',
+            zipcode: recipientInfo?.zipcode || ''
+          },
+          postcardSize,
+          returnAddressText: returnAddress,
+          transactionId: existingTransactionId || 'temp-' + Date.now(),
+          frontImageUri: railwayFrontUrl || imageUri,
+          userEmail: userEmail
+        }),
+      });
+
+      if (!postcardResponse.ok) {
+        const errorText = await postcardResponse.text();
+        throw new Error(`Failed to create postcard: ${errorText}`);
+      }
+
+      const postcardData = await postcardResponse.json();
+      const finalTransactionId = postcardData.transactionId;
+      console.log('[XLPOSTCARDS][PREVIEW] Postcard data created:', finalTransactionId);
+
+      // Step 2: Create PaymentIntent for native Payment Sheet
+      console.log('[XLPOSTCARDS][PREVIEW] Creating PaymentIntent for Payment Sheet...');
+      const paymentResponse = await fetch(`${railwayBaseUrl}/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: 199, // $1.99 in cents
+          transactionId: finalTransactionId
+        }),
+      });
+
+      if (!paymentResponse.ok) {
+        const errorText = await paymentResponse.text();
+        throw new Error(`Failed to create payment intent: ${errorText}`);
+      }
+
+      const paymentData = await paymentResponse.json();
+      console.log('[XLPOSTCARDS][PREVIEW] PaymentIntent created successfully');
+
+      // Step 3: Initialize and present native Payment Sheet
+      const { initPaymentSheet, presentPaymentSheet } = stripe;
+      
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: paymentData.clientSecret,
+        merchantDisplayName: 'XLPostcards',
+        style: 'alwaysDark',
+        returnURL: 'xlpostcards://payment-return'
+      });
+
+      if (initError) {
+        throw new Error(`Payment Sheet initialization failed: ${initError.message}`);
+      }
+
+      // Step 4: Present Payment Sheet (native mobile UI)
+      console.log('[XLPOSTCARDS][PREVIEW] Presenting native Payment Sheet...');
+      const { error: paymentError } = await presentPaymentSheet();
+
+      if (paymentError) {
+        if (paymentError.code === 'Canceled') {
+          console.log('[XLPOSTCARDS][PREVIEW] Payment cancelled by user');
+          setIsCapturing(false);
+          setSending(false);
+          return;
+        }
+        throw new Error(`Payment failed: ${paymentError.message}`);
+      }
+
+      // Step 5: Payment successful! Store transaction ID and wait for Stannp
+      console.log('[XLPOSTCARDS][PREVIEW] Payment completed successfully!');
+      await AsyncStorage.setItem('pendingTransactionId', finalTransactionId);
+      
+      // Don't show success yet - wait for Stannp confirmation
+      console.log('[XLPOSTCARDS][PREVIEW] Payment successful, waiting for Railway to process postcard...');
+      setIsCapturing(false);
+      setSending(true); // Keep sending state to show "Processing..."
+      
+      // Poll for completion - only show success when Stannp confirms
+      pollPaymentStatus(finalTransactionId);
+
     } catch (error) {
       const err = error as Error;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setLastErrorMessage(errorMessage);
-      console.error('[XLPOSTCARDS][PREVIEW] ERROR in purchase flow:', {
+      console.error('[XLPOSTCARDS][PREVIEW] ERROR in Railway Stripe checkout flow:', {
         error: err,
         message: err.message,
-        stack: err.stack,
-        sendResult,
-        lastPurchase,
-        showSuccessModal,
-        showErrorModal,
-        showRefundModal,
-        showRefundSuccessModal
+        stack: err.stack
       });
-      // Show error modal with the specific error message
       showOnlyModal('error');
-      setStannpAttempts(prev => prev + 1);
-      setRefundData(prev => ({
-        ...prev,
-        stannpError: errorMessage,
-        transactionId: lastPurchase?.transactionId || ''
-      }));
-      // Reset state
-      setLastPurchase(null);
-      setSendResult(null);
     } finally {
       setSending(false);
       setIsCapturing(false);
-      console.log('[XLPOSTCARDS][PREVIEW] Purchase flow finished');
+      console.log('[XLPOSTCARDS][PREVIEW] Railway Stripe checkout flow finished');
     }
+  };
+
+  // Poll payment status after checkout
+  const pollPaymentStatus = async (transactionId: string) => {
+    const maxAttempts = 12; // 2 minutes with 10-second intervals
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      try {
+        const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+        const response = await fetch(
+          `${railwayBaseUrl}/payment-status/${transactionId}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[XLPOSTCARDS][PREVIEW] Payment status:', data.status);
+          
+          if (data.status === 'submitted_to_stannp') {
+            // Payment successful and postcard submitted to Stannp!
+            await AsyncStorage.removeItem('pendingTransactionId');
+            console.log('[XLPOSTCARDS][PREVIEW] Payment completed and postcard submitted to Stannp!');
+            setSending(false);
+            showOnlyModal('success');
+            return true;
+          } else if (data.status === 'payment_completed') {
+            // Payment done, still processing postcard
+            console.log('[XLPOSTCARDS][PREVIEW] Payment completed, processing postcard...');
+            attempts = 0; // Reset attempts to give more time for processing
+          }
+        }
+      } catch (error) {
+        console.error('[XLPOSTCARDS][PREVIEW] Error checking payment status:', error);
+      }
+
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(checkStatus, 10000); // Check again in 10 seconds
+      } else {
+        console.log('[XLPOSTCARDS][PREVIEW] Payment status polling timed out');
+      }
+      
+      return false;
+    };
+
+    // Start polling after a brief delay
+    setTimeout(checkStatus, 5000);
   };
 
   const windowHeight = Dimensions.get('window').height;

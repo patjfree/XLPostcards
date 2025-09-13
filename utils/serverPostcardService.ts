@@ -50,7 +50,7 @@ interface ServerPostcardResponse {
 }
 
 /**
- * Generates a postcard back image using N8N server-side rendering
+ * Generates a postcard back image using Railway PostcardService server-side rendering
  * This completely bypasses iOS ViewShot limitations
  */
 export const generatePostcardBackServer = async (
@@ -60,24 +60,13 @@ export const generatePostcardBackServer = async (
   console.log('[SERVER_POSTCARD] Postcard size:', request.postcardSize);
   console.log('[SERVER_POSTCARD] Message preview:', request.message.substring(0, 50) + '...');
   
-  // Choose service: Railway > N8N v2.1 > N8N v2.0.13
-  const useRailway = Constants.expoConfig?.extra?.useRailway;
-  const useV21 = Constants.expoConfig?.extra?.useN8nV21;
+  // Use Railway PostcardService exclusively
+  const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
+  const serviceUrl = `${railwayBaseUrl}/generate-complete-postcard`;
+  const serviceName = 'Railway PostcardService';
   
-  let serviceUrl, serviceName;
-  if (useRailway) {
-    serviceUrl = 'https://postcardservice-production.up.railway.app/generate-complete-postcard';
-    serviceName = 'Railway Complete';
-  } else if (useV21) {
-    serviceUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21;
-    serviceName = 'N8N v2.1';
-  } else {
-    serviceUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
-    serviceName = 'N8N v2.0.13';
-  }
-  
-  if (!serviceUrl) {
-    throw new Error(`${serviceName} URL not configured. Please check your app.config.js`);
+  if (!railwayBaseUrl) {
+    throw new Error('Railway PostcardService URL not configured. Please check your app.config.js railwayPostcardUrl setting.');
   }
   
   console.log('[SERVER_POSTCARD] Using service:', serviceName);
@@ -136,8 +125,8 @@ export const generatePostcardBackServer = async (
       throw new Error(result.error || `${serviceName} server generation failed`);
     }
     
-    // Handle different response formats (Railway vs N8N)
-    const imageUrl = result.backUrl || result.postcard_back_url;
+    // Railway PostcardService returns backUrl
+    const imageUrl = result.backUrl;
     
     if (!imageUrl) {
       console.error('[SERVER_POSTCARD] No image URL returned from server');
@@ -148,22 +137,18 @@ export const generatePostcardBackServer = async (
     console.log('[SERVER_POSTCARD] Image URL:', imageUrl.substring(0, 50) + '...');
     console.log('[SERVER_POSTCARD] Service:', serviceName);
     
-    if (useRailway) {
-      console.log('[SERVER_POSTCARD] Railway status:', result.status);
-      console.log('[SERVER_POSTCARD] Front URL:', result.frontUrl?.substring(0, 50) + '...');
-    } else {
-      console.log('[SERVER_POSTCARD] Cloudinary public ID:', result.public_id);
-    }
+    console.log('[SERVER_POSTCARD] Railway status:', result.status);
+    console.log('[SERVER_POSTCARD] Front URL:', result.frontUrl?.substring(0, 50) + '...');
     
-    // Handle test mode (Railway always returns true for dev, N8N varies)
-    const isTestMode = useRailway ? true : (result.isTestMode === true || result.isTestMode === 'true');
+    // Railway PostcardService test mode
+    const isTestMode = result.isTestMode === true || result.isTestMode === 'true';
     
     console.log('[SERVER_POSTCARD] Test mode:', isTestMode);
     
     return { 
       imageUrl,
       isTestMode,
-      frontUrl: result.frontUrl // Railway-specific
+      frontUrl: result.frontUrl
     };
     
   } catch (error) {
@@ -182,7 +167,7 @@ export const generatePostcardBackServer = async (
 
 /**
  * Downloads a server-generated image to local storage for Stannp submission
- * This converts the Cloudinary URL to a local file that Stannp can use
+ * This converts the Railway PostcardService URL to a local file that Stannp can use
  */
 export const downloadServerImage = async (
   imageUrl: string,
@@ -242,20 +227,16 @@ export const downloadServerImage = async (
 };
 
 /**
- * Validates that the required N8N configuration is present
+ * Validates that the required Railway PostcardService configuration is present
  */
 export const validateServerConfiguration = (): boolean => {
-  const useV21 = Constants.expoConfig?.extra?.useN8nV21;
-  const legacyUrl = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl;
-  const v21Url = Constants.expoConfig?.extra?.n8nPostcardBackWebhookUrl_v21;
+  const railwayUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
   
-  const activeUrl = useV21 ? v21Url : legacyUrl;
-  
-  if (!activeUrl) {
-    console.error('[SERVER_POSTCARD] N8N webhook URL not configured for version:', useV21 ? 'v2.1' : 'v2.0.13');
+  if (!railwayUrl) {
+    console.error('[SERVER_POSTCARD] Railway PostcardService URL not configured');
     return false;
   }
   
-  console.log('[SERVER_POSTCARD] Server configuration validated for N8N', useV21 ? 'v2.1 workflow' : 'v2.0.13 workflow');
+  console.log('[SERVER_POSTCARD] Server configuration validated for Railway PostcardService');
   return true;
 };

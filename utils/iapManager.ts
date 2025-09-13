@@ -80,25 +80,15 @@ class IAPManager {
     
     if (Platform.OS === 'ios') {
       // Stripe Payment Sheet logic
-      // Get the appropriate webhook URL based on environment
-      const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-      const webhookUrl = isDev 
-        ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev 
-        : Constants.expoConfig?.extra?.n8nWebhookUrl_prod;
+      // Get Railway PostcardService URL
+      const railwayUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
       
-      if (!webhookUrl) {
-        console.error('[XLPOSTCARDS][STRIPE] Webhook URL is undefined!', {
-          isDev,
-          APP_VARIANT: Constants.expoConfig?.extra?.APP_VARIANT,
-          availableUrls: {
-            dev: Constants.expoConfig?.extra?.n8nWebhookUrl_dev,
-            prod: Constants.expoConfig?.extra?.n8nWebhookUrl_prod
-          }
-        });
-        throw new Error('Webhook URL is not configured');
+      if (!railwayUrl) {
+        console.error('[XLPOSTCARDS][STRIPE] Railway PostcardService URL is undefined!');
+        throw new Error('Railway PostcardService URL is not configured');
       }
       
-      console.log('[XLPOSTCARDS][STRIPE] Using webhook URL:', webhookUrl);
+      console.log('[XLPOSTCARDS][STRIPE] Using Railway URL:', railwayUrl);
       console.log('[XLPOSTCARDS][STRIPE] Device info:', {
         platform: Platform.OS,
         version: Platform.Version,
@@ -106,11 +96,8 @@ class IAPManager {
       });
       
       const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
-      const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
       console.log('[XLPOSTCARDS][STRIPE] Config values:', {
-        APP_VARIANT,
-        isDev,
-        webhookUrl
+        railwayUrl
       });
       const transactionId = uuidv4();
       const idempotencyKey = `xlpostcards-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -121,15 +108,14 @@ class IAPManager {
         currency: 'usd',
       };
 
-      // Create the request body
+      // Create PaymentIntent via Railway PostcardService
       const requestBody = {
         amount: postcardPriceCents,
-        transactionId,
-        APP_VARIANT
+        transactionId
       };
       console.log('[XLPOSTCARDS][STRIPE] Request body:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(`${railwayUrl}/create-payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -140,7 +126,7 @@ class IAPManager {
       if (!clientSecret) throw new Error('Payment initialization failed.');
       const initResult = await stripe.initPaymentSheet({
         paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'NanaGram',
+        merchantDisplayName: 'XLPostcards',
       });
       if (initResult.error) throw new Error(initResult.error.message);
       const paymentResult = await stripe.presentPaymentSheet();
@@ -199,50 +185,45 @@ class IAPManager {
       }
       console.log('[XLPOSTCARDS][IAP] Purchase completed successfully');
       
-      // Call N8N webhook for Android to maintain consistency with iOS
-      console.log('[XLPOSTCARDS][IAP] Calling N8N webhook for Android purchase...');
-      const isDev = Constants.expoConfig?.extra?.APP_VARIANT === 'development';
-      const webhookUrl = isDev 
-        ? Constants.expoConfig?.extra?.n8nWebhookUrl_dev 
-        : Constants.expoConfig?.extra?.n8nWebhookUrl_prod;
+      // Call Railway PostcardService for Android to maintain consistency with iOS
+      console.log('[XLPOSTCARDS][IAP] Calling Railway PostcardService for Android purchase...');
+      const railwayUrl = Constants.expoConfig?.extra?.railwayPostcardUrl;
       
-      if (webhookUrl) {
+      if (railwayUrl) {
         try {
           const transactionId = purchase.transactionId || uuidv4();
           const postcardPriceCents = Constants.expoConfig?.extra?.postcardPriceCents || 199;
-          const APP_VARIANT = Constants.expoConfig?.extra?.APP_VARIANT || 'production';
           
           const requestBody = {
             amount: postcardPriceCents,
             transactionId,
-            APP_VARIANT,
             platform: 'android',
             purchaseToken: purchase.purchaseToken
           };
           
-          console.log('[XLPOSTCARDS][IAP] Android N8N webhook request:', JSON.stringify(requestBody, null, 2));
+          console.log('[XLPOSTCARDS][IAP] Android Railway request:', JSON.stringify(requestBody, null, 2));
           
-          const response = await fetch(webhookUrl, {
+          const response = await fetch(`${railwayUrl}/process-android-purchase`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
           });
           
           const responseText = await response.text();
-          console.log('[XLPOSTCARDS][IAP] N8N webhook response:', responseText);
+          console.log('[XLPOSTCARDS][IAP] Railway response:', responseText);
           
           if (response.ok) {
-            console.log('[XLPOSTCARDS][IAP] N8N webhook call successful for Android');
+            console.log('[XLPOSTCARDS][IAP] Railway call successful for Android');
           } else {
-            console.warn('[XLPOSTCARDS][IAP] N8N webhook returned error status:', response.status);
+            console.warn('[XLPOSTCARDS][IAP] Railway returned error status:', response.status);
           }
-        } catch (webhookError) {
-          console.error('[XLPOSTCARDS][IAP] N8N webhook call failed for Android:', webhookError);
+        } catch (railwayError) {
+          console.error('[XLPOSTCARDS][IAP] Railway call failed for Android:', railwayError);
           // Don't throw error here - the Google Play purchase was successful
-          // The webhook failure shouldn't prevent the purchase from proceeding
+          // The Railway failure shouldn't prevent the purchase from proceeding
         }
       } else {
-        console.warn('[XLPOSTCARDS][IAP] N8N webhook URL not configured for Android');
+        console.warn('[XLPOSTCARDS][IAP] Railway PostcardService URL not configured for Android');
       }
       
       return purchase;

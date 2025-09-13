@@ -49,7 +49,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.1.18",
+  version: REMOTE_APP_VERSION || "2.1.19.1",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",
@@ -156,13 +156,10 @@ module.exports = {
       const live = process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
       return (FORCE_TEST_MODE ? test : live);
     })(),
-
-    n8nWebhookUrl_dev: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-dev',
-    n8nWebhookUrl_prod: 'https://trulygarden.app.n8n.cloud/webhook/stripe-payment-intent-prod',
-    n8nPostcardBackWebhookUrl: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified',
-    n8nPostcardBackWebhookUrl_v21: 'https://trulygarden.app.n8n.cloud/webhook/generate-postcard-back-unified-2.1',
-    railwayPostcardUrl: 'https://postcardservice-production.up.railway.app/generate-postcard-back',
-    useN8nV21: process.env.USE_N8N_V21 === 'true' || APP_VARIANT === 'development',
+    
+    railwayPostcardUrl: IS_DEV 
+      ? 'https://postcardservice-test.up.railway.app'
+      : 'https://postcardservice-prod.up.railway.app',
     useRailway: process.env.USE_RAILWAY === 'true' || APP_VARIANT === 'development',
     postcardPriceCents: 199,
     postcardPriceDollars: 1.99,

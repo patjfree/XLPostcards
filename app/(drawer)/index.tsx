@@ -603,7 +603,8 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           // Generate Railway preview before navigation
           try {
             console.log('[RAILWAY] Generating preview for postcard...');
-            const railwayUrl = 'https://postcardservice-production.up.railway.app/generate-complete-postcard';
+            const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+            const railwayUrl = `${railwayBaseUrl}/generate-complete-postcard`;
             
             // Generate real transaction ID for the postcard
             const realTransactionId = require('react-native-get-random-values');

@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Optional, List
 from PIL import Image, ImageDraw, ImageFont
 import io, base64, os, tempfile, urllib.request, requests
-import asyncio, time
+import asyncio, time, hmac, hashlib
 from datetime import datetime
 import cloudinary
 import cloudinary.uploader
 import resend
+import stripe
+import json
 
 app = FastAPI()
 
@@ -22,8 +25,13 @@ cloudinary.config(
 # Configure Resend for email notifications
 resend.api_key = os.getenv("RESEND_API_KEY")
 
-# In-memory transaction storage (avoiding database for now)
+# Configure Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+# In-memory transaction storage (will be replaced with database)
 transaction_store = {}
+payment_sessions = {}  # Store payment session data
 
 class Recipient(BaseModel):
     to: str = Field(default="")
@@ -48,6 +56,22 @@ class PaymentConfirmedRequest(BaseModel):
     userEmail: Optional[str] = ""
 
 class StannpSubmissionRequest(BaseModel):
+    transactionId: str
+
+class CreatePaymentSessionRequest(BaseModel):
+    message: str
+    recipientInfo: Recipient
+    postcardSize: str
+    returnAddressText: str = ""
+    frontImageUri: str
+    userEmail: Optional[str] = ""
+    successUrl: Optional[str] = "https://stripe.com/docs/payments/checkout/custom-success-page"
+    cancelUrl: Optional[str] = "https://stripe.com/docs/payments/checkout"
+
+class PaymentSessionResponse(BaseModel):
+    success: bool
+    sessionId: str
+    checkoutUrl: str
     transactionId: str
 
 def load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -611,6 +635,279 @@ async def generate_postcard_back(request: PostcardRequest):
         print(f"[ERROR] {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==================== STRIPE PAYMENT ENDPOINTS ====================
+
+@app.post("/create-payment-intent")
+async def create_payment_intent(request: Request):
+    """Create Stripe PaymentIntent for mobile app payment sheet"""
+    try:
+        body = await request.json()
+        amount = body.get('amount', 199)
+        transaction_id = body.get('transactionId')
+        
+        print(f"[STRIPE] Creating PaymentIntent for transaction: {transaction_id}, amount: {amount}")
+        
+        # Create PaymentIntent
+        intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency='usd',
+            metadata={
+                'transaction_id': transaction_id,
+                'service': 'xlpostcards'
+            }
+        )
+        
+        print(f"[STRIPE] PaymentIntent created: {intent.id}")
+        
+        return {
+            "success": True,
+            "clientSecret": intent.client_secret,
+            "paymentIntentId": intent.id
+        }
+        
+    except Exception as e:
+        print(f"[STRIPE] PaymentIntent creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"PaymentIntent creation failed: {str(e)}")
+
+@app.post("/process-android-purchase")
+async def process_android_purchase(request: Request):
+    """Process Android IAP purchase verification"""
+    try:
+        body = await request.json()
+        transaction_id = body.get('transactionId')
+        purchase_token = body.get('purchaseToken')
+        platform = body.get('platform', 'android')
+        
+        print(f"[ANDROID] Processing purchase for transaction: {transaction_id}")
+        print(f"[ANDROID] Platform: {platform}, Purchase token: {purchase_token[:20]}...")
+        
+        # Here you would typically verify the purchase token with Google Play
+        # For now, we'll just acknowledge the purchase
+        
+        return {
+            "success": True,
+            "transactionId": transaction_id,
+            "status": "purchase_verified",
+            "platform": platform
+        }
+        
+    except Exception as e:
+        print(f"[ANDROID] Purchase processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Android purchase processing failed: {str(e)}")
+
+# ==================== EXISTING STRIPE CHECKOUT ENDPOINTS ====================
+
+@app.post("/create-payment-session")
+async def create_payment_session(request: CreatePaymentSessionRequest):
+    """Create Stripe checkout session for postcard payment"""
+    try:
+        print(f"[STRIPE] Creating payment session for postcard")
+        print(f"[STRIPE] User email: {request.userEmail}")
+        print(f"[STRIPE] Postcard size: {request.postcardSize}")
+        print(f"[STRIPE] Success URL: {request.successUrl}")
+        print(f"[STRIPE] Cancel URL: {request.cancelUrl}")
+        
+        # Generate unique transaction ID for this payment
+        import uuid
+        transaction_id = str(uuid.uuid4())
+        
+        # Store the postcard data temporarily (will be processed after payment)
+        payment_sessions[transaction_id] = {
+            "message": request.message,
+            "recipientInfo": request.recipientInfo.model_dump(),
+            "postcardSize": request.postcardSize,
+            "returnAddressText": request.returnAddressText,
+            "frontImageUri": request.frontImageUri,
+            "userEmail": request.userEmail,
+            "status": "pending_payment",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # Create Stripe checkout session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'XL Postcard',
+                        'description': f'{request.postcardSize.upper()} postcard delivery'
+                    },
+                    'unit_amount': 199,  # $1.99 in cents
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=request.successUrl + f"?transaction_id={transaction_id}",
+            cancel_url=request.cancelUrl + f"?transaction_id={transaction_id}",
+            customer_email=request.userEmail if request.userEmail else None,
+            metadata={
+                'transaction_id': transaction_id,
+                'service': 'xlpostcards',
+                'postcard_size': request.postcardSize
+            }
+        )
+        
+        # Store session info
+        payment_sessions[transaction_id]["stripe_session_id"] = checkout_session.id
+        payment_sessions[transaction_id]["checkout_url"] = checkout_session.url
+        
+        print(f"[STRIPE] Payment session created: {checkout_session.id}")
+        print(f"[STRIPE] Transaction ID: {transaction_id}")
+        
+        return PaymentSessionResponse(
+            success=True,
+            sessionId=checkout_session.id,
+            checkoutUrl=checkout_session.url,
+            transactionId=transaction_id
+        )
+        
+    except Exception as e:
+        print(f"[STRIPE] Payment session creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Payment session creation failed: {str(e)}")
+
+@app.post("/stripe-webhook")
+async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
+    """Handle Stripe webhook events"""
+    try:
+        payload = await request.body()
+        
+        if not STRIPE_WEBHOOK_SECRET:
+            print("[WEBHOOK] WARNING: No webhook secret configured")
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+        else:
+            try:
+                event = stripe.Webhook.construct_event(
+                    payload, stripe_signature, STRIPE_WEBHOOK_SECRET
+                )
+            except ValueError:
+                print("[WEBHOOK] Invalid payload")
+                raise HTTPException(status_code=400, detail="Invalid payload")
+            except stripe.error.SignatureVerificationError:
+                print("[WEBHOOK] Invalid signature")
+                raise HTTPException(status_code=400, detail="Invalid signature")
+        
+        print(f"[WEBHOOK] Received event: {event['type']}")
+        
+        # Handle successful payment from checkout session (web checkout)
+        if event['type'] == 'checkout.session.completed':
+            session = event['data']['object']
+            transaction_id = session['metadata'].get('transaction_id')
+            
+            print(f"[WEBHOOK] Checkout session completed for transaction: {transaction_id}")
+            
+            if transaction_id and transaction_id in payment_sessions:
+                # Update payment status
+                payment_sessions[transaction_id]["status"] = "payment_completed"
+                payment_sessions[transaction_id]["stripe_payment_intent_id"] = session.get('payment_intent')
+                payment_sessions[transaction_id]["payment_completed_at"] = datetime.now().isoformat()
+                
+                # Process the postcard asynchronously
+                asyncio.create_task(process_paid_postcard(transaction_id))
+                
+            else:
+                print(f"[WEBHOOK] Transaction not found: {transaction_id}")
+        
+        # Handle successful payment from PaymentIntent (Payment Sheet)
+        elif event['type'] == 'payment_intent.succeeded':
+            payment_intent = event['data']['object']
+            transaction_id = payment_intent['metadata'].get('transaction_id')
+            
+            print(f"[WEBHOOK] PaymentIntent succeeded for transaction: {transaction_id}")
+            
+            if transaction_id and transaction_id in transaction_store:
+                # Update transaction status
+                transaction_store[transaction_id]["status"] = "payment_confirmed"
+                transaction_store[transaction_id]["stripePaymentIntentId"] = payment_intent['id']
+                transaction_store[transaction_id]["payment_completed_at"] = datetime.now().isoformat()
+                
+                print(f"[WEBHOOK] Processing PaymentIntent postcard for transaction: {transaction_id}")
+                
+                # Submit to Stannp directly
+                try:
+                    stannp_request = StannpSubmissionRequest(transactionId=transaction_id)
+                    asyncio.create_task(submit_to_stannp(stannp_request))
+                    print(f"[WEBHOOK] Stannp submission initiated for transaction: {transaction_id}")
+                except Exception as e:
+                    print(f"[WEBHOOK] Error initiating Stannp submission: {e}")
+                
+            else:
+                print(f"[WEBHOOK] Transaction not found in transaction_store: {transaction_id}")
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        print(f"[WEBHOOK] Error processing webhook: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def process_paid_postcard(transaction_id: str):
+    """Process postcard after successful payment"""
+    try:
+        print(f"[POSTCARD] Processing paid postcard: {transaction_id}")
+        
+        session_data = payment_sessions.get(transaction_id)
+        if not session_data:
+            print(f"[POSTCARD] Session data not found: {transaction_id}")
+            return
+        
+        # Create the complete postcard (front + back)
+        postcard_request = PostcardRequest(
+            message=session_data["message"],
+            recipientInfo=Recipient(**session_data["recipientInfo"]),
+            postcardSize=session_data["postcardSize"],
+            returnAddressText=session_data["returnAddressText"],
+            transactionId=transaction_id,
+            frontImageUri=session_data["frontImageUri"],
+            userEmail=session_data["userEmail"]
+        )
+        
+        # Generate complete postcard
+        print(f"[POSTCARD] Generating complete postcard for {transaction_id}")
+        result = await generate_complete_postcard(postcard_request)
+        
+        # Submit to Stannp
+        print(f"[POSTCARD] Submitting to Stannp: {transaction_id}")
+        stannp_request = StannpSubmissionRequest(transactionId=transaction_id)
+        await submit_to_stannp(stannp_request)
+        
+        print(f"[POSTCARD] Successfully processed paid postcard: {transaction_id}")
+        
+    except Exception as e:
+        print(f"[POSTCARD] Error processing paid postcard {transaction_id}: {str(e)}")
+        
+        # Send failure notification
+        if session_data and session_data.get("userEmail"):
+            send_email_notification(
+                session_data["userEmail"],
+                "Postcard Processing Issue",
+                "Your payment was successful but we encountered an issue processing your postcard. Our team has been notified and will resolve this shortly. You will receive a credit or your postcard will be sent within 24 hours."
+            )
+
+@app.get("/payment-status/{transaction_id}")
+async def get_payment_status(transaction_id: str):
+    """Get payment and processing status"""
+    if transaction_id in payment_sessions:
+        session_data = payment_sessions[transaction_id]
+        return {
+            "success": True,
+            "transaction_id": transaction_id,
+            "status": session_data["status"],
+            "created_at": session_data.get("created_at"),
+            "payment_completed_at": session_data.get("payment_completed_at"),
+            "postcard_submitted_at": session_data.get("postcard_submitted_at")
+        }
+    elif transaction_id in transaction_store:
+        # Check legacy transaction store
+        txn = transaction_store[transaction_id]
+        return {
+            "success": True,
+            "transaction_id": transaction_id,
+            "status": txn["status"],
+            "created_at": txn.get("created_at")
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "PostcardService", "version": "2.1.1"}
@@ -628,6 +925,43 @@ async def test_email(email: str = "test@example.com"):
         return {"success": True, "message": f"Test email sent to {email}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@app.post("/manual-process-payment")
+async def manual_process_payment(request: Request):
+    """Manually trigger payment processing and Stannp submission for testing"""
+    try:
+        body = await request.json()
+        transaction_id = body.get('transactionId')
+        payment_intent_id = body.get('paymentIntentId', 'manual_test')
+        
+        print(f"[MANUAL] Processing payment manually for transaction: {transaction_id}")
+        
+        if not transaction_id:
+            raise HTTPException(status_code=400, detail="transactionId is required")
+        
+        if transaction_id not in transaction_store:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Update transaction status
+        transaction_store[transaction_id]["status"] = "payment_confirmed"
+        transaction_store[transaction_id]["stripePaymentIntentId"] = payment_intent_id
+        transaction_store[transaction_id]["payment_completed_at"] = datetime.now().isoformat()
+        
+        print(f"[MANUAL] Submitting to Stannp for transaction: {transaction_id}")
+        
+        # Submit to Stannp
+        stannp_request = StannpSubmissionRequest(transactionId=transaction_id)
+        result = await submit_to_stannp(stannp_request)
+        
+        return {
+            "success": True,
+            "message": f"Payment processed and submitted to Stannp for transaction {transaction_id}",
+            "result": result
+        }
+        
+    except Exception as e:
+        print(f"[MANUAL] Error processing payment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
