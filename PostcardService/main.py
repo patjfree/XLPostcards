@@ -448,8 +448,10 @@ async def submit_to_stannp_api(txn: dict) -> dict:
         print(f"[DEBUG][STANNP] - backUrl is data URL: {back_url.startswith('data:')}")
 
     # Prepare Stannp API payload
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    is_test_mode = environment != "production"
     stannp_payload = {
-        "test": "true",  # Always test mode for now
+        "test": "true" if is_test_mode else "false",
         "size": "6x9" if txn["postcardSize"] == "xl" else "A6",
         "front": front_url,
         "back": back_url,

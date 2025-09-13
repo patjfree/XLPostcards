@@ -4,13 +4,13 @@ import 'dotenv/config';
 const PROFILE = process.env.EAS_BUILD_PROFILE || '';
 const isLocalDev = !process.env.EAS_BUILD_PROFILE;
 
-const APP_VARIANT =
-  (PROFILE === 'ios-simulator' || PROFILE.includes('simulator') || isLocalDev)
-    ? 'development'
-    : (process.env.APP_VARIANT ||
-        (PROFILE === 'development' ? 'development'
-         : PROFILE === 'preview' ? 'preview'
-         : 'production'));
+const APP_VARIANT = process.env.APP_VARIANT ||
+  (PROFILE === 'production' ? 'production'
+   : PROFILE === 'preview' ? 'preview'
+   : PROFILE === 'development' ? 'development'
+   : PROFILE === 'ios-simulator' || PROFILE.includes('simulator') ? 'development'
+   : isLocalDev ? 'development'
+   : 'production');
 
 const IS_DEV = APP_VARIANT === 'development';
 const IS_PREVIEW = APP_VARIANT === 'preview';
@@ -32,6 +32,8 @@ const getPackageName = () => {
 
 // ------- App name shown on device (optional, keep your current scheme) -------
 const getAppName = () => {
+  // For production builds, always use clean name
+  if (PROFILE === 'production' || APP_VARIANT === 'production') return 'XLPostcards';
   if (IS_DEV && isLocalDev) return 'Simulator - Test CC OK';
   if (IS_DEV) return 'D:XLPostcards';
   if (IS_PREVIEW) return 'P:XLPostcards';
@@ -49,7 +51,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.1.19.1",
+  version: REMOTE_APP_VERSION || "2.1.19",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",
@@ -67,8 +69,8 @@ module.exports = {
   assetBundlePatterns: ["**/*"],
 
   ios: {
-    // Force prod bundle on the production profile; otherwise use computed
-    bundleIdentifier: (PROFILE === 'production') ? baseId : getBundleIdentifier(),
+    // Always force prod bundle ID for production profile
+    bundleIdentifier: baseId, // Always use com.patjfree.xlpostcards for production builds
     supportsTablet: true,
     deploymentTarget: "13.0",
     // Prefer EAS remote buildNumber; allow manual override via IOS_BUILD_NUMBER
@@ -81,7 +83,7 @@ module.exports = {
   },
 
   android: {
-    package: getPackageName(),
+    package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
     // Prefer EAS remote versionCode; allow manual override via ANDROID_VERSION_CODE
     versionCode: parseInt(
       (process.env.ANDROID_VERSION_CODE ?? REMOTE_ANDROID_VERSION_CODE ?? '1'),
