@@ -284,6 +284,14 @@ async def generate_complete_postcard(request: PostcardRequest):
             
         
         # Store transaction info in memory
+        # Check if transaction exists and preserve email
+        existing_email = ""
+        if request.transactionId in transaction_store:
+            existing_email = transaction_store[request.transactionId].get("userEmail", "")
+        
+        # Use provided email or preserve existing email
+        final_email = request.userEmail or existing_email
+        
         transaction_store[request.transactionId] = {
             "frontUrl": front_url,
             "backUrl": back_url,
@@ -292,10 +300,10 @@ async def generate_complete_postcard(request: PostcardRequest):
             "postcardSize": request.postcardSize,
             "status": "ready_for_payment",
             "created_at": datetime.now().isoformat(),
-            "userEmail": request.userEmail or ""
+            "userEmail": final_email
         }
         
-        print(f"[COMPLETE] Stored user email: '{request.userEmail}' for transaction {request.transactionId}")
+        print(f"[COMPLETE] Stored user email: '{final_email}' for transaction {request.transactionId}")
         
         print(f"[COMPLETE] Generated complete postcard for transaction {request.transactionId}")
         
@@ -832,6 +840,29 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
                     print(f"[WEBHOOK] Stannp submission initiated for transaction: {transaction_id}")
                 except Exception as e:
                     print(f"[WEBHOOK] Error initiating Stannp submission: {e}")
+                    
+                    # Send error notifications
+                    txn = transaction_store.get(transaction_id, {})
+                    user_email = txn.get("userEmail")
+                    payment_intent_id = payment_intent['id']
+                    
+                    # Email user about failure
+                    if user_email:
+                        send_email_notification(
+                            user_email,
+                            "Postcard Processing Issue",
+                            "Your payment was successful but we encountered an issue processing your postcard. Our team has been notified and will resolve this shortly. You will receive a credit or your postcard will be sent within 24 hours."
+                        )
+                    
+                    # Email admin for manual refund
+                    send_email_notification(
+                        "info@xlpostcards.com",
+                        f"Manual Refund Required - {transaction_id}",
+                        f"Transaction {transaction_id} failed Stannp submission after successful payment. Please issue Stripe refund for PaymentIntent {payment_intent_id}. User email: {user_email or 'not provided'}"
+                    )
+                    
+                    # Mark transaction as failed
+                    transaction_store[transaction_id]["status"] = "failed"
                 
             else:
                 print(f"[WEBHOOK] Transaction not found in transaction_store: {transaction_id}")
