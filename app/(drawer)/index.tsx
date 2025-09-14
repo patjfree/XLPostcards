@@ -468,7 +468,7 @@ export default function HomeScreen() {
     // Close and unmount recipient modal before navigation
     setShowRecipientModal(false);
     setShowRecipientModalComponent(false);
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!showAddressModal && 
           !stateDropdownOpen && 
           !editingAddressId && 
