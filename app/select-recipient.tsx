@@ -49,11 +49,11 @@ const validPostcardSize: PostcardSize = (supportedPostcardSizes.includes(postcar
                 style={styles.item}
                 onPress={() => {
                   if (item.id === 'add_new') {
-                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Adding new address with params:', { addNewAddress: 'true', imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize });
-                    router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize } });
+                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Adding new address with params:', { addNewAddress: 'true', imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize });
+                    router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } });
                   } else {
-                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Selecting recipient with params:', { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize });
-                    router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize } });
+                    console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Selecting recipient with params:', { selectedRecipientId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize });
+                    router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } });
                   }
                 }}
               >
@@ -63,7 +63,7 @@ const validPostcardSize: PostcardSize = (supportedPostcardSizes.includes(postcar
                 <View style={styles.iconRow}>
                   <TouchableOpacity
                     style={styles.iconButton}
-                    onPress={() => router.replace({ pathname: '/', params: { editAddressId: item.id } })}
+                    onPress={() => router.replace({ pathname: '/', params: { editAddressId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } })}
                   >
                     <Ionicons name="create-outline" size={22} color="#0a7ea4" />
                   </TouchableOpacity>
@@ -80,8 +80,8 @@ const validPostcardSize: PostcardSize = (supportedPostcardSizes.includes(postcar
         />
         <View style={{ height: 32 }} />
         <TouchableOpacity style={styles.cancelButton} onPress={() => {
-          console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Canceling with params:', { imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize });
-          router.replace({ pathname: '/', params: { imageUri: params.imageUri, message: params.message, postcardSize: validPostcardSize } });
+          console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Canceling with params:', { imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize });
+          router.replace({ pathname: '/', params: { imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } });
         }}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
