@@ -130,6 +130,8 @@ const templateRequirements = {
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
+  const [isCreatingPostcard, setIsCreatingPostcard] = useState(false);
+  const [postcardProgress, setPostcardProgress] = useState('');
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [templateType, setTemplateType] = useState<TemplateType>('single');
   const [postcardMessage, setPostcardMessage] = useState('');
@@ -429,7 +431,7 @@ export default function HomeScreen() {
   }, [navigation]);
 
   // Update handleCreatePostcard to unmount recipient modal component before navigation
-  const handleCreatePostcard = () => {
+  const handleCreatePostcard = async () => {
     const requiredImages = templateRequirements[templateType];
     if (images.length < requiredImages) {
       Alert.alert('Not enough photos', `Please select ${requiredImages} photo${requiredImages > 1 ? 's' : ''} for the ${templateType.replace('_', ' ')} template.`);
@@ -437,6 +439,11 @@ export default function HomeScreen() {
     }
     if (!postcardMessage) {
       Alert.alert('No message', 'Please enter a message.');
+      return;
+    }
+    
+    // Prevent multiple clicks
+    if (isCreatingPostcard) {
       return;
     }
     
@@ -478,17 +485,24 @@ export default function HomeScreen() {
           id: selected.id,
         };
         console.log('[XLPOSTCARDS][MAIN] handleCreatePostcard recipientInfo:', recipientInfo);
+        
+        // Start loading state
+        setIsCreatingPostcard(true);
+        setPostcardProgress('Preparing your postcard...');
+        
         // Get return address settings and generate Railway preview
-        Promise.all([
-          AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
-          AsyncStorage.getItem(SETTINGS_KEYS.INCLUDE_RETURN_ADDRESS),
-          AsyncStorage.getItem(SETTINGS_KEYS.EMAIL),
-        ]).then(async ([savedReturnAddress, savedIncludeReturnAddress, savedUserEmail]) => {
+        try {
+          const [savedReturnAddress, savedIncludeReturnAddress, savedUserEmail] = await Promise.all([
+            AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
+            AsyncStorage.getItem(SETTINGS_KEYS.INCLUDE_RETURN_ADDRESS),
+            AsyncStorage.getItem(SETTINGS_KEYS.EMAIL),
+          ]);
           const includeReturnAddress = savedIncludeReturnAddress === 'true';
           const returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
           
           // Generate Railway preview before navigation
-          try {
+          setPostcardProgress('Uploading your images...');
+          
             console.log('[RAILWAY] Generating preview for postcard...');
             const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
             const railwayUrl = `${railwayBaseUrl}/generate-complete-postcard`;
@@ -503,6 +517,7 @@ export default function HomeScreen() {
             const frontImageCloudinaryUrls: string[] = [];
             
             for (let i = 0; i < images.length; i++) {
+              setPostcardProgress(`Uploading image ${i + 1} of ${images.length}...`);
               const imageUrl = await uploadToCloudinary(
                 images[i].uri,
                 `postcard-front-${transactionId}-${i}`
@@ -527,6 +542,8 @@ export default function HomeScreen() {
             
             console.log('[RAILWAY] User email from settings:', savedUserEmail);
             
+            setPostcardProgress('Creating your postcard template...');
+            
             const railwayResponse = await fetch(railwayUrl, {
               method: 'POST',
               headers: {
@@ -541,6 +558,12 @@ export default function HomeScreen() {
               console.log('[RAILWAY] Front URL:', railwayResult.frontUrl);
               console.log('[RAILWAY] Back URL:', railwayResult.backUrl);
               console.log('[RAILWAY] Status:', railwayResult.status);
+              
+              setPostcardProgress('Opening preview...');
+              
+              // Reset loading state
+              setIsCreatingPostcard(false);
+              setPostcardProgress('');
               
               // Navigate with Railway URLs and transaction ID
               router.push({
@@ -562,6 +585,10 @@ export default function HomeScreen() {
             } else {
               console.error('[RAILWAY] Preview generation failed, proceeding without Railway preview');
               
+              // Reset loading state
+              setIsCreatingPostcard(false);
+              setPostcardProgress('');
+              
               // Navigate without Railway URL (fallback to local rendering)
               router.push({
                 pathname: '/postcard-preview',
@@ -579,6 +606,10 @@ export default function HomeScreen() {
           } catch (error) {
             console.error('[RAILWAY] Preview generation error:', error);
             
+            // Reset loading state
+            setIsCreatingPostcard(false);
+            setPostcardProgress('');
+            
             // Navigate without Railway URL (fallback to local rendering)
             router.push({
               pathname: '/postcard-preview',
@@ -593,7 +624,12 @@ export default function HomeScreen() {
               },
             });
           }
-        });
+        } catch (outerError) {
+          console.error('[MAIN] Error in handleCreatePostcard:', outerError);
+          setIsCreatingPostcard(false);
+          setPostcardProgress('');
+          Alert.alert('Error', 'Something went wrong. Please try again.');
+        }
       } else {
         console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
       }
@@ -1071,14 +1107,30 @@ export default function HomeScreen() {
             style={[
               styles.submitButton,
               styles.createButton,
-              (!images.length || !postcardMessage || images.length < templateRequirements[templateType]) && { opacity: 0.5 },
+              (!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard) && { opacity: 0.5 },
               { zIndex: 1, height: 56, minHeight: 56, maxHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, marginTop: 0, marginBottom: 0 }
             ]}
             onPress={handleCreatePostcard}
-            disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType]}
+            disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard}
           >
-            <Text style={styles.createButtonText}>Create Postcard</Text>
+            {isCreatingPostcard ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.createButtonText}>Creating...</Text>
+              </View>
+            ) : (
+              <Text style={styles.createButtonText}>Create Postcard</Text>
+            )}
           </TouchableOpacity>
+          
+          {/* Progress indicator */}
+          {isCreatingPostcard && postcardProgress && (
+            <View style={{ marginTop: 12, alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, color: '#666', textAlign: 'center' }}>
+                {postcardProgress}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.formContainer}>
