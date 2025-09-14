@@ -624,12 +624,6 @@ export default function HomeScreen() {
               },
             });
           }
-        } catch (outerError) {
-          console.error('[MAIN] Error in handleCreatePostcard:', outerError);
-          setIsCreatingPostcard(false);
-          setPostcardProgress('');
-          Alert.alert('Error', 'Something went wrong. Please try again.');
-        }
       } else {
         console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
       }
