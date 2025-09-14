@@ -579,6 +579,8 @@ export default function PostcardPreviewScreen() {
         const navParams: NavigationParams = { 
           resetModals: 'true', 
           imageUri, 
+          imageUris,
+          templateType,
           message,
           postcardSize,
         };
@@ -610,6 +612,8 @@ export default function PostcardPreviewScreen() {
     
     const navParams: NavigationParams = { 
       imageUri, 
+      imageUris,
+      templateType,
       message, 
       resetModals: 'true',
       postcardSize,
