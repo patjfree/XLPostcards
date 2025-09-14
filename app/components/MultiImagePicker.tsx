@@ -31,6 +31,30 @@ const templateRequirements = {
   four_quarters: 4,
 };
 
+// Calculate aspect ratio for each photo slot based on template and position
+const getAspectRatioForSlot = (templateType: TemplateType, slotIndex: number): [number, number] => {
+  switch (templateType) {
+    case 'single':
+      return [3, 2]; // Full postcard 3:2
+    
+    case 'two_side_by_side':
+      return [3, 4]; // Each half is 3:4 (vertical)
+    
+    case 'three_photos':
+      if (slotIndex === 0) {
+        return [3, 4]; // Left large photo is 3:4 (vertical)
+      } else {
+        return [3, 2]; // Right photos are 3:2 (horizontal)
+      }
+    
+    case 'four_quarters':
+      return [3, 2]; // Each quarter is 3:2
+    
+    default:
+      return [3, 2]; // Default fallback
+  }
+};
+
 export default function MultiImagePicker({ 
   images, 
   onImagesChange, 
@@ -40,7 +64,10 @@ export default function MultiImagePicker({
   const requiredImages = templateRequirements[templateType];
   const canAddMore = images.length < maxImages;
 
-  const pickImage = async () => {
+  const pickImage = async (targetSlotIndex?: number) => {
+    // Determine which slot we're filling (either passed or next available)
+    const slotIndex = targetSlotIndex !== undefined ? targetSlotIndex : images.length;
+    const [aspectWidth, aspectHeight] = getAspectRatioForSlot(templateType, slotIndex);
     try {
       // iOS-specific: Force memory cleanup before opening picker
       if (Platform.OS === 'ios' && global.gc) {
@@ -48,10 +75,14 @@ export default function MultiImagePicker({
       }
       
       if (Platform.OS === 'ios') {
-        // iOS: Use react-native-image-crop-picker for proper 3:2 cropping and rotation
+        // iOS: Use react-native-image-crop-picker for template-aware cropping
+        const cropWidth = aspectWidth * 500; // Scale up for quality
+        const cropHeight = aspectHeight * 500;
+        console.log(`iOS cropping for slot ${slotIndex}: ${aspectWidth}:${aspectHeight} (${cropWidth}x${cropHeight})`);
+        
         const pickedImage = await ImagePicker.openPicker({
-          width: 1500,
-          height: 1000,
+          width: cropWidth,
+          height: cropHeight,
           cropping: true,
           cropperToolbarTitle: 'Crop your postcard image',
           cropperChooseText: 'Choose',
@@ -71,21 +102,39 @@ export default function MultiImagePicker({
           cropperToolbarWidgetColor: '#ffffff',
         });
         
+        // Ensure we have base64 data for OpenAI analysis
+        let imageBase64 = pickedImage.data;
+        
+        if (!imageBase64) {
+          console.log('iOS: No base64 from picker, this should not happen with includeBase64: true');
+          // This shouldn't happen with includeBase64: true, but just in case
+          imageBase64 = undefined;
+        }
+
         const newImage: SelectedImage = {
           uri: pickedImage.path,
-          width: pickedImage.width,
-          height: pickedImage.height,
-          base64: pickedImage.data || undefined,
+          width: cropWidth,
+          height: cropHeight,
+          base64: imageBase64,
           type: 'image',
           fileName: pickedImage.filename || 'image.jpg',
           fileSize: pickedImage.size || 0,
           assetId: '',
         };
         
-        onImagesChange([...images, newImage]);
+        // Insert image at the correct slot position  
+        const updatedImages = [...images];
+        if (targetSlotIndex !== undefined && targetSlotIndex < updatedImages.length) {
+          updatedImages[targetSlotIndex] = newImage; // Replace existing slot
+        } else {
+          updatedImages.push(newImage); // Add to end
+        }
+        onImagesChange(updatedImages);
         
       } else {
-        // Android: Use simple Expo ImagePicker with 3:2 aspect ratio
+        // Android: Use Expo ImagePicker with template-aware aspect ratio
+        console.log(`Android cropping for slot ${slotIndex}: ${aspectWidth}:${aspectHeight}`);
+        
         const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
@@ -95,7 +144,7 @@ export default function MultiImagePicker({
         const result = await ExpoImagePicker.launchImageLibraryAsync({
           mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
-          aspect: [3, 2], // 3:2 aspect ratio for postcard
+          aspect: [aspectWidth, aspectHeight], // Template-aware aspect ratio
           quality: 0.9,
           base64: true,
         });
@@ -103,11 +152,15 @@ export default function MultiImagePicker({
         if (!result.canceled && result.assets[0]) {
           const selectedImage = result.assets[0];
           
-          // Ensure the image is properly sized to 3:2 aspect ratio
+          // Calculate target dimensions based on aspect ratio
+          const targetWidth = aspectWidth * 500; // Scale up for quality  
+          const targetHeight = aspectHeight * 500;
+          
+          // Ensure the image is properly sized to template aspect ratio
           const manipulatedImage = await ImageManipulator.manipulateAsync(
             selectedImage.uri,
             [
-              { resize: { width: 1500 } } // Let height adjust automatically to maintain aspect ratio
+              { resize: { width: targetWidth } } // Let height adjust automatically to maintain aspect ratio
             ],
             {
               compress: 0.9,
@@ -116,11 +169,11 @@ export default function MultiImagePicker({
             }
           );
 
-          // Ensure final dimensions are exactly 3:2 ratio (1500x1000)
+          // Ensure final dimensions match exactly
           const finalImage = await ImageManipulator.manipulateAsync(
             manipulatedImage.uri,
             [
-              { resize: { width: 1500, height: 1000 } }
+              { resize: { width: targetWidth, height: targetHeight } }
             ],
             {
               compress: 0.9,
@@ -129,18 +182,43 @@ export default function MultiImagePicker({
             }
           );
 
+          // Ensure we have base64 data for OpenAI analysis
+          let imageBase64 = finalImage.base64 || selectedImage.base64;
+          
+          // If still no base64, generate it from the final image
+          if (!imageBase64) {
+            console.log('No base64 found, regenerating from final image');
+            const base64Result = await ImageManipulator.manipulateAsync(
+              finalImage.uri,
+              [],
+              {
+                compress: 0.8,
+                format: ImageManipulator.SaveFormat.JPEG,
+                base64: true,
+              }
+            );
+            imageBase64 = base64Result.base64;
+          }
+
           const newImage: SelectedImage = {
             uri: finalImage.uri,
-            width: 1500,
-            height: 1000,
-            base64: finalImage.base64,
+            width: targetWidth,
+            height: targetHeight,
+            base64: imageBase64,
             type: 'image',
             fileName: selectedImage.fileName || 'image.jpg',
             fileSize: selectedImage.fileSize || 0,
             assetId: selectedImage.assetId || '',
           };
           
-          onImagesChange([...images, newImage]);
+          // Insert image at the correct slot position
+          const updatedImages = [...images];
+          if (targetSlotIndex !== undefined && targetSlotIndex < updatedImages.length) {
+            updatedImages[targetSlotIndex] = newImage; // Replace existing slot
+          } else {
+            updatedImages.push(newImage); // Add to end
+          }
+          onImagesChange(updatedImages);
         }
       }
     } catch (error) {
@@ -195,7 +273,7 @@ export default function MultiImagePicker({
         ) : (
           <TouchableOpacity
             style={[styles.addImageButton, !canAddMore && styles.disabledButton]}
-            onPress={canAddMore ? pickImage : undefined}
+            onPress={canAddMore ? () => pickImage(index) : undefined}
             disabled={!canAddMore}
           >
             <Ionicons 

@@ -368,22 +368,67 @@ export default function HomeScreen() {
     const salutation = selected?.salutation || '';
     setLoading(true);
     try {
-      // Use the first image for AI analysis
-      const firstImage = images[0];
-      // Prepare base64 image
-      let base64Image = firstImage.base64 ? `data:image/jpeg;base64,${firstImage.base64}` : undefined;
-      // Compose prompt
-      let promptText =
-        `Write a friendly, engaging postcard message (max ${postcardSize === 'regular' ? 60 : 100} words) based on the attached photo.` +
-        (salutation ? ` Start the message with: "${salutation}".` : '') +
-        (postcardMessage ? ` Here are some hints or ideas: ${postcardMessage}` : '') +
-        ` Write it in a casual, personal tone, like a real postcard.`;
+      // Prepare images with base64 validation
+      console.log('Analyzing images:', images.map(img => ({ 
+        uri: img.uri?.substring(0, 50) + '...', 
+        hasBase64: !!img.base64,
+        base64Length: img.base64?.length || 0 
+      })));
+      
+      const validImages = images.filter(img => img.base64).slice(0, 4); // Max 4 images for API efficiency
+      
+      console.log(`Found ${validImages.length} valid images out of ${images.length} total`);
+      
+      if (validImages.length === 0) {
+        Alert.alert('Image Error', 'No valid images with data found. Please try selecting photos again.');
+        return;
+      }
+
+      // Create template-aware prompt based on selected template and number of images
+      let promptText = `Write a friendly, engaging postcard message (max ${postcardSize === 'regular' ? 60 : 100} words) based on `;
+      
+      if (validImages.length === 1) {
+        promptText += 'the attached photo.';
+      } else {
+        promptText += `the ${validImages.length} attached photos. `;
+        if (templateType === 'two_side_by_side') {
+          promptText += 'These photos are arranged side-by-side, so consider their relationship or contrast.';
+        } else if (templateType === 'three_photos') {
+          promptText += 'These photos create a story or collection, so weave them together in your message.';
+        } else if (templateType === 'four_quarters') {
+          promptText += 'These photos form a collage of memories, so create a unified message about the collection.';
+        } else {
+          promptText += 'Consider how these photos work together to tell a story.';
+        }
+      }
+
+      if (salutation) {
+        promptText += ` Start the message with: "${salutation}".`;
+      }
+      
+      if (postcardMessage) {
+        promptText += ` Here are some hints or ideas: ${postcardMessage}`;
+      }
+      
+      promptText += ` Write it in a casual, personal tone, like a real postcard.`;
 
       // Get signature block from settings
       let signatureBlock = await AsyncStorage.getItem(SETTINGS_KEYS.SIGNATURE);
       if (signatureBlock) {
         promptText += ` End the message with: "${signatureBlock}"`;
       }
+
+      // Create content array with text and all valid images
+      const contentArray = [
+        { type: 'text', text: promptText },
+        ...validImages.map(img => ({
+          type: 'image_url',
+          image_url: { 
+            url: `data:image/jpeg;base64,${img.base64}`,
+            detail: 'low' // Use 'low' detail to save tokens while still getting good analysis
+          }
+        }))
+      ];
 
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -397,10 +442,7 @@ export default function HomeScreen() {
           messages: [
             {
               role: 'user',
-              content: [
-                { type: 'text', text: promptText },
-                ...(base64Image ? [{ type: 'image_url', image_url: { url: base64Image } }] : [])
-              ]
+              content: contentArray
             }
           ],
           max_tokens: 400
@@ -414,8 +456,9 @@ export default function HomeScreen() {
       const content = data.choices[0].message.content;
       setPostcardMessage(content);
       setIsAIGenerated(true);
-    } catch {
-      Alert.alert('Error', 'Failed to analyze image.');
+    } catch (error) {
+      console.error('Error analyzing images:', error);
+      Alert.alert('Error', 'Failed to analyze images.');
     } finally {
       setLoading(false);
     }
