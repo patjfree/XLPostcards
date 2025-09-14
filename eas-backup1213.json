@@ -1,0 +1,44 @@
+{
+  "cli": { "appVersionSource": "local" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "development",
+        "STRIPE_PUBLISHABLE_KEY_TEST": "pk_test_51QRNBvKwD63LKpuWJ3IWHYKLYWVML6Fia6Yci4mcLRbSwHz7AsfOBtnlighyfJFBi1CxDzFnQ56XaksSUIcUyV6H00rQww6LU0",
+        "STRIPE_PUBLISHABLE_KEY_LIVE": "pk_live_51QRNBvKwD63LKpuWdU0mL7ya6KymVK2iKcY1pp4oWuT4lfOSLGQPSg6g5k7w1V4xMVlDBgora7Y14C6YJa6q4Ovc001e98XKWM"
+      },
+      "android": { "buildType": "apk" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": { "APP_VARIANT": "preview" },
+      "android": { "buildType": "apk" }
+    },
+    "ios-simulator": {
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "development",
+        "STRIPE_PUBLISHABLE_KEY_TEST": "pk_test_51QRNBvKwD63LKpuWJ3IWHYKLYWVML6Fia6Yci4mcLRbSwHz7AsfOBtnlighyfJFBi1CxDzFnQ56XaksSUIcUyV6H00rQww6LU0",
+        "STRIPE_PUBLISHABLE_KEY_LIVE": "pk_live_51QRNBvKwD63LKpuWdU0mL7ya6KymVK2iKcY1pp4oWuT4lfOSLGQPSg6g5k7w1V4xMVlDBgora7Y14C6YJa6q4Ovc001e98XKWM"
+      },
+      "ios": { "simulator": true }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "APP_VARIANT": "production" },
+      "ios": {
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release",
+        "scheme": "XLPostcards"
+      },
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": { "track": "internal" }
+    }
+  }
+}

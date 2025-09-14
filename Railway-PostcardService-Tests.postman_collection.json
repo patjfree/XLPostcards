@@ -1,0 +1,163 @@
+{
+  "info": {
+    "name": "Railway PostcardService API Tests",
+    "description": "Test collection for XLPostcards Railway PostcardService endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Create Payment Intent",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 199,\n  \"transactionId\": \"test-transaction-{{$randomUUID}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/create-payment-intent",
+          "host": ["{{base_url}}"],
+          "path": ["create-payment-intent"]
+        }
+      }
+    },
+    {
+      "name": "Create Payment Session (Checkout)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Test postcard message from Postman\",\n  \"recipientInfo\": {\n    \"to\": \"John Doe\",\n    \"addressLine1\": \"123 Test Street\",\n    \"addressLine2\": \"Apt 4B\",\n    \"city\": \"Test City\",\n    \"state\": \"CA\",\n    \"zipcode\": \"90210\"\n  },\n  \"postcardSize\": \"regular\",\n  \"returnAddressText\": \"Sender Name\\n123 Sender St\\nSender City, CA 12345\",\n  \"frontImageUri\": \"https://res.cloudinary.com/db9totnmb/image/upload/test-image.jpg\",\n  \"userEmail\": \"test@example.com\",\n  \"successUrl\": \"https://xlpostcards.app/success\",\n  \"cancelUrl\": \"https://xlpostcards.app/cancel\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/create-payment-session",
+          "host": ["{{base_url}}"],
+          "path": ["create-payment-session"]
+        }
+      }
+    },
+    {
+      "name": "Generate Complete Postcard",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Test postcard message from Postman API testing. This is a longer message to test text wrapping and layout.\",\n  \"recipientInfo\": {\n    \"to\": \"Jane Smith\",\n    \"addressLine1\": \"456 Test Avenue\",\n    \"addressLine2\": \"\",\n    \"city\": \"Test Town\",\n    \"state\": \"NY\",\n    \"zipcode\": \"10001\"\n  },\n  \"postcardSize\": \"regular\",\n  \"returnAddressText\": \"Your Name\\n789 Your Street\\nYour City, TX 75001\",\n  \"transactionId\": \"test-postcard-{{$randomUUID}}\",\n  \"frontImageUri\": \"https://res.cloudinary.com/db9totnmb/image/upload/sample.jpg\",\n  \"userEmail\": \"test@xlpostcards.com\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/generate-complete-postcard",
+          "host": ["{{base_url}}"],
+          "path": ["generate-complete-postcard"]
+        }
+      }
+    },
+    {
+      "name": "Stripe Webhook Simulation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Stripe-Signature",
+            "value": "t=1640995200,v1=test_signature"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"evt_test_webhook\",\n  \"object\": \"event\",\n  \"api_version\": \"2020-08-27\",\n  \"created\": 1640995200,\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_session\",\n      \"object\": \"checkout.session\",\n      \"payment_status\": \"paid\",\n      \"payment_intent\": \"pi_test_payment\",\n      \"metadata\": {\n        \"transaction_id\": \"test-webhook-{{$randomUUID}}\",\n        \"service\": \"xlpostcards\",\n        \"postcard_size\": \"regular\"\n      }\n    }\n  },\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"type\": \"checkout.session.completed\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/stripe-webhook",
+          "host": ["{{base_url}}"],
+          "path": ["stripe-webhook"]
+        }
+      }
+    },
+    {
+      "name": "Payment Status Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/payment-status/test-transaction-123",
+          "host": ["{{base_url}}"],
+          "path": ["payment-status", "test-transaction-123"]
+        }
+      }
+    },
+    {
+      "name": "Transaction Status Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/transaction-status/test-transaction-123",
+          "host": ["{{base_url}}"],
+          "path": ["transaction-status", "test-transaction-123"]
+        }
+      }
+    },
+    {
+      "name": "Test Email",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test-email?email=your-email@example.com",
+          "host": ["{{base_url}}"],
+          "path": ["test-email"],
+          "query": [
+            {
+              "key": "email",
+              "value": "your-email@example.com"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://postcardservice-test.up.railway.app",
+      "type": "string"
+    },
+    {
+      "key": "base_url_prod",
+      "value": "https://postcardservice-prod.up.railway.app",
+      "type": "string"
+    }
+  ]
+}

@@ -11,6 +11,190 @@ import cloudinary.uploader
 import resend
 import stripe
 import json
+# Embedded TemplateEngine to avoid import issues in Railway
+class TemplateEngine:
+    """Handle multi-photo template layouts for postcard fronts"""
+    
+    # Standard postcard dimensions (6x9 inches at 300 DPI)
+    REGULAR_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI
+    XL_SIZE = (2700, 1800)       # 9x6 inches at 300 DPI
+    
+    def __init__(self, postcard_size: str = "xl"):
+        self.size = self.XL_SIZE if postcard_size == "xl" else self.REGULAR_SIZE
+        self.width, self.height = self.size
+        
+    def _load_image_from_url(self, image_url: str) -> Image.Image:
+        """Load image from URL or base64 data"""
+        try:
+            if image_url.startswith('data:image'):
+                # Handle base64 data URLs
+                header, encoded = image_url.split(',', 1)
+                image_data = base64.b64decode(encoded)
+                return Image.open(io.BytesIO(image_data)).convert('RGB')
+            else:
+                # Handle regular URLs
+                with urllib.request.urlopen(image_url) as response:
+                    return Image.open(response).convert('RGB')
+        except Exception as e:
+            print(f"[TEMPLATE] Error loading image from {image_url[:50]}...: {e}")
+            # Return a placeholder image
+            placeholder = Image.new('RGB', (400, 400), color='lightgray')
+            return placeholder
+    
+    def _resize_and_crop(self, image: Image.Image, target_size: tuple) -> Image.Image:
+        """Resize and crop image to fit target size while maintaining aspect ratio"""
+        target_width, target_height = target_size
+        
+        # Calculate ratios
+        img_ratio = image.width / image.height
+        target_ratio = target_width / target_height
+        
+        if img_ratio > target_ratio:
+            # Image is wider than target - crop width
+            new_height = image.height
+            new_width = int(new_height * target_ratio)
+            left = (image.width - new_width) // 2
+            image = image.crop((left, 0, left + new_width, new_height))
+        else:
+            # Image is taller than target - crop height
+            new_width = image.width
+            new_height = int(new_width / target_ratio)
+            top = (image.height - new_height) // 2
+            image = image.crop((0, top, new_width, top + new_height))
+        
+        return image.resize(target_size, Image.Resampling.LANCZOS)
+    
+    def apply_template(self, template_type: str, image_urls: List[str]) -> Image.Image:
+        """Apply specified template with provided images"""
+        print(f"[TEMPLATE] Applying template: {template_type}")
+        
+        if template_type == "single":
+            if len(image_urls) < 1:
+                raise ValueError("Single template requires 1 image")
+            return self._apply_single_photo(image_urls[0])
+            
+        elif template_type == "two_side_by_side":
+            if len(image_urls) < 2:
+                raise ValueError("Two side-by-side template requires 2 images")
+            return self._apply_two_side_by_side(image_urls[0], image_urls[1])
+            
+        elif template_type == "three_photos":
+            if len(image_urls) < 3:
+                raise ValueError("Three photos template requires 3 images")
+            return self._apply_three_photos(image_urls[0], image_urls[1], image_urls[2])
+            
+        elif template_type == "four_quarters":
+            if len(image_urls) < 4:
+                raise ValueError("Four quarters template requires 4 images")
+            return self._apply_four_quarters(image_urls)
+            
+        else:
+            # Default to single photo
+            print(f"[TEMPLATE] Unknown template type: {template_type}, defaulting to single")
+            return self._apply_single_photo(image_urls[0])
+    
+    def _apply_single_photo(self, image_url: str) -> Image.Image:
+        """Template 1: Single photo covering entire front"""
+        print(f"[TEMPLATE] Applying single photo template")
+        image = self._load_image_from_url(image_url)
+        return self._resize_and_crop(image, self.size)
+    
+    def _apply_two_side_by_side(self, left_image_url: str, right_image_url: str) -> Image.Image:
+        """Template 2: Two photos side by side"""
+        print(f"[TEMPLATE] Applying two side-by-side template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (with small gap between images)
+        gap = 20
+        photo_width = (self.width - gap) // 2
+        photo_size = (photo_width, self.height)
+        
+        # Load and resize images
+        left_image = self._load_image_from_url(left_image_url)
+        right_image = self._load_image_from_url(right_image_url)
+        
+        left_image = self._resize_and_crop(left_image, photo_size)
+        right_image = self._resize_and_crop(right_image, photo_size)
+        
+        # Paste images
+        canvas.paste(left_image, (0, 0))
+        canvas.paste(right_image, (photo_width + gap, 0))
+        
+        return canvas
+    
+    def _apply_three_photos(self, left_image_url: str, top_right_url: str, bottom_right_url: str) -> Image.Image:
+        """Template 3: One large photo on left half, two smaller on right half (stacked)"""
+        print(f"[TEMPLATE] Applying three photos template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes
+        gap = 20
+        left_width = self.width // 2 - gap // 2
+        right_width = self.width // 2 - gap // 2
+        right_height = (self.height - gap) // 2
+        
+        # Define rectangles
+        left_size = (left_width, self.height)
+        right_size = (right_width, right_height)
+        
+        # Load and resize images
+        left_image = self._load_image_from_url(left_image_url)
+        top_right_image = self._load_image_from_url(top_right_url)
+        bottom_right_image = self._load_image_from_url(bottom_right_url)
+        
+        left_image = self._resize_and_crop(left_image, left_size)
+        top_right_image = self._resize_and_crop(top_right_image, right_size)
+        bottom_right_image = self._resize_and_crop(bottom_right_image, right_size)
+        
+        # Paste images
+        canvas.paste(left_image, (0, 0))
+        canvas.paste(top_right_image, (left_width + gap, 0))
+        canvas.paste(bottom_right_image, (left_width + gap, right_height + gap))
+        
+        return canvas
+    
+    def _apply_four_quarters(self, image_urls: List[str]) -> Image.Image:
+        """Template 4: Four photos in quarters"""
+        print(f"[TEMPLATE] Applying four quarters template")
+        
+        if len(image_urls) < 4:
+            raise ValueError("Four quarters template requires exactly 4 images")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes
+        gap = 20
+        quarter_width = (self.width - gap) // 2
+        quarter_height = (self.height - gap) // 2
+        quarter_size = (quarter_width, quarter_height)
+        
+        # Load and resize images
+        images = []
+        for url in image_urls[:4]:  # Only use first 4 images
+            image = self._load_image_from_url(url)
+            image = self._resize_and_crop(image, quarter_size)
+            images.append(image)
+        
+        # Paste images in quarters
+        positions = [
+            (0, 0),                                    # Top left
+            (quarter_width + gap, 0),                  # Top right
+            (0, quarter_height + gap),                 # Bottom left
+            (quarter_width + gap, quarter_height + gap) # Bottom right
+        ]
+        
+        for i, (image, pos) in enumerate(zip(images, positions)):
+            canvas.paste(image, pos)
+        
+        return canvas
+
+TEMPLATE_ENGINE_AVAILABLE = True
+print("[STARTUP] TemplateEngine embedded successfully")
 
 app = FastAPI()
 
@@ -47,7 +231,9 @@ class PostcardRequest(BaseModel):
     postcardSize: str
     returnAddressText: str = ""
     transactionId: str = ""
-    frontImageUri: Optional[str] = ""
+    frontImageUri: Optional[str] = ""  # Legacy single image support
+    frontImageUris: Optional[List[str]] = []  # New multi-image support
+    templateType: Optional[str] = "single"  # Template type: single, two_side_by_side, three_photos, four_quarters
     userEmail: Optional[str] = ""
 
 class PaymentConfirmedRequest(BaseModel):
@@ -261,18 +447,67 @@ async def generate_complete_postcard(request: PostcardRequest):
         back_img.save(back_buf, format="JPEG", quality=95)
         back_data = back_buf.getvalue()
 
-        # Front image is already uploaded to Cloudinary by the app
-        if request.frontImageUri and request.frontImageUri.startswith('http'):
-            print(f"[FRONT] Using app-provided Cloudinary URL: {request.frontImageUri[:50]}...")
-            front_url = request.frontImageUri
-        else:
-            print(f"[FRONT] No Cloudinary front image URL provided, creating fallback")
-            # Create fallback front image if needed
+        # Generate front image using TemplateEngine
+        try:
+            if TEMPLATE_ENGINE_AVAILABLE and request.templateType and request.templateType != "single":
+                print(f"[TEMPLATE] Creating front image with template: {request.templateType}")
+                template_engine = TemplateEngine(request.postcardSize)
+                
+                # Prepare image URLs for template
+                image_urls = []
+                if request.frontImageUris and len(request.frontImageUris) > 0:
+                    # Use new multi-image array
+                    image_urls = request.frontImageUris
+                    print(f"[TEMPLATE] Using {len(image_urls)} images from frontImageUris")
+                elif request.frontImageUri:
+                    # Use legacy single image
+                    image_urls = [request.frontImageUri]
+                    print(f"[TEMPLATE] Using single image from frontImageUri")
+                else:
+                    raise Exception("No front images provided")
+                
+                # Apply template to create front image
+                front_img = template_engine.apply_template(request.templateType, image_urls)
+            else:
+                # Fallback to single image mode
+                print("[TEMPLATE] Using fallback single image mode")
+                front_image_url = request.frontImageUri or (request.frontImageUris[0] if request.frontImageUris else None)
+                if not front_image_url:
+                    raise Exception("No front image provided")
+                
+                # Load single image directly
+                with urllib.request.urlopen(front_image_url) as response:
+                    front_img = Image.open(response).convert('RGB')
+                    # Resize to appropriate postcard dimensions
+                    if request.postcardSize == "xl":
+                        target_size = (2700, 1800)
+                    else:
+                        target_size = (1800, 1200)
+                    front_img = front_img.resize(target_size, Image.Resampling.LANCZOS)
+            
+            # Convert to bytes and upload to Cloudinary
             front_buf = io.BytesIO()
-            back_img.save(front_buf, format="JPEG", quality=95)
+            front_img.save(front_buf, format="JPEG", quality=95)
             front_data = front_buf.getvalue()
-            front_b64 = base64.b64encode(front_data).decode('utf-8')
-            front_url = f"data:image/jpeg;base64,{front_b64}"
+            
+            # Upload front image to Cloudinary
+            front_url = upload_to_cloudinary(front_data, f"postcard-front-{request.transactionId}")
+            print(f"[TEMPLATE] Front image uploaded to Cloudinary: {front_url[:50]}...")
+            
+        except Exception as e:
+            print(f"[TEMPLATE] Template generation failed, using fallback: {e}")
+            # Fallback to original single image logic
+            if request.frontImageUri and request.frontImageUri.startswith('http'):
+                print(f"[FRONT] Using app-provided Cloudinary URL: {request.frontImageUri[:50]}...")
+                front_url = request.frontImageUri
+            else:
+                print(f"[FRONT] No Cloudinary front image URL provided, creating fallback")
+                # Create fallback front image if needed
+                front_buf = io.BytesIO()
+                back_img.save(front_buf, format="JPEG", quality=95)
+                front_data = front_buf.getvalue()
+                front_b64 = base64.b64encode(front_data).decode('utf-8')
+                front_url = f"data:image/jpeg;base64,{front_b64}"
         
         # Upload back to Cloudinary (front already uploaded by app)
         try:

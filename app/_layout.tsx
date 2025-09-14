@@ -8,7 +8,6 @@ import { Alert } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { iapManager, clearStalePurchases } from '../utils/iapManager';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Slot } from 'expo-router';
 
@@ -23,13 +22,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Clear any stale IAP transactions before initializing IAP manager
-      clearStalePurchases().then(() => {
-        // Initialize IAP manager when fonts are loaded
-        iapManager.initialize().catch((error: any) => {
-          console.error('[XLPOSTCARDS][IAP] Error initializing IAP manager:', error);
-        });
-      });
       // Set navigation bar color to white to match app background
       SystemUI.setBackgroundColorAsync('#e5851a');
     }

@@ -51,7 +51,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.1.19",
+  version: REMOTE_APP_VERSION || "2.1.22",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",
@@ -98,8 +98,7 @@ module.exports = {
     permissions: [
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_MEDIA_LOCATION",
-      "com.android.vending.BILLING"
+      "android.permission.ACCESS_MEDIA_LOCATION"
     ]
   },
 
@@ -135,8 +134,7 @@ module.exports = {
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0"
       }
-    }],
-    "react-native-iap"
+    }]
   ],
 
   experiments: {

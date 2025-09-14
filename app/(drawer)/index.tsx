@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Pressable, Text } from 'react-native';
-import * as ExpoImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
-import ImagePicker, { Image as ImagePickerAsset } from 'react-native-image-crop-picker';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,10 +7,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { PostcardSize, supportedPostcardSizes } from '@/utils/printSpecs';
+import { PostcardSize } from '@/utils/printSpecs';
 import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 
 import AIDisclaimer from '../components/AIDisclaimer';
+import TemplateSelector, { TemplateType } from '../components/TemplateSelector';
+import MultiImagePicker, { SelectedImage } from '../components/MultiImagePicker';
 
 // const US_STATES = [
 //   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -122,18 +121,21 @@ const transitionModal = (closeModal: () => void, openModal?: () => void, delay: 
 
 
 
+const templateRequirements = {
+  single: 1,
+  two_side_by_side: 2,
+  three_photos: 3,
+  four_quarters: 4,
+};
+
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState<ExpoImagePicker.ImagePickerAsset | ImagePickerAsset | null>(null);
+  const [images, setImages] = useState<SelectedImage[]>([]);
+  const [templateType, setTemplateType] = useState<TemplateType>('single');
   const [postcardMessage, setPostcardMessage] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
-// normalized postcard size from params (validated)
-const __postcardSizeParam = (params?.postcardSize as string) || '';
-const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSizeParam as PostcardSize) 
-  ? (__postcardSizeParam as PostcardSize) 
-  : undefined);
 
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [showRecipientModal, setShowRecipientModal] = useState(false);
@@ -186,37 +188,71 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
       return;
     }
 
-    // Only set image from params if we haven't already set it from params
-    if (params.imageUri && !imageSetFromParams.current) {
-      console.log('[XLPOSTCARDS][MAIN] Setting image with URI:', params.imageUri);
+    // Handle multiple images from params
+    if ((params.imageUris || params.imageUri) && !imageSetFromParams.current) {
+      console.log('[XLPOSTCARDS][MAIN] Processing images from params');
       try {
-        // Process the image to ensure consistent 3:2 ratio
-        const processed = await processImageForPostcard(params.imageUri as string);
-        setImage({ 
-          uri: processed.path,
-          width: processed.width,
-          height: processed.height,
-          base64: processed.data, // This will be null for existing images
-          type: 'image',
-          fileName: processed.filename || '',
-          fileSize: processed.size || 0,
-          assetId: '',
-        });
+        if (params.imageUris) {
+          // Handle multiple images
+          const imageUris = JSON.parse(params.imageUris as string);
+          console.log('[XLPOSTCARDS][MAIN] Setting multiple images:', imageUris.length);
+          const processedImages: SelectedImage[] = [];
+          
+          for (const imageUri of imageUris) {
+            const processed = await processImageForPostcard(imageUri);
+            const newImage: SelectedImage = { 
+              uri: processed.path,
+              width: processed.width,
+              height: processed.height,
+              base64: processed.data || undefined,
+              type: 'image',
+              fileName: processed.filename || '',
+              fileSize: processed.size || 0,
+              assetId: '',
+            };
+            processedImages.push(newImage);
+          }
+          setImages(processedImages);
+        } else if (params.imageUri) {
+          // Handle single image (legacy)
+          console.log('[XLPOSTCARDS][MAIN] Setting single image with URI:', params.imageUri);
+          const processed = await processImageForPostcard(params.imageUri as string);
+          const newImage: SelectedImage = { 
+            uri: processed.path,
+            width: processed.width,
+            height: processed.height,
+            base64: processed.data || undefined,
+            type: 'image',
+            fileName: processed.filename || '',
+            fileSize: processed.size || 0,
+            assetId: '',
+          };
+          setImages([newImage]);
+        }
         imageSetFromParams.current = true;
       } catch (error: unknown) {
-        console.error('[XLPOSTCARDS][MAIN] Error processing image from params:', error);
-        // Fallback to original image if processing fails
-        setImage({ 
-          uri: params.imageUri as string,
-          width: 0,
-          height: 0,
-          type: 'image',
-          fileName: '',
-          fileSize: 0,
-          assetId: '',
-        });
-        imageSetFromParams.current = true;
+        console.error('[XLPOSTCARDS][MAIN] Error processing images from params:', error);
+        // Fallback to single image if processing fails
+        if (params.imageUri) {
+          const fallbackImage: SelectedImage = { 
+            uri: params.imageUri as string,
+            width: 0,
+            height: 0,
+            type: 'image',
+            fileName: '',
+            fileSize: 0,
+            assetId: '',
+          };
+          setImages([fallbackImage]);
+          imageSetFromParams.current = true;
+        }
       }
+    }
+
+    // Process template type
+    if (params.templateType && params.templateType !== templateType) {
+      console.log('[XLPOSTCARDS][MAIN] Setting template type:', params.templateType);
+      setTemplateType(params.templateType as TemplateType);
     }
 
     // Process message
@@ -264,7 +300,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
       postcardSizeSetFromParams.current = true;
     }
     console.log('[XLPOSTCARDS][DEBUG] postcardSize after processParams:', postcardSize);
-  }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize]);
+  }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize, templateType]);
 
   // Update the useEffect that processes params
   useEffect(() => {
@@ -318,163 +354,11 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
     return unsubscribe;
   }, [navigation]);
 
-  // Platform-specific image picker - Both iOS and Android use react-native-image-crop-picker for consistent cropping
-  const pickImage = async () => {
-    try {
-      // iOS-specific: Force memory cleanup before opening picker
-      if (Platform.OS === 'ios' && global.gc) {
-        global.gc();
-      }
-      
-      if (Platform.OS === 'ios') {
-        // iOS: Use react-native-image-crop-picker for proper 3:2 cropping and rotation
-        const pickedImage = await ImagePicker.openPicker({
-          width: 1500,
-          height: 1000,
-          cropping: true,
-          cropperToolbarTitle: 'Crop your postcard image',
-          cropperChooseText: 'Choose',
-          cropperCancelText: 'Cancel',
-          cropperRotateButtonsHidden: false,
-          includeBase64: true,
-          mediaType: 'photo',
-          forceJpg: true,
-          // iOS-specific settings for better experience
-          cropperCircleOverlay: false,
-          showCropGuidelines: true,
-          showCropFrame: true,
-          enableRotationGesture: true,
-          cropperActiveWidgetColor: '#f28914',
-          cropperStatusBarColor: '#000000',
-          cropperToolbarColor: '#000000',
-          cropperToolbarWidgetColor: '#ffffff',
-        });
-        
-        setImage({
-          uri: pickedImage.path,
-          width: pickedImage.width,
-          height: pickedImage.height,
-          base64: pickedImage.data,
-          type: 'image',
-          fileName: pickedImage.filename || 'image.jpg',
-          fileSize: pickedImage.size || 0,
-          assetId: '',
-        });
-        imageSetFromParams.current = true;
-        
-      } else {
-        // Android: Use simple Expo ImagePicker with 3:2 aspect ratio
-        const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
-          return;
-        }
 
-        const result = await ExpoImagePicker.launchImageLibraryAsync({
-          mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [3, 2], // 3:2 aspect ratio for postcard
-          quality: 0.9,
-          base64: true,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-          const selectedImage = result.assets[0];
-          
-          // Ensure the image is properly sized to 3:2 aspect ratio
-          const manipulatedImage = await ImageManipulator.manipulateAsync(
-            selectedImage.uri,
-            [
-              { resize: { width: 1500 } } // Let height adjust automatically to maintain aspect ratio
-            ],
-            {
-              compress: 0.9,
-              format: ImageManipulator.SaveFormat.JPEG,
-              base64: true,
-            }
-          );
-
-          // Ensure final dimensions are exactly 3:2 ratio (1500x1000)
-          const finalImage = await ImageManipulator.manipulateAsync(
-            manipulatedImage.uri,
-            [
-              { resize: { width: 1500, height: 1000 } }
-            ],
-            {
-              compress: 0.9,
-              format: ImageManipulator.SaveFormat.JPEG,
-              base64: true,
-            }
-          );
-
-          setImage({
-            uri: finalImage.uri,
-            width: 1500,
-            height: 1000,
-            base64: finalImage.base64,
-            type: 'image',
-            fileName: selectedImage.fileName || 'image.jpg',
-            fileSize: selectedImage.fileSize || 0,
-            assetId: selectedImage.assetId || '',
-          });
-          imageSetFromParams.current = true;
-        }
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      // User cancelled or error - don't show alert for cancellation
-      if ((error as any)?.message && !(error as any).message.includes('cancelled')) {
-        Alert.alert('Error', 'Failed to select image.');
-      }
-    }
-  };
-
-  // Simple 90-degree rotation handler - maintains 3:2 aspect ratio
-  const handleRotateImage = async () => {
-    if (!image) return;
-    try {
-      // First rotate the image 90 degrees
-      const rotated = await ImageManipulator.manipulateAsync(
-        image.uri,
-        [{ rotate: 90 }], // Simple 90-degree rotation
-        {
-          compress: 0.9,
-          format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
-        }
-      );
-      
-      // After rotation, ensure we maintain postcard aspect ratio (3:2)
-      // If we started with 1500x1000 (3:2), after rotation it becomes 1000x1500 (2:3)
-      // We need to crop/resize it back to 1500x1000 (3:2)
-      const finalImage = await ImageManipulator.manipulateAsync(
-        rotated.uri,
-        [
-          { resize: { width: 1500, height: 1000 } } // Force back to 3:2 ratio
-        ],
-        {
-          compress: 0.9,
-          format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
-        }
-      );
-      
-      setImage({
-        ...image,
-        uri: finalImage.uri,
-        width: 1500, // Keep consistent 3:2 dimensions
-        height: 1000,
-        base64: finalImage.base64,
-      });
-    } catch (error) {
-      console.error('Error rotating image:', error);
-      Alert.alert('Error', 'Failed to rotate image.');
-    }
-  };
 
   // Function to analyze the image with OpenAI
   const analyzeImage = async () => {
-    if (!image) {
+    if (!images.length) {
       Alert.alert('No image', 'Please select a photo first.');
       return;
     }
@@ -482,8 +366,10 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
     const salutation = selected?.salutation || '';
     setLoading(true);
     try {
+      // Use the first image for AI analysis
+      const firstImage = images[0];
       // Prepare base64 image
-      let base64Image = (image as any).base64 ? `data:image/jpeg;base64,${(image as any).base64}` : undefined;
+      let base64Image = firstImage.base64 ? `data:image/jpeg;base64,${firstImage.base64}` : undefined;
       // Compose prompt
       let promptText =
         `Write a friendly, engaging postcard message (max ${postcardSize === 'regular' ? 60 : 100} words) based on the attached photo.` +
@@ -544,8 +430,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
 
   // Update handleCreatePostcard to unmount recipient modal component before navigation
   const handleCreatePostcard = () => {
-    if (!image) {
-      Alert.alert('No image', 'Please select a photo first.');
+    const requiredImages = templateRequirements[templateType];
+    if (images.length < requiredImages) {
+      Alert.alert('Not enough photos', `Please select ${requiredImages} photo${requiredImages > 1 ? 's' : ''} for the ${templateType.replace('_', ' ')} template.`);
       return;
     }
     if (!postcardMessage) {
@@ -607,17 +494,22 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
             const railwayUrl = `${railwayBaseUrl}/generate-complete-postcard`;
             
             // Generate real transaction ID for the postcard
-            const realTransactionId = require('react-native-get-random-values');
+            require('react-native-get-random-values');
             const { v4: uuidv4 } = require('uuid');
             const transactionId = uuidv4();
             
-            // Upload front image to Cloudinary before sending to Railway
-            console.log('[RAILWAY] Uploading front image to Cloudinary...');
-            const frontImageCloudinaryUrl = await uploadToCloudinary(
-              (image as any).uri,
-              `postcard-front-${transactionId}`
-            );
-            console.log('[RAILWAY] Front image uploaded successfully:', frontImageCloudinaryUrl);
+            // Upload all images to Cloudinary before sending to Railway
+            console.log('[RAILWAY] Uploading images to Cloudinary...');
+            const frontImageCloudinaryUrls: string[] = [];
+            
+            for (let i = 0; i < images.length; i++) {
+              const imageUrl = await uploadToCloudinary(
+                images[i].uri,
+                `postcard-front-${transactionId}-${i}`
+              );
+              frontImageCloudinaryUrls.push(imageUrl);
+              console.log(`[RAILWAY] Image ${i + 1} uploaded successfully:`, imageUrl);
+            }
             
             const railwayPayload = {
               message: postcardMessage,
@@ -625,7 +517,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               postcardSize,
               returnAddressText,
               transactionId: transactionId,
-              frontImageUri: frontImageCloudinaryUrl,
+              frontImageUri: frontImageCloudinaryUrls[0], // Legacy single image support
+              frontImageUris: frontImageCloudinaryUrls, // New multi-image support
+              templateType,
               userEmail: savedUserEmail || '',
             };
             
@@ -652,7 +546,8 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               router.push({
                 pathname: '/postcard-preview',
                 params: {
-                  imageUri: (image as any).uri,
+                  imageUri: images[0].uri, // Pass first image for compatibility
+                  imageUris: JSON.stringify(images.map(img => img.uri)), // Pass all images
                   message: postcardMessage,
                   returnAddress: returnAddressText,
                   recipient: JSON.stringify(recipientInfo),
@@ -660,6 +555,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
                   railwayBackUrl: railwayResult.backUrl,
                   railwayFrontUrl: railwayResult.frontUrl,
                   transactionId: transactionId,
+                  templateType,
                 },
               });
               console.log('[RAILWAY] Navigation with back URL:', railwayResult.backUrl);
@@ -670,11 +566,13 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               router.push({
                 pathname: '/postcard-preview',
                 params: {
-                  imageUri: (image as any).uri,
+                  imageUri: images[0].uri,
+                  imageUris: JSON.stringify(images.map(img => img.uri)),
                   message: postcardMessage,
                   returnAddress: returnAddressText,
                   recipient: JSON.stringify(recipientInfo),
                   postcardSize,
+                  templateType,
                 },
               });
             }
@@ -685,11 +583,13 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
             router.push({
               pathname: '/postcard-preview',
               params: {
-                imageUri: (image as any).uri,
+                imageUri: images[0].uri,
+                imageUris: JSON.stringify(images.map(img => img.uri)),
                 message: postcardMessage,
                 returnAddress: returnAddressText,
                 recipient: JSON.stringify(recipientInfo),
                 postcardSize,
+                templateType,
               },
             });
           }
@@ -838,7 +738,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         setCorrectedAddress(null);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
       } else if (params.useOriginalAddress === 'true' && params.originalAddress) {
         const original = JSON.parse(params.originalAddress as string);
         let updated;
@@ -857,11 +757,11 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         setCorrectedAddress(null);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
       }
     };
     handleAddressCorrection();
-  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress, editingAddressId, image, postcardMessage, router]);
+  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress, editingAddressId, images, postcardMessage, router]);
 
   // Keep the editAddressId effect separate since it has different dependencies
   useEffect(() => {
@@ -939,7 +839,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         setShowUSPSNote(true);
         await loadAddresses();
         // Navigate to main screen with new/edited address selected
-        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
+        router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
         return;
       } else {
         // Navigate to address correction screen
@@ -948,7 +848,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
           params: {
             originalAddress: JSON.stringify(addressToSave),
             correctedAddress: JSON.stringify(corrected),
-            imageUri: (image as any)?.uri,
+            imageUri: images[0]?.uri,
+            imageUris: JSON.stringify(images.map(img => img.uri)),
+            templateType,
             message: postcardMessage
           }
         });
@@ -974,7 +876,7 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
       setShowUSPSNote(false);
       await loadAddresses();
       // Navigate to main screen with new/edited address selected
-      router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: (image as any)?.uri, message: postcardMessage } });
+      router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, message: postcardMessage } });
     }
   };
 
@@ -990,7 +892,8 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
 
   // Add a resetCard function
   const resetCard = () => {
-    setImage(null);
+    setImages([]);
+    setTemplateType('single');
     setPostcardMessage('');
     setSelectedAddressId(null);
     setRecipientInfo(null);
@@ -1047,21 +950,19 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.fullWidthButton} onPress={pickImage}>
-            <Text style={styles.buttonText}>{image ? 'Change Photo' : '1) Select Photo'}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Template Selection */}
+        <TemplateSelector
+          selectedTemplate={templateType}
+          onTemplateSelect={setTemplateType}
+        />
 
-        {image && (
-          <View style={styles.imagePreviewContainer}>
-            <Image
-              source={{ uri: (image as any).uri }}
-              style={{ width: '100%', aspectRatio: 1.5, borderRadius: 8 }}
-              resizeMode="cover"
-            />
-          </View>
-        )}
+        {/* Multi-Image Picker */}
+        <MultiImagePicker
+          images={images}
+          onImagesChange={setImages}
+          templateType={templateType}
+          maxImages={templateRequirements[templateType]}
+        />
 
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionLabel}>Select Postcard Size</Text>
@@ -1091,7 +992,16 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
             style={[styles.fullWidthButton, { marginBottom: 8 }]}
             onPress={() => {
               setCameFromSelectRecipient(true);
-              router.push({ pathname: '/select-recipient', params: { imageUri: (image as any)?.uri, message: postcardMessage, postcardSize } });
+              router.push({ 
+                pathname: '/select-recipient', 
+                params: { 
+                  imageUri: images[0]?.uri, 
+                  imageUris: JSON.stringify(images.map(img => img.uri)), 
+                  templateType,
+                  message: postcardMessage, 
+                  postcardSize 
+                } 
+              });
             }}
           >
             <Text style={styles.buttonText}>
@@ -1124,9 +1034,9 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
               </View>
             )}
             <TouchableOpacity 
-              style={[styles.submitButton, styles.aiButton, (!image || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }, { minWidth: 180 }]}
+              style={[styles.submitButton, styles.aiButton, (!images.length || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }, { minWidth: 180 }]}
               onPress={analyzeImage}
-              disabled={!image || loading}
+              disabled={!images.length || loading}
             >
               <Text style={[styles.buttonText, { fontSize: 18 }]}>Write for me</Text>
             </TouchableOpacity>
@@ -1161,11 +1071,11 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
             style={[
               styles.submitButton,
               styles.createButton,
-              (!image || !postcardMessage) && { opacity: 0.5 },
+              (!images.length || !postcardMessage || images.length < templateRequirements[templateType]) && { opacity: 0.5 },
               { zIndex: 1, height: 56, minHeight: 56, maxHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, marginTop: 0, marginBottom: 0 }
             ]}
             onPress={handleCreatePostcard}
-            disabled={!image || !postcardMessage}
+            disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType]}
           >
             <Text style={styles.createButtonText}>Create Postcard</Text>
           </TouchableOpacity>
@@ -1302,10 +1212,10 @@ const __normalizedPostcardSize = (supportedPostcardSizes.includes(__postcardSize
                     // Only navigate back to select-recipient if we actually came from there
                     if (cameFromSelectRecipient) {
                       setCameFromSelectRecipient(false);
-                      router.replace({ pathname: '/select-recipient', params: { imageUri: (image as any)?.uri, message: postcardMessage, postcardSize } });
+                      router.replace({ pathname: '/select-recipient', params: { imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage, postcardSize } });
                     } else {
                       // Clear all params that would cause modal to reopen
-                      router.replace({ pathname: '/', params: { imageUri: (image as any)?.uri, message: postcardMessage } });
+                      router.replace({ pathname: '/', params: { imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
                     }
                   }}
                 >

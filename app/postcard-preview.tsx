@@ -15,9 +15,8 @@ import '../config'; // <-- Import config to ensure it's loaded
 import { getPrintPixels, getFrontBleedPixels } from '@/utils/printSpecs';
 
 import AIDisclaimer from './components/AIDisclaimer';
-import { iapManager, PostcardPurchase, Purchase } from '@/utils/iapManager';
 import { postcardService } from '@/utils/postcardService';
-import { stripeManager } from '@/utils/stripeManager';
+import { stripeManager, StripePurchase } from '@/utils/stripeManager';
 import PostcardBackLayout from './components/PostcardBackLayout';
 import { generateCompletePostcard } from '@/utils/postcardGenerator';
 import { generateCompletePostcardServer } from '@/utils/serverPostcardGenerator';
@@ -88,6 +87,8 @@ interface RecipientInfo {
 interface NavigationParams {
   resetModals: string;
   imageUri: string;
+  imageUris?: string;
+  templateType?: string;
   message: string;
   recipient?: string;
   selectedRecipientId?: string;
@@ -128,7 +129,7 @@ export default function PostcardPreviewScreen() {
     transactionId: '',
     stannpError: ''
   });
-  const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
+  const [lastPurchase, setLastPurchase] = useState<StripePurchase | null>(null);
   const postcardPriceDollars = Constants.expoConfig?.extra?.postcardPriceDollars || 1.99;
   const [showTestModal, setShowTestModal] = useState(true);
   const [postcardSize, setPostcardSize] = useState<'regular' | 'xl'>(params.postcardSize === 'regular' ? 'regular' : 'xl');
@@ -140,6 +141,8 @@ export default function PostcardPreviewScreen() {
   const railwayBackUrl = params.railwayBackUrl as string;
   const railwayFrontUrl = params.railwayFrontUrl as string;
   const existingTransactionId = params.transactionId as string;
+  const imageUris = params.imageUris as string | undefined;
+  const templateType = params.templateType as string | undefined;
   const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null>(null);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | undefined>(undefined);
   
@@ -330,7 +333,7 @@ export default function PostcardPreviewScreen() {
   };
   
   // Function to handle Railway API call (includes Stannp submission)
-  const sendToRailway = async (postcardPurchase: Purchase) => {
+  const sendToRailway = async (postcardPurchase: StripePurchase) => {
     const railwayStartTime = Date.now();
     console.log('[XLPOSTCARDS][RAILWAY] ========= ENTERING RAILWAY FLOW =========');
     console.log('[XLPOSTCARDS][RAILWAY] Transaction ID:', postcardPurchase.transactionId);
@@ -635,7 +638,7 @@ export default function PostcardPreviewScreen() {
   }, []);
 
   // Function to retry with existing purchase
-  const retryWithExistingPurchase = React.useCallback(async (purchase: Purchase) => {
+  const retryWithExistingPurchase = React.useCallback(async (purchase: StripePurchase) => {
     try {
       setSending(true);
       setSendResult(null);
@@ -921,7 +924,18 @@ export default function PostcardPreviewScreen() {
       console.log('[XLPOSTCARDS][PREVIEW] Back to Home pressed from ErrorModal');
       showOnlyModal('error');
       resetPurchaseState();
-      router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
+      router.replace({ 
+        pathname: '/', 
+        params: { 
+          imageUri, 
+          imageUris, 
+          templateType,
+          message, 
+          recipient: JSON.stringify(recipientInfo), 
+          selectedRecipientId,
+          postcardSize
+        } 
+      });
     };
     // Determine if the error was a payment cancellation
     const isPaymentCanceled = lastErrorMessage?.toLowerCase().includes('canceled');
@@ -966,7 +980,18 @@ export default function PostcardPreviewScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const handleDismiss = () => {
       showOnlyModal('refund');
-      router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
+      router.replace({ 
+        pathname: '/', 
+        params: { 
+          imageUri, 
+          imageUris, 
+          templateType,
+          message, 
+          recipient: JSON.stringify(recipientInfo), 
+          selectedRecipientId,
+          postcardSize
+        } 
+      });
     };
     const handleSubmitRefund = async () => {
       setIsSubmitting(true);
@@ -1057,7 +1082,18 @@ export default function PostcardPreviewScreen() {
       visible={showRefundSuccessModal}
       onRequestClose={() => {
         showOnlyModal('refundSuccess');
-        router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
+        router.replace({ 
+        pathname: '/', 
+        params: { 
+          imageUri, 
+          imageUris, 
+          templateType,
+          message, 
+          recipient: JSON.stringify(recipientInfo), 
+          selectedRecipientId,
+          postcardSize
+        } 
+      });
       }}
     >
       <View style={styles.modalContainer}>
@@ -1070,7 +1106,18 @@ export default function PostcardPreviewScreen() {
             style={styles.modalButton}
             onPress={() => {
               showOnlyModal('refundSuccess');
-              router.replace({ pathname: '/', params: { imageUri, message, recipient: JSON.stringify(recipientInfo), selectedRecipientId } });
+              router.replace({ 
+        pathname: '/', 
+        params: { 
+          imageUri, 
+          imageUris, 
+          templateType,
+          message, 
+          recipient: JSON.stringify(recipientInfo), 
+          selectedRecipientId,
+          postcardSize
+        } 
+      });
             }}
           >
             <Text style={styles.modalButtonText}>OK</Text>

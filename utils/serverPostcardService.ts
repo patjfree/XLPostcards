@@ -17,13 +17,15 @@ interface ServerPostcardRequest {
   recipientInfo: RecipientInfo;
   postcardSize: PostcardSize;
   transactionId: string;
-  frontImageUri?: string;
+  frontImageUri?: string; // Legacy single image support
+  frontImageUris?: string[]; // New multi-image support
   frontImageBase64?: string;
   dimensions?: { width: number; height: number };
   testMode?: boolean;
   variant?: string;
   returnAddressText?: string | string[]; // New in v2.1: Support for return address
   userEmail?: string; // User email for confirmation
+  templateType?: string; // Template type: single, two_side_by_side, three_photos, four_quarters
 }
 
 interface ServerPostcardResponse {
