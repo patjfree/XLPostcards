@@ -189,6 +189,13 @@ export default function PostcardPreviewScreen() {
       console.log('[RAILWAY] Using Railway-generated back image URL:', railwayBackUrl);
       setRailwayBackImageUrl(railwayBackUrl);
     }
+    
+    // Log Railway front URL usage
+    if (railwayFrontUrl) {
+      console.log('[RAILWAY] Using Railway-generated front image URL:', railwayFrontUrl);
+    } else {
+      console.log('[RAILWAY] No Railway front URL, using local imageUri:', imageUri);
+    }
 
     // Verify the image exists
     const checkImage = async () => {
@@ -1183,7 +1190,7 @@ export default function PostcardPreviewScreen() {
                 overflow: 'hidden',
               }}>
                 <Image
-                  source={{ uri: imageUri }}
+                  source={{ uri: railwayFrontUrl || imageUri }}
                   style={{ 
                     width: frontImageDimensions.width, 
                     height: frontImageDimensions.height, 
