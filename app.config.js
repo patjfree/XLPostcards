@@ -73,8 +73,8 @@ module.exports = {
     bundleIdentifier: baseId, // Always use com.patjfree.xlpostcards for production builds
     supportsTablet: true,
     deploymentTarget: "13.0",
-    // Prefer EAS remote buildNumber; allow manual override via IOS_BUILD_NUMBER
-    buildNumber: (REMOTE_IOS_BUILD_NUMBER || process.env.IOS_BUILD_NUMBER || "1"),
+    // Use EAS auto-increment for buildNumber (no manual override needed)
+    buildNumber: (REMOTE_IOS_BUILD_NUMBER || process.env.EAS_BUILD_IOS_BUILD_NUMBER || "1"),
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
@@ -84,9 +84,9 @@ module.exports = {
 
   android: {
     package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
-    // Prefer EAS remote versionCode; allow manual override via ANDROID_VERSION_CODE
+    // Use EAS auto-increment for versionCode (no manual override needed)
     versionCode: parseInt(
-      (process.env.ANDROID_VERSION_CODE ?? '61'),
+      (process.env.EAS_BUILD_ANDROID_VERSION_CODE ?? '1'),
       10
     ),
     compileSdkVersion: 35,
