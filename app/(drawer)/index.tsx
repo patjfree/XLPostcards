@@ -134,6 +134,21 @@ export default function HomeScreen() {
   const [postcardProgress, setPostcardProgress] = useState('');
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [templateType, setTemplateType] = useState<TemplateType>('single');
+  const userChangedTemplate = React.useRef(false);
+
+  // Handle template change with smart photo management
+  const handleTemplateChange = (newTemplate: TemplateType) => {
+    const newRequiredImages = templateRequirements[newTemplate];
+    
+    if (images.length > newRequiredImages) {
+      // Keep only the photos that fit the new template
+      const trimmedImages = images.slice(0, newRequiredImages);
+      setImages(trimmedImages);
+    }
+    
+    setTemplateType(newTemplate);
+    userChangedTemplate.current = true; // Mark that user manually changed template
+  };
   const [postcardMessage, setPostcardMessage] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
@@ -251,10 +266,12 @@ export default function HomeScreen() {
       }
     }
 
-    // Process template type
-    if (params.templateType && params.templateType !== templateType) {
-      console.log('[XLPOSTCARDS][MAIN] Setting template type:', params.templateType);
+    // Process template type (only if user hasn't manually changed it)
+    if (params.templateType && params.templateType !== templateType && !userChangedTemplate.current) {
+      console.log('[XLPOSTCARDS][MAIN] Setting template type from params:', params.templateType);
       setTemplateType(params.templateType as TemplateType);
+    } else if (params.templateType && userChangedTemplate.current) {
+      console.log('[XLPOSTCARDS][MAIN] Ignoring template type from params, user has manually changed template');
     }
 
     // Process message
@@ -1023,10 +1040,10 @@ export default function HomeScreen() {
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        {/* Template Selection */}
+        {/* 1) Template Selection */}
         <TemplateSelector
           selectedTemplate={templateType}
-          onTemplateSelect={setTemplateType}
+          onTemplateSelect={handleTemplateChange}
         />
 
         {/* Multi-Image Picker */}
@@ -1038,7 +1055,7 @@ export default function HomeScreen() {
         />
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionLabel}>Select Postcard Size</Text>
+          <Text style={styles.sectionLabel}>3) Select Postcard Size</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
             <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
               <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
@@ -1060,7 +1077,7 @@ export default function HomeScreen() {
 
         {/* Address Dropdown Section */}
         <View style={[styles.sectionBlock, { zIndex: 3000 }]}>
-          <Text style={styles.sectionLabel}>2) Select Recipient</Text>
+          <Text style={styles.sectionLabel}>4) Select Recipient</Text>
           <TouchableOpacity
             style={[styles.fullWidthButton, { marginBottom: 8 }]}
             onPress={() => {
@@ -1089,7 +1106,7 @@ export default function HomeScreen() {
 
         {/* Message Block */}
         <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <Text style={styles.sectionLabel}>3) Write Message</Text>
+          <Text style={styles.sectionLabel}>5) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
               style={[styles.input, styles.messageInput]}
@@ -1116,58 +1133,58 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 16 }}>
           <TouchableOpacity
             style={{
               backgroundColor: '#fff',
-              borderRadius: 8,
-              borderWidth: 2,
+              borderRadius: 6,
+              borderWidth: 1,
               borderColor: '#f28914',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 56,
-              height: 56,
-              minHeight: 56,
-              minWidth: 56,
+              width: 44,
+              height: 44,
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 2,
-              elevation: 2,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 1,
+              elevation: 1,
             }}
             onPress={resetCard}
             accessibilityLabel="Reset postcard"
           >
-            <Ionicons name="refresh-circle" size={32} color="#f28914" style={{ marginTop: 0 }} />
+            <Ionicons name="refresh-circle" size={24} color="#f28914" />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.submitButton,
-              styles.createButton,
-              (!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard) && { opacity: 0.5 },
-              { zIndex: 1, height: 56, minHeight: 56, maxHeight: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, marginTop: 0, marginBottom: 0 }
-            ]}
-            onPress={handleCreatePostcard}
-            disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard}
-          >
-            {isCreatingPostcard ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.createButtonText}>Creating...</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+            <TouchableOpacity 
+              style={[
+                styles.submitButton,
+                styles.createButton,
+                (!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard) && { opacity: 0.5 },
+                { flex: isCreatingPostcard && postcardProgress ? 0 : 1, minWidth: 140 }
+              ]}
+              onPress={handleCreatePostcard}
+              disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard}
+            >
+              {isCreatingPostcard ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.createButtonText}>Creating</Text>
+                </View>
+              ) : (
+                <Text style={styles.createButtonText}>Create Postcard</Text>
+              )}
+            </TouchableOpacity>
+            
+            {/* Progress indicator next to button */}
+            {isCreatingPostcard && postcardProgress && (
+              <View style={{ flex: 1, paddingLeft: 8 }}>
+                <Text style={{ fontSize: 13, color: '#666', flexWrap: 'wrap' }}>
+                  {postcardProgress}
+                </Text>
               </View>
-            ) : (
-              <Text style={styles.createButtonText}>Create Postcard</Text>
             )}
-          </TouchableOpacity>
-          
-          {/* Progress indicator */}
-          {isCreatingPostcard && postcardProgress && (
-            <View style={{ marginTop: 12, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, color: '#666', textAlign: 'center' }}>
-                {postcardProgress}
-              </Text>
-            </View>
-          )}
+          </View>
         </View>
 
         <View style={styles.formContainer}>
@@ -1177,9 +1194,11 @@ export default function HomeScreen() {
           <Text style={{ textAlign: 'center', fontSize: 10, color: '#999', marginBottom: 4 }}>
             v{Constants.expoConfig?.version || 'Unknown'}
           </Text>
-          <Text style={{ textAlign: 'center', fontSize: 9, color: '#999', marginBottom: 8 }}>
-            Simulator - Test cards okay
-          </Text>
+          {__DEV__ && (
+            <Text style={{ textAlign: 'center', fontSize: 9, color: '#999', marginBottom: 8 }}>
+              Simulator - Test cards okay
+            </Text>
+          )}
           <AIDisclaimer contentToReport={isAIGenerated ? postcardMessage : undefined} />
         </View>
       </ScrollView>

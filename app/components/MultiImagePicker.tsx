@@ -55,6 +55,22 @@ const getAspectRatioForSlot = (templateType: TemplateType, slotIndex: number): [
   }
 };
 
+// Calculate dynamic image slot size based on template
+const getImageSlotSize = (templateType: TemplateType): { width: number; height: number } => {
+  switch (templateType) {
+    case 'single':
+      return { width: 150, height: 100 }; // Larger for single photo
+    case 'two_side_by_side':
+      return { width: 140, height: 93 }; // Medium for two photos
+    case 'three_photos':
+      return { width: 100, height: 67 }; // Smaller for three photos  
+    case 'four_quarters':
+      return { width: 80, height: 53 }; // Smallest for four photos
+    default:
+      return { width: 120, height: 80 };
+  }
+};
+
 export default function MultiImagePicker({ 
   images, 
   onImagesChange, 
@@ -63,6 +79,7 @@ export default function MultiImagePicker({
 }: MultiImagePickerProps) {
   const requiredImages = templateRequirements[templateType];
   const canAddMore = images.length < maxImages;
+  const slotSize = getImageSlotSize(templateType);
 
   const pickImage = async (targetSlotIndex?: number) => {
     // Determine which slot we're filling (either passed or next available)
@@ -252,7 +269,7 @@ export default function MultiImagePicker({
     }
 
     return (
-      <View key={index} style={[styles.imageSlot, isEmpty && styles.emptyImageSlot]}>
+      <View key={index} style={[styles.imageSlot, { width: slotSize.width, height: slotSize.height }, isEmpty && styles.emptyImageSlot]}>
         {image ? (
           <View style={styles.imageContainer}>
             <Image
@@ -264,7 +281,7 @@ export default function MultiImagePicker({
               style={styles.removeButton}
               onPress={() => removeImage(index)}
             >
-              <Ionicons name="close-circle" size={20} color="#ff4444" />
+              <Ionicons name="close-circle" size={24} color="#ff4444" />
             </TouchableOpacity>
             <View style={styles.imageIndexBadge}>
               <Text style={styles.imageIndexText}>{index + 1}</Text>
@@ -294,7 +311,7 @@ export default function MultiImagePicker({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.sectionLabel}>
-          {images.length > 1 ? 'Photos' : 'Photo'} ({images.length}/{requiredImages})
+          2) {images.length > 1 ? 'Photos' : 'Photo'} ({images.length}/{requiredImages})
         </Text>
         {images.length < requiredImages && (
           <Text style={styles.missingText}>
@@ -361,8 +378,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   imageSlot: {
-    width: 120,
-    height: 80,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -383,15 +398,21 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: 4,
+    right: 4,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    elevation: 2,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#ff4444',
   },
   imageIndexBadge: {
     position: 'absolute',
