@@ -1040,7 +1040,7 @@ export default function HomeScreen() {
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        {/* 1) Template Selection */}
+        {/* Template Selection */}
         <TemplateSelector
           selectedTemplate={templateType}
           onTemplateSelect={handleTemplateChange}

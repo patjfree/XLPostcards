@@ -38,7 +38,7 @@ const templates = [
 export default function TemplateSelector({ selectedTemplate, onTemplateSelect }: TemplateSelectorProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionLabel}>Select Template</Text>
+      <Text style={styles.sectionLabel}>1) Select Template</Text>
       <View style={styles.templatesGrid}>
         {templates.map((template) => (
           <TouchableOpacity
