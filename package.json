@@ -22,7 +22,7 @@
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/drawer": "^7.1.1",
     "@react-navigation/native": "^7.0.0",
-    "@stripe/stripe-react-native": "0.38.6",
+    "@stripe/stripe-react-native": "0.53.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "expo": "~52.0.47",
