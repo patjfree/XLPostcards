@@ -498,11 +498,11 @@ async def generate_complete_postcard(request: PostcardRequest):
             if os.path.exists(logo_path):
                 logo_img = Image.open(logo_path).convert("RGBA")
                 
-                # Scale logo based on postcard size (4x bigger)
+                # Scale logo based on postcard size (2x bigger)
                 if request.postcardSize == "xl":
-                    logo_width = 1200  # 4x larger for XL postcards (was 300)
+                    logo_width = 600  # 2x larger for XL postcards (was 300)
                 else:
-                    logo_width = 800   # 4x larger for regular postcards (was 200)
+                    logo_width = 400  # 2x larger for regular postcards (was 200)
                 
                 # Calculate height maintaining aspect ratio
                 aspect_ratio = logo_img.height / logo_img.width
@@ -940,11 +940,11 @@ async def generate_postcard_back(request: PostcardRequest):
             if os.path.exists(logo_path):
                 logo_img = Image.open(logo_path).convert("RGBA")
                 
-                # Scale logo based on postcard size (4x bigger)
+                # Scale logo based on postcard size (2x bigger)
                 if request.postcardSize == "xl":
-                    logo_width = 1200  # 4x larger for XL postcards (was 300)
+                    logo_width = 600  # 2x larger for XL postcards (was 300)
                 else:
-                    logo_width = 800   # 4x larger for regular postcards (was 200)
+                    logo_width = 400  # 2x larger for regular postcards (was 200)
                 
                 # Calculate height maintaining aspect ratio
                 aspect_ratio = logo_img.height / logo_img.width
