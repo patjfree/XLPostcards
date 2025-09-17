@@ -492,6 +492,35 @@ async def generate_complete_postcard(request: PostcardRequest):
             draw.text((x, y), line, font=addr_font, fill="black")
             y += 46
 
+        # Add XLPostcards logo to lower left corner
+        try:
+            logo_path = os.path.join(os.path.dirname(__file__), "xlpostcards-logo.png")
+            if os.path.exists(logo_path):
+                logo_img = Image.open(logo_path).convert("RGBA")
+                
+                # Scale logo based on postcard size
+                if request.postcardSize == "xl":
+                    logo_width = 300  # Larger for XL postcards
+                else:
+                    logo_width = 200  # Smaller for regular postcards
+                
+                # Calculate height maintaining aspect ratio
+                aspect_ratio = logo_img.height / logo_img.width
+                logo_height = int(logo_width * aspect_ratio)
+                logo_img = logo_img.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+                
+                # Position in lower left corner with some padding
+                logo_x = 50
+                logo_y = H - logo_height - 50
+                
+                # Paste logo with transparency support
+                back_img.paste(logo_img, (logo_x, logo_y), logo_img)
+                print(f"[LOGO] Added XLPostcards logo to postcard back at ({logo_x}, {logo_y})")
+            else:
+                print(f"[LOGO] Logo file not found at: {logo_path}")
+        except Exception as e:
+            print(f"[LOGO] Error adding logo: {e}")
+
         # Generate back image data
         back_buf = io.BytesIO()
         back_img.save(back_buf, format="JPEG", quality=95)
@@ -904,6 +933,35 @@ async def generate_postcard_back(request: PostcardRequest):
         ]):
             draw.text((x, y), line, font=addr_font, fill="black")
             y += 46
+
+        # Add XLPostcards logo to lower left corner (legacy endpoint)
+        try:
+            logo_path = os.path.join(os.path.dirname(__file__), "xlpostcards-logo.png")
+            if os.path.exists(logo_path):
+                logo_img = Image.open(logo_path).convert("RGBA")
+                
+                # Scale logo based on postcard size
+                if request.postcardSize == "xl":
+                    logo_width = 300  # Larger for XL postcards
+                else:
+                    logo_width = 200  # Smaller for regular postcards
+                
+                # Calculate height maintaining aspect ratio
+                aspect_ratio = logo_img.height / logo_img.width
+                logo_height = int(logo_width * aspect_ratio)
+                logo_img = logo_img.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+                
+                # Position in lower left corner with some padding
+                logo_x = 50
+                logo_y = H - logo_height - 50
+                
+                # Paste logo with transparency support
+                img.paste(logo_img, (logo_x, logo_y), logo_img)
+                print(f"[LEGACY LOGO] Added XLPostcards logo to postcard back at ({logo_x}, {logo_y})")
+            else:
+                print(f"[LEGACY LOGO] Logo file not found at: {logo_path}")
+        except Exception as e:
+            print(f"[LEGACY LOGO] Error adding logo: {e}")
 
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=95)
