@@ -132,7 +132,8 @@ module.exports = {
       android: {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
-        buildToolsVersion: "35.0.0"
+        buildToolsVersion: "35.0.0",
+        kotlinVersion: "2.0.21"
       }
     }],
     "./plugins/android-stripe-fix"

@@ -11,12 +11,12 @@ const withStripeAndroidFix = (config) => {
             eachDependency { details ->
                 if (details.requested.group == 'com.stripe') {
                     if (details.requested.name == 'stripe-android') {
-                        details.useVersion '21.26.0'
-                        details.because 'Force stable version to avoid snapshots repository'
+                        details.useVersion '20.48.0'
+                        details.because 'Force compatible version with Kotlin 2.0'
                     }
                     if (details.requested.name == 'financial-connections') {
                         details.useVersion '20.48.0'
-                        details.because 'Force stable version to avoid snapshots repository'
+                        details.because 'Force compatible version with Kotlin 2.0'
                     }
                 }
             }
