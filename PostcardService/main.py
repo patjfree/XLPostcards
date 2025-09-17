@@ -494,7 +494,7 @@ async def generate_complete_postcard(request: PostcardRequest):
 
         # Add XLPostcards logo to lower left corner
         try:
-            logo_path = os.path.join(os.path.dirname(__file__), "xlpostcards-logo.png")
+            logo_path = os.path.join(os.path.dirname(__file__), "Assets", "Images", "BW icon - Back.png")
             if os.path.exists(logo_path):
                 logo_img = Image.open(logo_path).convert("RGBA")
                 
@@ -936,7 +936,7 @@ async def generate_postcard_back(request: PostcardRequest):
 
         # Add XLPostcards logo to lower left corner (legacy endpoint)
         try:
-            logo_path = os.path.join(os.path.dirname(__file__), "xlpostcards-logo.png")
+            logo_path = os.path.join(os.path.dirname(__file__), "Assets", "Images", "BW icon - Back.png")
             if os.path.exists(logo_path):
                 logo_img = Image.open(logo_path).convert("RGBA")
                 
