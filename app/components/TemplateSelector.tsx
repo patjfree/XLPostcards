@@ -74,27 +74,33 @@ export default function TemplateSelector({ selectedTemplate, onTemplateSelect }:
 function renderTemplatePreview(templateId: TemplateType) {
   const previewSize = 60;
   
+  const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => (
+    <View style={[styles.previewBox, { width, height }]}>
+      <View style={styles.previewNumber}>
+        <Text style={styles.previewNumberText}>{number}</Text>
+      </View>
+    </View>
+  );
+  
   switch (templateId) {
     case 'single':
-      return (
-        <View style={[styles.previewBox, { width: previewSize, height: previewSize * 0.67 }]} />
-      );
+      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
     
     case 'two_side_by_side':
       return (
         <View style={{ flexDirection: 'row', gap: 2 }}>
-          <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 }]} />
-          <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 }]} />
+          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
+          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 2)}
         </View>
       );
     
     case 'three_photos':
       return (
         <View style={{ flexDirection: 'row', gap: 2 }}>
-          <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 }]} />
+          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
           <View style={{ gap: 2 }}>
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
           </View>
         </View>
       );
@@ -103,18 +109,18 @@ function renderTemplatePreview(templateId: TemplateType) {
       return (
         <View style={{ gap: 2 }}>
           <View style={{ flexDirection: 'row', gap: 2 }}>
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 1)}
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
           </View>
           <View style={{ flexDirection: 'row', gap: 2 }}>
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
-            <View style={[styles.previewBox, { width: previewSize/2 - 1, height: previewSize * 0.67 / 2 - 1 }]} />
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
+            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 4)}
           </View>
         </View>
       );
     
     default:
-      return <View style={[styles.previewBox, { width: previewSize, height: previewSize * 0.67 }]} />;
+      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
   }
 }
 
@@ -163,6 +169,25 @@ const styles = StyleSheet.create({
   previewBox: {
     backgroundColor: '#ddd',
     borderRadius: 4,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewNumber: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    backgroundColor: '#f28914',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewNumberText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   templateName: {
     fontSize: 14,
