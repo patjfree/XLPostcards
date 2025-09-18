@@ -122,10 +122,26 @@ export default function MultiImagePicker({
         // Ensure we have base64 data for OpenAI analysis
         let imageBase64 = pickedImage.data;
         
+        console.log('iOS: Checking base64 data:', {
+          hasData: !!pickedImage.data,
+          dataLength: pickedImage.data?.length || 0,
+          pickedImageKeys: Object.keys(pickedImage)
+        });
+        
         if (!imageBase64) {
-          console.log('iOS: No base64 from picker, this should not happen with includeBase64: true');
-          // This shouldn't happen with includeBase64: true, but just in case
-          imageBase64 = undefined;
+          console.log('iOS: No base64 from picker, regenerating...');
+          // Generate base64 from the picked image
+          const base64Result = await ImageManipulator.manipulateAsync(
+            pickedImage.path,
+            [],
+            {
+              compress: 0.8,
+              format: ImageManipulator.SaveFormat.JPEG,
+              base64: true,
+            }
+          );
+          imageBase64 = base64Result.base64;
+          console.log('iOS: Generated base64 length:', imageBase64?.length || 0);
         }
 
         const newImage: SelectedImage = {
@@ -202,9 +218,16 @@ export default function MultiImagePicker({
           // Ensure we have base64 data for OpenAI analysis
           let imageBase64 = finalImage.base64 || selectedImage.base64;
           
+          console.log('Android: Checking base64 data:', {
+            finalImageBase64: !!finalImage.base64,
+            selectedImageBase64: !!selectedImage.base64,
+            finalImageBase64Length: finalImage.base64?.length || 0,
+            selectedImageBase64Length: selectedImage.base64?.length || 0
+          });
+          
           // If still no base64, generate it from the final image
           if (!imageBase64) {
-            console.log('No base64 found, regenerating from final image');
+            console.log('Android: No base64 found, regenerating from final image');
             const base64Result = await ImageManipulator.manipulateAsync(
               finalImage.uri,
               [],
@@ -215,6 +238,7 @@ export default function MultiImagePicker({
               }
             );
             imageBase64 = base64Result.base64;
+            console.log('Android: Generated base64 length:', imageBase64?.length || 0);
           }
 
           const newImage: SelectedImage = {

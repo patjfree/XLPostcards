@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Pressable, Text } from 'react-native';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
@@ -389,12 +390,47 @@ export default function HomeScreen() {
       console.log('Analyzing images:', images.map(img => ({ 
         uri: img.uri?.substring(0, 50) + '...', 
         hasBase64: !!img.base64,
-        base64Length: img.base64?.length || 0 
+        base64Length: img.base64?.length || 0,
+        allKeys: Object.keys(img)
       })));
       
-      const validImages = images.filter(img => img.base64).slice(0, 4); // Max 4 images for API efficiency
+      let validImages = images.filter(img => img.base64).slice(0, 4); // Max 4 images for API efficiency
       
       console.log(`Found ${validImages.length} valid images out of ${images.length} total`);
+      
+      // If no valid images, try to regenerate base64 for all images
+      if (validImages.length === 0) {
+        console.log('No valid images found, attempting to regenerate base64 for all images...');
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i];
+          if (img.uri && !img.base64) {
+            try {
+              console.log(`Regenerating base64 for image ${i}: ${img.uri.substring(0, 50)}...`);
+              const result = await ImageManipulator.manipulateAsync(
+                img.uri,
+                [],
+                {
+                  compress: 0.8,
+                  format: ImageManipulator.SaveFormat.JPEG,
+                  base64: true,
+                }
+              );
+              
+              if (result.base64) {
+                // Update the image in the images array
+                img.base64 = result.base64;
+                console.log(`Successfully generated base64 for image ${i}, length: ${result.base64.length}`);
+              }
+            } catch (error) {
+              console.error(`Failed to generate base64 for image ${i}:`, error);
+            }
+          }
+        }
+        
+        // Re-filter for valid images
+        validImages = images.filter(img => img.base64).slice(0, 4);
+        console.log(`After regeneration: ${validImages.length} valid images out of ${images.length} total`);
+      }
       
       if (validImages.length === 0) {
         Alert.alert('Image Error', 'No valid images with data found. Please try selecting photos again.');
