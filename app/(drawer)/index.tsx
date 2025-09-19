@@ -1614,6 +1614,9 @@ export default function HomeScreen() {
           </Text>
           <Text style={{ textAlign: 'center', fontSize: 10, color: '#999', marginBottom: 4 }}>
             v{Constants.expoConfig?.version || 'Unknown'}
+            {__DEV__ && Constants.expoConfig?.extra?.internalBuildNumber && (
+              <Text style={{ fontSize: 9, color: '#666' }}> (build {Constants.expoConfig.extra.internalBuildNumber})</Text>
+            )}
           </Text>
           {__DEV__ && (
             <Text style={{ textAlign: 'center', fontSize: 9, color: '#999', marginBottom: 8 }}>
