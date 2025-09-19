@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, View, KeyboardAvoidingView, Modal, Pressable, Text } from 'react-native';
 import Constants from 'expo-constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,6 +14,7 @@ import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 import AIDisclaimer from '../components/AIDisclaimer';
 import TemplateSelector, { TemplateType } from '../components/TemplateSelector';
 import MultiImagePicker, { SelectedImage } from '../components/MultiImagePicker';
+import SpotlightBox, { SpotlightRect } from '../../components/SpotlightBox';
 
 // const US_STATES = [
 //   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -136,26 +137,230 @@ export default function HomeScreen() {
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [templateType, setTemplateType] = useState<TemplateType>('single');
   const userChangedTemplate = React.useRef(false);
+  
+  // Spotlight state for hamburger highlighting
+  const hamburgerRef = useRef<View>(null);
+  const [spot, setSpot] = useState<SpotlightRect | null>(null);
+  const [showSpotlight, setShowSpotlight] = useState(false);
 
   // Handle template change with smart photo management
   const handleTemplateChange = (newTemplate: TemplateType) => {
+    console.log('[TEMPLATE] User manually changing template from', templateType, 'to', newTemplate);
     const newRequiredImages = templateRequirements[newTemplate];
     
     if (images.length > newRequiredImages) {
       // Keep only the photos that fit the new template
       const trimmedImages = images.slice(0, newRequiredImages);
       setImages(trimmedImages);
+      console.log('[TEMPLATE] Trimmed images from', images.length, 'to', newRequiredImages);
     }
     
     setTemplateType(newTemplate);
     userChangedTemplate.current = true; // Mark that user manually changed template
+    console.log('[TEMPLATE] Set userChangedTemplate to true');
+  };
+
+  // Function to show hamburger spotlight
+  const showHamburgerSpotlight = () => {
+    setTimeout(() => {
+      hamburgerRef.current?.measureInWindow((x, y, w, h) => {
+        setSpot({ x, y, w, h });
+        setShowSpotlight(true);
+      });
+    }, 100);
   };
   const [postcardMessage, setPostcardMessage] = useState('');
+  const [signatureBlock, setSignatureBlock] = useState('');
   const [isAIGenerated, setIsAIGenerated] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
 
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const [isTourActive, setIsTourActive] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const messageInputRef = useRef<TextInput>(null);
+  
+  // Expose drawer control functions globally for tour
+  useEffect(() => {
+    (global as any).openDrawer = () => navigation.openDrawer();
+    (global as any).closeDrawer = () => navigation.closeDrawer();
+    // Expose tour state management
+    (global as any).setTourActive = setIsTourActive;
+    // Expose spotlight function for manual restart
+    (global as any).showHamburgerSpotlight = showHamburgerSpotlight;
+    // Expose scroll function for tour
+    (global as any).scrollToSelectRecipient = () => {
+      if (scrollViewRef.current) {
+        console.log('[SCROLL] Scrolling to Select Recipient section');
+        scrollViewRef.current.scrollTo({ y: 800, animated: true });
+      }
+    };
+    return () => {
+      delete (global as any).openDrawer;
+      delete (global as any).closeDrawer;
+      delete (global as any).setTourActive;
+      delete (global as any).showHamburgerSpotlight;
+      delete (global as any).scrollToSelectRecipient;
+    };
+  }, [navigation]);
+
+  // Show spotlight on first launch
+  useEffect(() => {
+    const checkAndShowSpotlight = async () => {
+      try {
+        const { TourStorageService } = await import('../../src/services/tourStorage');
+        const shouldShow = await TourStorageService.shouldShowTour();
+        if (shouldShow) {
+          setTimeout(() => {
+            showHamburgerSpotlight();
+          }, 1000); // Wait for layout to settle
+        }
+      } catch (error) {
+        console.log('[SPOTLIGHT] Error checking tour state:', error);
+      }
+    };
+    
+    checkAndShowSpotlight();
+  }, []);
+
+  // Load signature block from settings
+  useEffect(() => {
+    const loadSignature = async () => {
+      try {
+        const savedSignature = await AsyncStorage.getItem(SETTINGS_KEYS.SIGNATURE);
+        setSignatureBlock(savedSignature || '');
+      } catch (error) {
+        console.log('[SIGNATURE] Error loading signature:', error);
+      }
+    };
+    
+    loadSignature();
+  }, []);
+
+  // Auto-populate message with salutation and signature
+  useEffect(() => {
+    console.log('[SALUTATION] Auto-populate effect triggered');
+    console.log('[SALUTATION] selectedAddressId:', selectedAddressId);
+    console.log('[SALUTATION] addresses length:', addresses.length);
+    console.log('[SALUTATION] signatureBlock:', signatureBlock);
+    console.log('[SALUTATION] current postcardMessage:', postcardMessage);
+    
+    // Don't proceed if we don't have addresses loaded yet or no address selected
+    if (!selectedAddressId || addresses.length === 0) {
+      console.log('[SALUTATION] Skipping - no address selected or addresses not loaded yet');
+      return;
+    }
+    
+    const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+    console.log('[SALUTATION] selectedAddress:', selectedAddress);
+    
+    const salutation = selectedAddress?.salutation || '';
+    console.log('[SALUTATION] extracted salutation:', salutation);
+    
+    // Check if we need to add/update salutation or signature
+    const messageLines = postcardMessage.split('\n');
+    console.log('[SALUTATION] messageLines:', messageLines);
+    console.log('[SALUTATION] messageLines count:', messageLines.length);
+    console.log('[SALUTATION] signatureBlock to search for:', signatureBlock);
+    
+    // Check for signature presence more robustly
+    let hasSignature = false;
+    if (signatureBlock) {
+      const signatureLines = signatureBlock.split('\n').map(line => line.trim());
+      // Check if all signature lines are present in the message
+      hasSignature = signatureLines.every(sigLine => 
+        sigLine === '' || messageLines.some(msgLine => msgLine.trim() === sigLine)
+      );
+    }
+    
+    const hasSalutation = salutation && messageLines.some(line => line.trim() === salutation.trim());
+    
+    console.log('[SALUTATION] Looking for signature lines:');
+    if (signatureBlock) {
+      const signatureLines = signatureBlock.split('\n');
+      signatureLines.forEach((sigLine, idx) => {
+        console.log(`[SALUTATION] Signature line ${idx}: "${sigLine}"`);
+        const found = messageLines.some(line => line.trim() === sigLine.trim());
+        console.log(`[SALUTATION] Found signature line ${idx} in message:`, found);
+      });
+    }
+    
+    console.log('[SALUTATION] hasSignature:', hasSignature);
+    console.log('[SALUTATION] hasSalutation:', hasSalutation);
+    console.log('[SALUTATION] message is empty:', !postcardMessage.trim());
+    console.log('[SALUTATION] salutation exists but not in message:', salutation && !hasSalutation);
+    console.log('[SALUTATION] signature exists but not in message:', signatureBlock && !hasSignature);
+    
+    // If message is empty or missing components, populate them
+    // Also populate if we just selected a new address with a salutation
+    const shouldPopulate = !postcardMessage.trim() || (salutation && !hasSalutation) || (signatureBlock && !hasSignature);
+    console.log('[SALUTATION] Should populate:', shouldPopulate);
+    
+    if (shouldPopulate) {
+      console.log('[SALUTATION] Conditions met, will populate message');
+      let newMessage = '';
+      let cursorPosition = 0;
+      
+      // Add salutation if needed
+      if (salutation && !hasSalutation) {
+        newMessage += salutation + '\n\n';
+        cursorPosition = newMessage.length;
+      } else if (hasSalutation) {
+        // Find existing salutation and preserve content after it
+        const salutationIndex = messageLines.findIndex(line => line.trim() === salutation.trim());
+        if (salutationIndex >= 0) {
+          newMessage += messageLines.slice(0, salutationIndex + 1).join('\n') + '\n\n';
+          cursorPosition = newMessage.length;
+        }
+      }
+      
+      // Add space for user to type their message if not already present
+      if (!newMessage.includes('\n\n\n')) {
+        newMessage += '\n';
+      }
+      
+      // Add signature if needed
+      if (signatureBlock && !hasSignature) {
+        newMessage += '\n' + signatureBlock;
+      } else if (hasSignature) {
+        // Find and preserve existing signature location
+        const signatureIndex = messageLines.findIndex(line => line.trim() === signatureBlock.trim());
+        if (signatureIndex >= 0) {
+          const beforeSignature = messageLines.slice(0, signatureIndex).join('\n');
+          newMessage = beforeSignature + '\n' + signatureBlock;
+        }
+      }
+      
+      console.log('[SALUTATION] Setting new message:', newMessage);
+      console.log('[SALUTATION] New message length:', newMessage.length);
+      console.log('[SALUTATION] Cursor position will be:', cursorPosition);
+      
+      setPostcardMessage(newMessage);
+      
+      // Set cursor position between salutation and signature
+      setTimeout(() => {
+        if (messageInputRef.current && cursorPosition > 0) {
+          console.log('[SALUTATION] Setting cursor position to:', cursorPosition);
+          messageInputRef.current.focus();
+          messageInputRef.current.setSelection(cursorPosition, cursorPosition);
+        }
+      }, 100);
+    } else {
+      console.log('[SALUTATION] No changes needed to message');
+    }
+  }, [selectedAddressId, signatureBlock, addresses]);
+
+  // Handle spotlight dismiss
+  const handleSpotlightDismiss = async () => {
+    setShowSpotlight(false);
+    try {
+      const { TourStorageService } = await import('../../src/services/tourStorage');
+      await TourStorageService.markTourCompleted();
+    } catch (error) {
+      console.log('[SPOTLIGHT] Error marking tour completed:', error);
+    }
+  };
+
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -268,11 +473,17 @@ export default function HomeScreen() {
     }
 
     // Process template type (only if user hasn't manually changed it)
+    console.log('[XLPOSTCARDS][MAIN] Template processing - params.templateType:', params.templateType, 'current templateType:', templateType, 'userChangedTemplate:', userChangedTemplate.current);
+    
     if (params.templateType && params.templateType !== templateType && !userChangedTemplate.current) {
       console.log('[XLPOSTCARDS][MAIN] Setting template type from params:', params.templateType);
       setTemplateType(params.templateType as TemplateType);
     } else if (params.templateType && userChangedTemplate.current) {
       console.log('[XLPOSTCARDS][MAIN] Ignoring template type from params, user has manually changed template');
+    } else if (params.templateType === templateType) {
+      console.log('[XLPOSTCARDS][MAIN] Template type from params matches current, no change needed');
+    } else if (!params.templateType) {
+      console.log('[XLPOSTCARDS][MAIN] No template type in params');
     }
 
     // Process message
@@ -320,7 +531,7 @@ export default function HomeScreen() {
       postcardSizeSetFromParams.current = true;
     }
     console.log('[XLPOSTCARDS][DEBUG] postcardSize after processParams:', postcardSize);
-  }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize, templateType]);
+  }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize]);
 
   // Update the useEffect that processes params
   useEffect(() => {
@@ -378,12 +589,41 @@ export default function HomeScreen() {
 
   // Function to analyze the image with OpenAI
   const analyzeImage = async () => {
+    console.log('[AI] Starting analyzeImage function');
+    console.log('[AI] OpenAI API Key available:', !!openaiApiKey);
+    console.log('[AI] OpenAI API Key first 10 chars:', openaiApiKey?.substring(0, 10));
+    
+    if (!openaiApiKey) {
+      console.log('[AI] No OpenAI API key available');
+      Alert.alert('Error', 'OpenAI API key not configured.');
+      return;
+    }
+    
+    if (!openaiApiKey.startsWith('sk-')) {
+      console.log('[AI] Invalid OpenAI API key format');
+      Alert.alert('Error', 'Invalid OpenAI API key format.');
+      return;
+    }
+    
     if (!images.length) {
+      console.log('[AI] No images found, showing alert');
       Alert.alert('No image', 'Please select a photo first.');
       return;
     }
+    
+    console.log('[AI] Images array length:', images.length);
+    console.log('[AI] Images details:', images.map((img, idx) => ({
+      index: idx,
+      uri: img.uri?.substring(0, 50) + '...',
+      hasBase64: !!img.base64,
+      base64Length: img.base64?.length || 0
+    })));
+    
     const selected = addresses.find(a => a.id === selectedAddressId);
     const salutation = selected?.salutation || '';
+    console.log('[AI] Selected address:', selected);
+    console.log('[AI] Found salutation:', salutation);
+    console.log('[AI] Setting loading to true');
     setLoading(true);
     try {
       // Prepare images with base64 validation
@@ -455,21 +695,52 @@ export default function HomeScreen() {
         }
       }
 
-      if (salutation) {
-        promptText += ` Start the message with: "${salutation}".`;
-      }
-      
+      // Extract any existing message content between salutation and signature
+      let existingContent = '';
       if (postcardMessage) {
-        promptText += ` Here are some hints or ideas: ${postcardMessage}`;
+        const lines = postcardMessage.split('\n');
+        let startIndex = 0;
+        let endIndex = lines.length;
+        
+        // Find where salutation ends (skip salutation and empty lines)
+        if (salutation) {
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim() === salutation.trim()) {
+              startIndex = i + 1;
+              // Skip empty lines after salutation
+              while (startIndex < lines.length && lines[startIndex].trim() === '') {
+                startIndex++;
+              }
+              break;
+            }
+          }
+        }
+        
+        // Find where signature starts (working backwards)
+        if (signatureBlock) {
+          for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].trim() === signatureBlock.trim()) {
+              endIndex = i;
+              // Skip empty lines before signature
+              while (endIndex > 0 && lines[endIndex - 1].trim() === '') {
+                endIndex--;
+              }
+              break;
+            }
+          }
+        }
+        
+        // Extract content between salutation and signature
+        if (startIndex < endIndex) {
+          existingContent = lines.slice(startIndex, endIndex).join('\n').trim();
+        }
       }
       
-      promptText += ` Write it in a casual, personal tone, like a real postcard.`;
-
-      // Get signature block from settings
-      let signatureBlock = await AsyncStorage.getItem(SETTINGS_KEYS.SIGNATURE);
-      if (signatureBlock) {
-        promptText += ` End the message with: "${signatureBlock}"`;
+      if (existingContent) {
+        promptText += ` Here are some hints or ideas: ${existingContent}`;
       }
+      
+      promptText += ` Write it in a casual, personal tone, like a real postcard. Write ONLY the main message content - no salutation or signature.`;
 
       // Create content array with text and all valid images
       const contentArray = [
@@ -483,7 +754,17 @@ export default function HomeScreen() {
         }))
       ];
 
+      console.log('[AI] About to call OpenAI API');
+      console.log('[AI] Content array length:', contentArray.length);
+      console.log('[AI] Content array structure:', contentArray.map((item, idx) => ({
+        index: idx,
+        type: item.type,
+        hasImageUrl: item.type === 'image_url' ? !!item.image_url : false,
+        textLength: item.type === 'text' ? item.text?.length : 0
+      })));
+      
       // Call OpenAI API
+      console.log('[AI] Making fetch request to OpenAI');
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -501,18 +782,63 @@ export default function HomeScreen() {
           max_tokens: 400
         })
       });
+      
+      console.log('[AI] Response status:', response.status);
+      console.log('[AI] Response ok:', response.ok);
+      
       const data = await response.json();
+      console.log('[AI] Response data keys:', Object.keys(data));
+      console.log('[AI] Response data:', data);
+      
       if (data.error) {
+        console.log('[AI] API returned error:', data.error);
         throw new Error(data.error.message || 'Error analyzing image');
       }
       // Get the paragraph from the response
-      const content = data.choices[0].message.content;
-      setPostcardMessage(content);
+      console.log('[AI] Extracting content from response');
+      console.log('[AI] data.choices length:', data.choices?.length || 0);
+      console.log('[AI] First choice:', data.choices?.[0]);
+      
+      const aiContent = data.choices[0].message.content;
+      console.log('[AI] AI generated content:', aiContent);
+      console.log('[AI] AI content length:', aiContent?.length || 0);
+      
+      // Construct the full message with salutation and signature
+      console.log('[AI] Constructing full message');
+      console.log('[AI] Current salutation:', salutation);
+      console.log('[AI] Current signatureBlock:', signatureBlock);
+      
+      let fullMessage = '';
+      
+      if (salutation) {
+        fullMessage += salutation + '\n\n';
+        console.log('[AI] Added salutation to message');
+      }
+      
+      fullMessage += aiContent;
+      console.log('[AI] Added AI content to message');
+      
+      if (signatureBlock) {
+        fullMessage += '\n\n' + signatureBlock;
+        console.log('[AI] Added signature to message');
+      }
+      
+      console.log('[AI] Final message to set:', fullMessage);
+      console.log('[AI] Final message length:', fullMessage.length);
+      
+      setPostcardMessage(fullMessage);
       setIsAIGenerated(true);
+      console.log('[AI] Successfully set message and AI generated flag');
     } catch (error) {
-      console.error('Error analyzing images:', error);
-      Alert.alert('Error', 'Failed to analyze images.');
+      console.error('[AI] Error analyzing images:', error);
+      console.error('[AI] Error details:', {
+        message: (error as any)?.message,
+        stack: (error as any)?.stack,
+        name: (error as any)?.name
+      });
+      Alert.alert('Error', 'Failed to analyze images. Check console for details.');
     } finally {
+      console.log('[AI] Setting loading to false');
       setLoading(false);
     }
   };
@@ -587,6 +913,7 @@ export default function HomeScreen() {
         setPostcardProgress('Preparing your postcard...');
         
         // Get return address settings and generate Railway preview
+        let returnAddressText = '';
         try {
           const [savedReturnAddress, savedIncludeReturnAddress, savedUserEmail] = await Promise.all([
             AsyncStorage.getItem(SETTINGS_KEYS.RETURN_ADDRESS),
@@ -594,7 +921,7 @@ export default function HomeScreen() {
             AsyncStorage.getItem(SETTINGS_KEYS.EMAIL),
           ]);
           const includeReturnAddress = savedIncludeReturnAddress === 'true';
-          const returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
+          returnAddressText = includeReturnAddress ? (savedReturnAddress || '') : '';
           
           // Generate Railway preview before navigation
           setPostcardProgress('Uploading your images...');
@@ -917,7 +1244,8 @@ export default function HomeScreen() {
     if (params.addNewAddress === 'true') shouldShow = true;
     if (params.editAddressId) shouldShow = true;
     setShowAddressModal(shouldShow);
-    if (!shouldShow) {
+    // Only clear editingAddressId if we're not editing an address
+    if (!shouldShow && !params.editAddressId) {
       setEditingAddressId(null);
       setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
     }
@@ -977,7 +1305,8 @@ export default function HomeScreen() {
             imageUri: images[0]?.uri,
             imageUris: JSON.stringify(images.map(img => img.uri)),
             templateType,
-            message: postcardMessage
+            message: postcardMessage,
+            postcardSize
           }
         });
         return;
@@ -1039,6 +1368,7 @@ export default function HomeScreen() {
     setPostcardSize('xl');
     imageSetFromParams.current = false;
     postcardSizeSetFromParams.current = false;
+    userChangedTemplate.current = false; // Reset template change flag
     // Navigate to main screen with NO params to clear everything
     router.replace({ pathname: '/' });
   };
@@ -1062,13 +1392,28 @@ export default function HomeScreen() {
           }}
           resizeMode="cover"
         />
-        <TouchableOpacity style={[styles.hamburgerInHeaderScroll, { top: 32 }]} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={28} color="#0a7ea4" />
-        </TouchableOpacity>
+        <View ref={hamburgerRef} style={styles.hamburgerInHeaderScroll}>
+          <TouchableOpacity 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}
+            onPress={() => {
+              console.log('[HAMBURGER] Button pressed');
+              navigation.openDrawer();
+            }}
+            testID="hamburger-btn"
+          >
+            <Ionicons name="menu" size={28} color="#0a7ea4" />
+          </TouchableOpacity>
+        </View>
       </View>
       
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={{ flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 }}
         keyboardShouldPersistTaps="handled"
       >
@@ -1076,75 +1421,80 @@ export default function HomeScreen() {
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        {/* Template Selection */}
-        <TemplateSelector
-          selectedTemplate={templateType}
-          onTemplateSelect={handleTemplateChange}
-        />
+        {/* Template & Photo Selection Combined */}
+        <View style={{ width: '100%' }}>
+          {/* Template Selection */}
+          <TemplateSelector
+            selectedTemplate={templateType}
+            onTemplateSelect={handleTemplateChange}
+          />
 
-        {/* Multi-Image Picker */}
-        <MultiImagePicker
-          images={images}
-          onImagesChange={setImages}
-          templateType={templateType}
-          maxImages={templateRequirements[templateType]}
-        />
-
-        <View style={styles.sectionBlock}>
-          <Text style={styles.sectionLabel}>3) Select Postcard Size</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
-            <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-              <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
-                {postcardSize === 'regular' && <View style={styles.radioInner} />}
-              </View>
-              <Text style={styles.radioLabel}>Regular (4"x6")</Text>
-            </Pressable>
-            <Pressable onPress={() => setPostcardSize('xl')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.radioOuter, postcardSize === 'xl' && styles.radioOuterSelected]}>
-                {postcardSize === 'xl' && <View style={styles.radioInner} />}
-              </View>
-              <Text style={styles.radioLabel}>XL (6"x9")</Text>
-            </Pressable>
-          </View>
-          <View style={{ alignItems: 'center', marginBottom: 4 }}>
-            <Text style={{ color: '#888', fontSize: 14 }}>Same Low Price - $1.99 + tax</Text>
-          </View>
+          {/* Multi-Image Picker */}
+          <MultiImagePicker
+            images={images}
+            onImagesChange={setImages}
+            templateType={templateType}
+            maxImages={templateRequirements[templateType]}
+          />
         </View>
 
-        {/* Address Dropdown Section */}
-        <View style={[styles.sectionBlock, { zIndex: 3000 }]}>
-          <Text style={styles.sectionLabel}>4) Select Recipient</Text>
-          <TouchableOpacity
-            style={[styles.fullWidthButton, { marginBottom: 8 }]}
-            onPress={() => {
-              setCameFromSelectRecipient(true);
-              router.push({ 
-                pathname: '/select-recipient', 
-                params: { 
-                  imageUri: images[0]?.uri, 
-                  imageUris: JSON.stringify(images.map(img => img.uri)), 
-                  templateType,
-                  message: postcardMessage, 
-                  postcardSize 
-                } 
-              });
-            }}
-          >
-            <Text style={styles.buttonText}>
-              {addresses.length === 0
-                ? 'Add Recipient'
-                : (selectedAddressId
-                    ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient')
-                    : 'Select Recipient')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionLabel}>3) Select Postcard Size</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
+                <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+                  <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
+                    {postcardSize === 'regular' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.radioLabel}>Regular (4"x6")</Text>
+                </Pressable>
+                <Pressable onPress={() => setPostcardSize('xl')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[styles.radioOuter, postcardSize === 'xl' && styles.radioOuterSelected]}>
+                    {postcardSize === 'xl' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.radioLabel}>XL (6"x9")</Text>
+                </Pressable>
+              </View>
+              <View style={{ alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ color: '#888', fontSize: 14 }}>Same Low Price - $1.99 + tax</Text>
+              </View>
+            </View>
 
-        {/* Message Block */}
-        <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
+            {/* Address Dropdown Section */}
+            <View style={[styles.sectionBlock, { zIndex: 3000 }]}>
+              <Text style={styles.sectionLabel}>4) Select Recipient</Text>
+              <TouchableOpacity
+                style={[styles.fullWidthButton, { marginBottom: 8 }]}
+                onPress={() => {
+                  setCameFromSelectRecipient(true);
+                  router.push({ 
+                    pathname: '/select-recipient', 
+                    params: { 
+                      imageUri: images[0]?.uri, 
+                      imageUris: JSON.stringify(images.map(img => img.uri)), 
+                      templateType,
+                      message: postcardMessage, 
+                      postcardSize 
+                    } 
+                  });
+                }}
+                testID="select-recipient-btn"
+              >
+              <Text style={styles.buttonText}>
+                {addresses.length === 0
+                  ? 'Add Recipient'
+                  : (selectedAddressId
+                      ? (addresses.find(a => a.id === selectedAddressId)?.name || 'Select Recipient')
+                      : 'Select Recipient')}
+              </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Message Block */}
+            <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
           <Text style={styles.sectionLabel}>5) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
+              ref={messageInputRef}
               style={[styles.input, styles.messageInput]}
               value={postcardMessage}
               onChangeText={text => { setPostcardMessage(text); setIsAIGenerated(false); setHasUserEditedMessage(true); }}
@@ -1160,14 +1510,14 @@ export default function HomeScreen() {
               </View>
             )}
             <TouchableOpacity 
-              style={[styles.submitButton, styles.aiButton, (!images.length || loading) && { opacity: 0.5, backgroundColor: '#e7c7a1' }, { minWidth: 180 }]}
+              style={[styles.submitButton, styles.aiButton, { minWidth: 180 }]}
               onPress={analyzeImage}
-              disabled={!images.length || loading}
+              testID="write-for-me-btn"
             >
               <Text style={[styles.buttonText, { fontSize: 18 }]}>Write for me</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+              </View>
+            </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 16 }}>
           <TouchableOpacity
@@ -1196,11 +1546,10 @@ export default function HomeScreen() {
               style={[
                 styles.submitButton,
                 styles.createButton,
-                (!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard) && { opacity: 0.5 },
-                { flex: isCreatingPostcard && postcardProgress ? 0 : 1, minWidth: 140 }
+                { flex: 1, minWidth: 140 }
               ]}
               onPress={handleCreatePostcard}
-              disabled={!images.length || !postcardMessage || images.length < templateRequirements[templateType] || isCreatingPostcard}
+              testID="create-postcard-btn"
             >
               {isCreatingPostcard ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1376,6 +1725,14 @@ export default function HomeScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Custom Spotlight for hamburger button */}
+      <SpotlightBox
+        rect={spot}
+        visible={showSpotlight}
+        onDismiss={handleSpotlightDismiss}
+        tip="Click on hamburger for full tutorial and add your information."
+      />
     </KeyboardAvoidingView>
   );
 }

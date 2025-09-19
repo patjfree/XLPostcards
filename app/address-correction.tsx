@@ -15,6 +15,9 @@ export default function AddressCorrectionScreen() {
   React.useEffect(() => {
     console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Received params:', {
       imageUri: params.imageUri,
+      imageUris: params.imageUris,
+      templateType: params.templateType,
+      postcardSize: params.postcardSize,
       message: params.message,
       originalAddress,
       correctedAddress
@@ -24,6 +27,9 @@ export default function AddressCorrectionScreen() {
   const handleUseCorrected = () => {
     console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Using corrected address, navigating back with params:', {
       imageUri: params.imageUri,
+      imageUris: params.imageUris,
+      templateType: params.templateType,
+      postcardSize: params.postcardSize,
       message: params.message
     });
     router.replace({
@@ -33,7 +39,10 @@ export default function AddressCorrectionScreen() {
         correctedAddress: params.correctedAddress,
         originalAddress: params.originalAddress,
         imageUri: params.imageUri,
-        message: params.message
+        imageUris: params.imageUris,
+        templateType: params.templateType,
+        message: params.message,
+        postcardSize: params.postcardSize
       }
     });
   };
@@ -41,6 +50,9 @@ export default function AddressCorrectionScreen() {
   const handleUseOriginal = () => {
     console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Using original address, navigating back with params:', {
       imageUri: params.imageUri,
+      imageUris: params.imageUris,
+      templateType: params.templateType,
+      postcardSize: params.postcardSize,
       message: params.message
     });
     router.replace({
@@ -49,7 +61,10 @@ export default function AddressCorrectionScreen() {
         useOriginalAddress: 'true',
         originalAddress: params.originalAddress,
         imageUri: params.imageUri,
-        message: params.message
+        imageUris: params.imageUris,
+        templateType: params.templateType,
+        message: params.message,
+        postcardSize: params.postcardSize
       }
     });
   };
@@ -57,13 +72,19 @@ export default function AddressCorrectionScreen() {
   const handleCancel = () => {
     console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Canceling, navigating back with params:', {
       imageUri: params.imageUri,
+      imageUris: params.imageUris,
+      templateType: params.templateType,
+      postcardSize: params.postcardSize,
       message: params.message
     });
     router.replace({
       pathname: '/',
       params: {
         imageUri: params.imageUri,
-        message: params.message
+        imageUris: params.imageUris,
+        templateType: params.templateType,
+        message: params.message,
+        postcardSize: params.postcardSize
       }
     });
   };
