@@ -1,7 +1,6 @@
 import React from 'react';
 import { SafeAreaView, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function AddressCorrectionScreen() {
   const router = useRouter();
@@ -22,7 +21,7 @@ export default function AddressCorrectionScreen() {
       originalAddress,
       correctedAddress
     });
-  }, [params]);
+  }, [params, originalAddress, correctedAddress]);
 
   const handleUseCorrected = () => {
     console.log('[XLPOSTCARDS][ADDRESS-CORRECTION] Using corrected address, navigating back with params:', {

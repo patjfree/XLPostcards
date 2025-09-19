@@ -176,7 +176,6 @@ export default function HomeScreen() {
   const params = useLocalSearchParams();
 
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const [isTourActive, setIsTourActive] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageInputRef = useRef<TextInput>(null);
   
@@ -184,8 +183,6 @@ export default function HomeScreen() {
   useEffect(() => {
     (global as any).openDrawer = () => navigation.openDrawer();
     (global as any).closeDrawer = () => navigation.closeDrawer();
-    // Expose tour state management
-    (global as any).setTourActive = setIsTourActive;
     // Expose spotlight function for manual restart
     (global as any).showHamburgerSpotlight = showHamburgerSpotlight;
     // Expose scroll function for tour
@@ -198,7 +195,6 @@ export default function HomeScreen() {
     return () => {
       delete (global as any).openDrawer;
       delete (global as any).closeDrawer;
-      delete (global as any).setTourActive;
       delete (global as any).showHamburgerSpotlight;
       delete (global as any).scrollToSelectRecipient;
     };
@@ -348,6 +344,7 @@ export default function HomeScreen() {
     } else {
       console.log('[SALUTATION] No changes needed to message');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddressId, signatureBlock, addresses]);
 
   // Handle spotlight dismiss
@@ -531,6 +528,7 @@ export default function HomeScreen() {
       postcardSizeSetFromParams.current = true;
     }
     console.log('[XLPOSTCARDS][DEBUG] postcardSize after processParams:', postcardSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps  
   }, [params, recipientInfo, selectedAddressId, hasUserEditedMessage, postcardSize]);
 
   // Update the useEffect that processes params
@@ -1214,7 +1212,7 @@ export default function HomeScreen() {
       }
     };
     handleAddressCorrection();
-  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress, editingAddressId, images, postcardMessage, router]);
+  }, [params.useCorrectedAddress, params.useOriginalAddress, params.correctedAddress, params.originalAddress, editingAddressId, images, postcardMessage, templateType, router]);
 
   // Keep the editAddressId effect separate since it has different dependencies
   useEffect(() => {
