@@ -51,7 +51,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.1.32.31",
+  version: REMOTE_APP_VERSION || "2.1.32.32",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",

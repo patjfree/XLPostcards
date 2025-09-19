@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, View, Switch, Platform, StatusBar, Text } from 'react-native';
+import { StyleSheet, TextInput, View, Switch, Platform, StatusBar, Text, TouchableOpacity, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -51,6 +51,18 @@ export default function SettingsScreen() {
     }
   };
 
+  // Handle return address change with 3-line limit
+  const handleReturnAddressChange = (text: string) => {
+    const lines = text.split('\n');
+    if (lines.length <= 3) {
+      setReturnAddress(text);
+    } else {
+      // If more than 3 lines, only keep the first 3
+      const limitedText = lines.slice(0, 3).join('\n');
+      setReturnAddress(limitedText);
+    }
+  };
+
   // Save settings whenever they change
   useEffect(() => {
     saveSettings();
@@ -64,15 +76,16 @@ export default function SettingsScreen() {
       
       <View style={styles.section}>
         <Text style={styles.label}>Email</Text>
-        <Text style={styles.emailNote}>For postcard confirmation</Text>
+        <Text style={styles.emailNote}>For postcard proof</Text>
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="Enter your email"
+          placeholder="MarthaWashington@aol.com"
           placeholderTextColor="#888"
           keyboardType="email-address"
           autoCapitalize="none"
+          testID="settings-email-input"
         />
       </View>
 
@@ -82,10 +95,11 @@ export default function SettingsScreen() {
           style={[styles.input, styles.multilineInput]}
           value={signature}
           onChangeText={setSignature}
-          placeholder="How do you sign your postcards"
+          placeholder="Love,&#10;Martha"
           placeholderTextColor="#888"
           multiline
           numberOfLines={3}
+          testID="settings-signature-input"
         />
       </View>
 
@@ -94,11 +108,12 @@ export default function SettingsScreen() {
         <TextInput
           style={[styles.input, styles.multilineInput]}
           value={returnAddress}
-          onChangeText={setReturnAddress}
-          placeholder="Your return address (3 lines max)&#10;e.g.:&#10;John Smith&#10;123 Main St"
+          onChangeText={handleReturnAddressChange}
+          placeholder="Martha Washington&#10;1 Mount Vernon Way&#10;Mount Vernon, VA"
           placeholderTextColor="#888"
           multiline
-          numberOfLines={4}
+          numberOfLines={3}
+          testID="settings-return-address-input"
         />
       </View>
 
@@ -111,6 +126,35 @@ export default function SettingsScreen() {
           thumbColor={includeReturnAddress ? '#fff' : '#f4f3f4'}
         />
       </View>
+
+
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.videoTutorialButton}
+          onPress={() => {
+            Linking.openURL('https://youtu.be/your-video-id');
+          }}
+          testID="video-tutorial-btn"
+        >
+          <Text style={styles.videoTutorialText}>📺 Watch Video Tutorial</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Hide reset tour button for now - keep code in case needed later
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.resetTourButton}
+          onPress={() => {
+            if ((global as any).showHamburgerSpotlight) {
+              (global as any).showHamburgerSpotlight();
+            }
+          }}
+          testID="reset-tour-btn"
+        >
+          <Text style={styles.resetTourText}>🔄 Reset Tour</Text>
+        </TouchableOpacity>
+      </View>
+      */}
     </SafeAreaView>
   );
 }
@@ -123,8 +167,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
     color: '#0a7ea4',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    fontStyle: 'italic',
   },
   section: {
     marginBottom: 20,
@@ -145,7 +195,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   multilineInput: {
-    height: 100,
+    height: 90,
     textAlignVertical: 'top',
   },
   switchContainer: {
@@ -159,5 +209,29 @@ const styles = StyleSheet.create({
     color: '#888',
     marginBottom: 8,
     fontStyle: 'italic',
+  },
+  videoTutorialButton: {
+    backgroundColor: '#0a7ea4',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  videoTutorialText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  resetTourButton: {
+    backgroundColor: '#666',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  resetTourText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
