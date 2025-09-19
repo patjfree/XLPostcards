@@ -132,7 +132,7 @@ export default function SettingsScreen() {
         <TouchableOpacity
           style={styles.videoTutorialButton}
           onPress={() => {
-            Linking.openURL('https://youtu.be/your-video-id');
+            Linking.openURL('https://youtu.be/BbNecgs8oNg');
           }}
           testID="video-tutorial-btn"
         >

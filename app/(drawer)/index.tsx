@@ -241,9 +241,16 @@ export default function HomeScreen() {
     console.log('[SALUTATION] signatureBlock:', signatureBlock);
     console.log('[SALUTATION] current postcardMessage:', postcardMessage);
     
-    // Don't proceed if we don't have addresses loaded yet or no address selected
-    if (!selectedAddressId || addresses.length === 0) {
-      console.log('[SALUTATION] Skipping - no address selected or addresses not loaded yet');
+    // Don't proceed if no address selected
+    if (!selectedAddressId) {
+      console.log('[SALUTATION] Skipping - no address selected');
+      return;
+    }
+    
+    // If addresses not loaded yet, trigger loading
+    if (addresses.length === 0) {
+      console.log('[SALUTATION] Addresses not loaded yet, triggering load');
+      loadAddresses();
       return;
     }
     
@@ -271,6 +278,10 @@ export default function HomeScreen() {
     
     const hasSalutation = salutation && messageLines.some(line => line.trim() === salutation.trim());
     
+    // Check if message has a different salutation (from a different recipient)
+    const hasWrongSalutation = postcardMessage.trim() && salutation && !hasSalutation && 
+      messageLines.length > 0 && messageLines[0].trim().endsWith(',');
+    
     console.log('[SALUTATION] Looking for signature lines:');
     if (signatureBlock) {
       const signatureLines = signatureBlock.split('\n');
@@ -283,13 +294,14 @@ export default function HomeScreen() {
     
     console.log('[SALUTATION] hasSignature:', hasSignature);
     console.log('[SALUTATION] hasSalutation:', hasSalutation);
+    console.log('[SALUTATION] hasWrongSalutation:', hasWrongSalutation);
     console.log('[SALUTATION] message is empty:', !postcardMessage.trim());
     console.log('[SALUTATION] salutation exists but not in message:', salutation && !hasSalutation);
     console.log('[SALUTATION] signature exists but not in message:', signatureBlock && !hasSignature);
     
     // If message is empty or missing components, populate them
-    // Also populate if we just selected a new address with a salutation
-    const shouldPopulate = !postcardMessage.trim() || (salutation && !hasSalutation) || (signatureBlock && !hasSignature);
+    // Also populate if we just selected a new address with a salutation, or if wrong salutation
+    const shouldPopulate = !postcardMessage.trim() || (salutation && !hasSalutation) || (signatureBlock && !hasSignature) || hasWrongSalutation;
     console.log('[SALUTATION] Should populate:', shouldPopulate);
     
     if (shouldPopulate) {
@@ -297,16 +309,31 @@ export default function HomeScreen() {
       let newMessage = '';
       let cursorPosition = 0;
       
-      // Add salutation if needed
-      if (salutation && !hasSalutation) {
-        newMessage += salutation + '\n\n';
-        cursorPosition = newMessage.length;
-      } else if (hasSalutation) {
-        // Find existing salutation and preserve content after it
-        const salutationIndex = messageLines.findIndex(line => line.trim() === salutation.trim());
-        if (salutationIndex >= 0) {
-          newMessage += messageLines.slice(0, salutationIndex + 1).join('\n') + '\n\n';
+      // Handle salutation
+      if (salutation) {
+        if (hasWrongSalutation) {
+          // Replace wrong salutation - skip the first line and start with correct salutation
+          console.log('[SALUTATION] Replacing wrong salutation');
+          newMessage += salutation + '\n\n';
           cursorPosition = newMessage.length;
+          // Add content after the first line (skip wrong salutation)
+          const contentAfterWrongSalutation = messageLines.slice(1).join('\n');
+          if (contentAfterWrongSalutation.trim()) {
+            newMessage += contentAfterWrongSalutation;
+          }
+        } else if (!hasSalutation) {
+          // Add missing salutation
+          console.log('[SALUTATION] Adding missing salutation');
+          newMessage += salutation + '\n\n';
+          cursorPosition = newMessage.length;
+        } else {
+          // Salutation already correct, preserve existing structure
+          console.log('[SALUTATION] Salutation already correct, preserving structure');
+          const salutationIndex = messageLines.findIndex(line => line.trim() === salutation.trim());
+          if (salutationIndex >= 0) {
+            newMessage += messageLines.slice(0, salutationIndex + 1).join('\n') + '\n\n';
+            cursorPosition = newMessage.length;
+          }
         }
       }
       
@@ -485,8 +512,19 @@ export default function HomeScreen() {
 
     // Process message
     if (params.message && !hasUserEditedMessage) {
-      console.log('[XLPOSTCARDS][MAIN] Setting message:', params.message);
-      setPostcardMessage(params.message as string);
+      // Check if current message already has the correct salutation for selected recipient
+      const selectedAddress = addresses.find(a => a.id === selectedAddressId);
+      const expectedSalutation = selectedAddress?.salutation || '';
+      const currentMessageHasCorrectSalutation = expectedSalutation && 
+        postcardMessage.split('\n').some(line => line.trim() === expectedSalutation.trim());
+      
+      // Only set message from params if current message doesn't have the right salutation
+      if (!currentMessageHasCorrectSalutation) {
+        console.log('[XLPOSTCARDS][MAIN] Setting message:', params.message);
+        setPostcardMessage(params.message as string);
+      } else {
+        console.log('[XLPOSTCARDS][MAIN] Skipping message update - current message has correct salutation');
+      }
     }
 
     // Process recipient info
