@@ -45,22 +45,30 @@ const validPostcardSize: PostcardSize = (supportedPostcardSizes.includes(postcar
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View style={styles.itemRow}>
-              <TouchableOpacity
-                style={styles.item}
-                onPress={() => {
-                  if (item.id === 'add_new') {
+              {item.id === 'add_new' ? (
+                <TouchableOpacity
+                  style={styles.item}
+                  onPress={() => {
                     console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Adding new address with params:', { addNewAddress: 'true', imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize });
                     router.replace({ pathname: '/', params: { addNewAddress: 'true', imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } });
-                  } else {
+                  }}
+                  testID="add-new-address-btn"
+                >
+                  <Text style={[styles.itemText, styles.addNew]}>{item.name}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.item}
+                  onPress={() => {
                     console.log('[XLPOSTCARDS][SELECT-RECIPIENT] Selecting recipient with params:', { selectedRecipientId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize });
                     router.replace({ pathname: '/', params: { selectedRecipientId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } });
-                  }
-                }}
-              >
-                <Text style={[styles.itemText, item.id === 'add_new' && styles.addNew]}>{item.name}</Text>
-              </TouchableOpacity>
+                  }}
+                >
+                  <Text style={styles.itemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
               {item.id !== 'add_new' && (
-                <View style={styles.iconRow}>
+                <View style={styles.iconRow} testID="address-actions">
                   <TouchableOpacity
                     style={styles.iconButton}
                     onPress={() => router.replace({ pathname: '/', params: { editAddressId: item.id, imageUri: params.imageUri, imageUris: params.imageUris, templateType: params.templateType, message: params.message, postcardSize: validPostcardSize } })}

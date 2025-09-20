@@ -355,13 +355,6 @@ export default function MultiImagePicker({
         )}
       </ScrollView>
 
-      {images.length > 0 && (
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionsText}>
-            Tap the X to remove photos. Images are arranged left-to-right, top-to-bottom in the template.
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -472,16 +465,5 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: '#ccc',
-  },
-  instructionsContainer: {
-    marginTop: 12,
-    padding: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 6,
-  },
-  instructionsText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
   },
 });

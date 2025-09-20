@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Slot } from 'expo-router';
+import { TourGuide } from '../src/components/TourGuide';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -47,7 +48,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StripeProvider publishableKey={stripePublishableKey}>
-        <Slot />
+        <TourGuide>
+          <Slot />
+        </TourGuide>
         <StatusBar style="dark" />
       </StripeProvider>
     </GestureHandlerRootView>

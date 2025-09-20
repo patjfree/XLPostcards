@@ -39,8 +39,8 @@ export default function TemplateSelector({ selectedTemplate, onTemplateSelect }:
   return (
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>1) Select Template</Text>
-      <View style={styles.templatesGrid}>
-        {templates.map((template) => (
+      <View style={styles.templatesGrid} testID="template-grid">
+        {templates.map((template, index) => (
           <TouchableOpacity
             key={template.id}
             style={[
@@ -48,6 +48,7 @@ export default function TemplateSelector({ selectedTemplate, onTemplateSelect }:
               selectedTemplate === template.id && styles.selectedTemplateCard
             ]}
             onPress={() => onTemplateSelect(template.id)}
+            testID={index === 0 ? "first-template-card" : undefined}
           >
             <View style={styles.templatePreview}>
               {renderTemplatePreview(template.id)}

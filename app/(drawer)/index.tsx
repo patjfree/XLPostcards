@@ -164,7 +164,9 @@ export default function HomeScreen() {
   const showHamburgerSpotlight = () => {
     setTimeout(() => {
       hamburgerRef.current?.measureInWindow((x, y, w, h) => {
-        setSpot({ x, y, w, h });
+        // Add Android-specific offset to lower the highlight box
+        const androidOffset = Platform.OS === 'android' ? 50 : 0;
+        setSpot({ x, y: y + androidOffset, w, h });
         setShowSpotlight(true);
       });
     }, 100);
@@ -1770,7 +1772,7 @@ export default function HomeScreen() {
         rect={spot}
         visible={showSpotlight}
         onDismiss={handleSpotlightDismiss}
-        tip="Click on hamburger for full tutorial and add your information."
+        tip="Click here for settings and video tutorial."
       />
     </KeyboardAvoidingView>
   );
