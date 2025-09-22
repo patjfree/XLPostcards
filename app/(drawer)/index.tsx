@@ -165,7 +165,7 @@ export default function HomeScreen() {
     setTimeout(() => {
       hamburgerRef.current?.measureInWindow((x, y, w, h) => {
         // Add Android-specific offset to lower the highlight box
-        const androidOffset = Platform.OS === 'android' ? 50 : 0;
+        const androidOffset = Platform.OS === 'android' ? 55 : 0;
         setSpot({ x, y: y + androidOffset, w, h });
         setShowSpotlight(true);
       });
@@ -382,6 +382,44 @@ export default function HomeScreen() {
     try {
       const { TourStorageService } = await import('../../src/services/tourStorage');
       await TourStorageService.markTourCompleted();
+      console.log('[SPOTLIGHT] Tour marked as completed');
+      
+      // Auto-reset the app after first-time tour to ensure proper state initialization
+      console.log('[SPOTLIGHT] Auto-resetting app state after first launch tour...');
+      
+      // Reset all state variables directly (avoid navigation conflicts with spotlight dismissal)
+      const resetState = () => {
+        setImages([]);
+        setTemplateType('single');
+        setPostcardMessage('');
+        setSelectedAddressId(null);
+        setRecipientInfo(null);
+        setIsAIGenerated(false);
+        setHasUserEditedMessage(false);
+        setShowRecipientModal(false);
+        setShowRecipientModalComponent(true);
+        setShowAddressModal(false);
+        setEditingAddressId(null);
+        setAddressValidationStatus('idle');
+        setAddressValidationMessage('');
+        setShowValidationOptions(false);
+        setCorrectedAddress(null);
+        setShowUSPSNote(false);
+        setCameFromSelectRecipient(false);
+        setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
+        setPostcardSize('xl');
+        imageSetFromParams.current = false;
+        postcardSizeSetFromParams.current = false;
+        userChangedTemplate.current = false;
+        console.log('[SPOTLIGHT] State reset complete - Create Postcard should now work!');
+      };
+      
+      // Execute state reset immediately
+      resetState();
+      
+      // Also schedule a backup reset to ensure it sticks
+      setTimeout(resetState, 100);
+      
     } catch (error) {
       console.log('[SPOTLIGHT] Error marking tour completed:', error);
     }
@@ -892,18 +930,27 @@ export default function HomeScreen() {
 
   // Update handleCreatePostcard to unmount recipient modal component before navigation
   const handleCreatePostcard = async () => {
+    console.log('[BUTTON] Create Postcard button pressed!');
+    console.log('[BUTTON] Images count:', images.length);
+    console.log('[BUTTON] Template type:', templateType);
+    console.log('[BUTTON] Message length:', postcardMessage.length);
+    console.log('[BUTTON] Is creating:', isCreatingPostcard);
+    
     const requiredImages = templateRequirements[templateType];
     if (images.length < requiredImages) {
+      console.log('[BUTTON] Not enough images:', images.length, 'required:', requiredImages);
       Alert.alert('Not enough photos', `Please select ${requiredImages} photo${requiredImages > 1 ? 's' : ''} for the ${templateType.replace('_', ' ')} template.`);
       return;
     }
     if (!postcardMessage) {
+      console.log('[BUTTON] No message entered');
       Alert.alert('No message', 'Please enter a message.');
       return;
     }
     
     // Prevent multiple clicks
     if (isCreatingPostcard) {
+      console.log('[BUTTON] Already creating postcard, ignoring click');
       return;
     }
     
@@ -1104,6 +1151,7 @@ export default function HomeScreen() {
     setAddresses(parsed);
   };
 
+
   /* const handleEditAddress = (address: any) => {
     console.log('[XLPOSTCARDS][MAIN] Editing address:', address.id);
     setNewAddress({
@@ -1222,6 +1270,13 @@ export default function HomeScreen() {
           updated = [...latestAddresses, { ...merged, id: newId, verified: true }];
         }
         await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        
+        // Ensure the newly created address is selected
+        if (newId) {
+          setSelectedAddressId(newId);
+          console.log('[ADDRESS] New address created and selected:', newId);
+        }
+        
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setEditingAddressId(null);
         setAddressValidationStatus('idle');
@@ -1241,6 +1296,13 @@ export default function HomeScreen() {
           updated = [...latestAddresses, { ...original, id: newId, verified: true }];
         }
         await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        
+        // Ensure the newly created address is selected
+        if (newId) {
+          setSelectedAddressId(newId);
+          console.log('[ADDRESS] New address created and selected:', newId);
+        }
+        
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setEditingAddressId(null);
         setAddressValidationStatus('idle');
@@ -1322,6 +1384,13 @@ export default function HomeScreen() {
           updated = [...latestAddresses, { ...merged, id: newId, verified: true }];
         }
         await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+        
+        // Ensure the newly created address is selected
+        if (newId) {
+          setSelectedAddressId(newId);
+          console.log('[ADDRESS] New address created and selected:', newId);
+        }
+        
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setShowAddressModal(false);
         setEditingAddressId(null);
@@ -1360,6 +1429,13 @@ export default function HomeScreen() {
         updated = [...latestAddresses, { ...addressToSave, id: newId, verified: true }];
       }
       await AsyncStorage.setItem('addresses', JSON.stringify(updated));
+      
+      // Ensure the newly created address is selected
+      if (newId) {
+        setSelectedAddressId(newId);
+        console.log('[ADDRESS] New address created and selected:', newId);
+      }
+      
       setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
       setShowAddressModal(false);
       setEditingAddressId(null);
@@ -1540,6 +1616,8 @@ export default function HomeScreen() {
               numberOfLines={6}
               placeholder="Write your message here or put in some ideas and hit the 'Write for me' button below."
               placeholderTextColor="#888"
+              autoFocus={false}
+              blurOnSubmit={true}
               editable={!loading}
             />
             {loading && (

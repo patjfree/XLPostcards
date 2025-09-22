@@ -167,7 +167,7 @@ module.exports = {
     postcardPriceDollars: 1.99,
 
     // Internal build number for development/simulator tracking (not visible in production)
-    internalBuildNumber: "2.2.2.001",
+    internalBuildNumber: "2.2.2.7",
 
     APP_VARIANT,
     eas: { projectId: "f4dc464b-4ae2-4850-820b-015a17901641" }
