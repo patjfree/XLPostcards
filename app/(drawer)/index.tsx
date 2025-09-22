@@ -594,6 +594,7 @@ export default function HomeScreen() {
     }
     if (receivedRecipientId && receivedRecipientId !== selectedAddressId) {
       console.log('[XLPOSTCARDS][MAIN] Setting selected recipient ID:', receivedRecipientId);
+      console.log('[XLPOSTCARDS][MAIN] Current addresses when setting ID:', addresses.map(a => ({ id: a.id, name: a.name })));
       setSelectedAddressId(receivedRecipientId);
     }
 
@@ -968,7 +969,12 @@ export default function HomeScreen() {
     }
     
     const selected = addresses.find(a => a.id === selectedAddressId);
+    console.log('[BUTTON] Selected address ID:', selectedAddressId);
+    console.log('[BUTTON] Available addresses:', addresses.map(a => ({ id: a.id, name: a.name })));
+    console.log('[BUTTON] Found selected address:', selected);
+    
     if (!selected) {
+      console.log('[BUTTON] No address found for selectedAddressId:', selectedAddressId);
       Alert.alert('No recipient selected', 'Please select a recipient address.');
       return;
     }
@@ -1148,6 +1154,7 @@ export default function HomeScreen() {
   const loadAddresses = async () => {
     const stored = await AsyncStorage.getItem('addresses');
     const parsed = stored ? JSON.parse(stored) : [];
+    console.log('[ADDRESSES] Loaded addresses:', parsed.map((a: any) => ({ id: a.id, name: a.name })));
     setAddresses(parsed);
   };
 
