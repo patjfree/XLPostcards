@@ -88,6 +88,26 @@ class TemplateEngine:
                 raise ValueError("Four quarters template requires 4 images")
             return self._apply_four_quarters(image_urls)
             
+        elif template_type == "two_vertical":
+            if len(image_urls) < 2:
+                raise ValueError("Two vertical template requires 2 images")
+            return self._apply_two_vertical(image_urls[0], image_urls[1])
+            
+        elif template_type == "five_collage":
+            if len(image_urls) < 5:
+                raise ValueError("Five collage template requires 5 images")
+            return self._apply_five_collage(image_urls)
+            
+        elif template_type == "six_grid":
+            if len(image_urls) < 6:
+                raise ValueError("Six grid template requires 6 images")
+            return self._apply_six_grid(image_urls)
+            
+        elif template_type == "three_horizontal":
+            if len(image_urls) < 3:
+                raise ValueError("Three horizontal template requires 3 images")
+            return self._apply_three_horizontal(image_urls[0], image_urls[1], image_urls[2])
+            
         else:
             # Default to single photo
             print(f"[TEMPLATE] Unknown template type: {template_type}, defaulting to single")
@@ -192,6 +212,146 @@ class TemplateEngine:
             canvas.paste(image, pos)
         
         return canvas
+    
+    def _apply_two_vertical(self, top_image_url: str, bottom_image_url: str) -> Image.Image:
+        """Template: Two photos stacked vertically"""
+        print(f"[TEMPLATE] Applying two vertical template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (with small gap between images)
+        gap = 20
+        photo_height = (self.height - gap) // 2
+        photo_size = (self.width, photo_height)
+        
+        # Load and resize images
+        top_image = self._load_image_from_url(top_image_url)
+        bottom_image = self._load_image_from_url(bottom_image_url)
+        
+        top_image = self._resize_and_crop(top_image, photo_size)
+        bottom_image = self._resize_and_crop(bottom_image, photo_size)
+        
+        # Paste images
+        canvas.paste(top_image, (0, 0))
+        canvas.paste(bottom_image, (0, photo_height + gap))
+        
+        return canvas
+    
+    def _apply_five_collage(self, image_urls: List[str]) -> Image.Image:
+        """Template: Five photos - four quarters with one overlaid in center"""
+        print(f"[TEMPLATE] Applying five collage template")
+        
+        if len(image_urls) < 5:
+            raise ValueError("Five collage template requires exactly 5 images")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for background quarters
+        gap = 20
+        quarter_width = (self.width - gap) // 2
+        quarter_height = (self.height - gap) // 2
+        quarter_size = (quarter_width, quarter_height)
+        
+        # Load and resize background images (first 4)
+        background_images = []
+        for url in image_urls[:4]:
+            image = self._load_image_from_url(url)
+            image = self._resize_and_crop(image, quarter_size)
+            background_images.append(image)
+        
+        # Paste background images in quarters
+        positions = [
+            (0, 0),                                    # Top left
+            (quarter_width + gap, 0),                  # Top right
+            (0, quarter_height + gap),                 # Bottom left
+            (quarter_width + gap, quarter_height + gap) # Bottom right
+        ]
+        
+        for i, (image, pos) in enumerate(zip(background_images, positions)):
+            canvas.paste(image, pos)
+        
+        # Add center overlay image (5th image) - smaller and centered
+        center_size = (int(quarter_width * 0.7), int(quarter_height * 0.7))
+        center_image = self._load_image_from_url(image_urls[4])
+        center_image = self._resize_and_crop(center_image, center_size)
+        
+        # Calculate center position
+        center_x = (self.width - center_size[0]) // 2
+        center_y = (self.height - center_size[1]) // 2
+        
+        canvas.paste(center_image, (center_x, center_y))
+        
+        return canvas
+    
+    def _apply_six_grid(self, image_urls: List[str]) -> Image.Image:
+        """Template: Six photos in a 2x3 grid"""
+        print(f"[TEMPLATE] Applying six grid template")
+        
+        if len(image_urls) < 6:
+            raise ValueError("Six grid template requires exactly 6 images")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (3 columns, 2 rows)
+        gap = 15
+        cell_width = (self.width - (2 * gap)) // 3  # 3 columns with 2 gaps
+        cell_height = (self.height - gap) // 2      # 2 rows with 1 gap
+        cell_size = (cell_width, cell_height)
+        
+        # Load and resize images
+        images = []
+        for url in image_urls[:6]:  # Only use first 6 images
+            image = self._load_image_from_url(url)
+            image = self._resize_and_crop(image, cell_size)
+            images.append(image)
+        
+        # Paste images in grid (2 rows, 3 columns)
+        positions = [
+            # Top row
+            (0, 0),
+            (cell_width + gap, 0),
+            ((cell_width + gap) * 2, 0),
+            # Bottom row
+            (0, cell_height + gap),
+            (cell_width + gap, cell_height + gap),
+            ((cell_width + gap) * 2, cell_height + gap)
+        ]
+        
+        for i, (image, pos) in enumerate(zip(images, positions)):
+            canvas.paste(image, pos)
+        
+        return canvas
+    
+    def _apply_three_horizontal(self, left_image_url: str, center_image_url: str, right_image_url: str) -> Image.Image:
+        """Template: Three photos side by side horizontally"""
+        print(f"[TEMPLATE] Applying three horizontal template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (with small gaps between images)
+        gap = 15
+        photo_width = (self.width - (2 * gap)) // 3  # 3 photos with 2 gaps
+        photo_size = (photo_width, self.height)
+        
+        # Load and resize images
+        left_image = self._load_image_from_url(left_image_url)
+        center_image = self._load_image_from_url(center_image_url)
+        right_image = self._load_image_from_url(right_image_url)
+        
+        left_image = self._resize_and_crop(left_image, photo_size)
+        center_image = self._resize_and_crop(center_image, photo_size)
+        right_image = self._resize_and_crop(right_image, photo_size)
+        
+        # Paste images
+        canvas.paste(left_image, (0, 0))
+        canvas.paste(center_image, (photo_width + gap, 0))
+        canvas.paste(right_image, ((photo_width + gap) * 2, 0))
+        
+        return canvas
 
 TEMPLATE_ENGINE_AVAILABLE = True
 print("[STARTUP] TemplateEngine embedded successfully")
@@ -233,7 +393,7 @@ class PostcardRequest(BaseModel):
     transactionId: str = ""
     frontImageUri: Optional[str] = ""  # Legacy single image support
     frontImageUris: Optional[List[str]] = []  # New multi-image support
-    templateType: Optional[str] = "single"  # Template type: single, two_side_by_side, three_photos, four_quarters
+    templateType: Optional[str] = "single"  # Template type: single, two_side_by_side, three_photos, four_quarters, two_vertical, five_collage, six_grid, three_horizontal
     userEmail: Optional[str] = ""
 
 class PaymentConfirmedRequest(BaseModel):

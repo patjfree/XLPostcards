@@ -28,28 +28,62 @@ interface TemplatePickerModalProps {
   onImagesChange: (images: SelectedImage[]) => void;
 }
 
+// Centralized template configuration for aspect ratios
+// This makes it easy to add new templates and maintain consistency
+//
+// TO ADD A NEW TEMPLATE:
+// 1. Add the template type to TemplateType in TemplateSelector.tsx
+// 2. Add aspect ratio configuration here with either:
+//    - default: [width, height] for all slots in the template
+//    - specific slot ratios: { 0: [w, h], 1: [w, h], default: [w, h] }
+// 3. Add template info to templateInfo object below
+// 4. Add preview rendering in TemplateSelector.tsx renderTemplatePreview()
+// 5. Add full template rendering in this file's renderTemplatePreview() 
+// 6. Add server-side template method in PostcardService/main.py
+// 7. Update templateRequirements in app/(drawer)/index.tsx
+const TEMPLATE_ASPECT_RATIOS = {
+  single: {
+    default: [3, 2], // Full postcard 3:2
+  },
+  two_side_by_side: {
+    default: [3, 4], // Each half is 3:4 (vertical)
+  },
+  three_photos: {
+    0: [3, 4], // Left large photo is 3:4 (vertical)
+    default: [3, 2], // Right photos are 3:2 (horizontal)
+  },
+  four_quarters: {
+    default: [3, 2], // Each quarter is 3:2
+  },
+  two_vertical: {
+    default: [3, 1], // Each photo is 3:1 (wide horizontal)
+  },
+  five_collage: {
+    default: [3, 2], // All photos are 3:2
+  },
+  six_grid: {
+    default: [1, 1], // Each photo is 1:1 (square)
+  },
+  three_horizontal: {
+    default: [1, 2], // Each photo is 1:2 (vertical)
+  },
+} as const;
+
 // Calculate aspect ratio for each photo slot based on template and position
 const getAspectRatioForSlot = (templateType: TemplateType, slotIndex: number): [number, number] => {
-  switch (templateType) {
-    case 'single':
-      return [3, 2]; // Full postcard 3:2
-    
-    case 'two_side_by_side':
-      return [3, 4]; // Each half is 3:4 (vertical)
-    
-    case 'three_photos':
-      if (slotIndex === 0) {
-        return [3, 4]; // Left large photo is 3:4 (vertical)
-      } else {
-        return [3, 2]; // Right photos are 3:2 (horizontal)
-      }
-    
-    case 'four_quarters':
-      return [3, 2]; // Each quarter is 3:2
-    
-    default:
-      return [3, 2]; // Default fallback
+  const templateConfig = TEMPLATE_ASPECT_RATIOS[templateType];
+  if (!templateConfig) {
+    return [3, 2]; // Default fallback
   }
+  
+  // Check if there's a specific ratio for this slot index
+  const slotSpecificRatio = templateConfig[slotIndex as keyof typeof templateConfig];
+  if (slotSpecificRatio) {
+    return slotSpecificRatio as [number, number];
+  }
+  
+  // Use default ratio for this template
+  return templateConfig.default;
 };
 
 const templateInfo = {
@@ -57,7 +91,11 @@ const templateInfo = {
   two_side_by_side: { name: 'Side by Side', description: 'Two photos side by side' },
   three_photos: { name: 'Three Photos', description: 'One large left, two small right' },
   four_quarters: { name: 'Four Quarters', description: 'Four photos in quarters' },
-};
+  two_vertical: { name: 'Two Vertical', description: 'Two photos stacked vertically' },
+  five_collage: { name: 'Five Collage', description: 'Four photos with one overlaid in center' },
+  six_grid: { name: 'Six Grid', description: 'Six photos in a 2x3 grid' },
+  three_horizontal: { name: 'Three Horizontal', description: 'Three photos side by side' },
+} as const;
 
 export default function TemplatePickerModal({
   visible,
@@ -303,6 +341,67 @@ export default function TemplatePickerModal({
             {renderPhotoSlot(1, quarterWidth, quarterHeight, quarterWidth + 4, 0)}
             {renderPhotoSlot(2, quarterWidth, quarterHeight, 0, quarterHeight + 4)}
             {renderPhotoSlot(3, quarterWidth, quarterHeight, quarterWidth + 4, quarterHeight + 4)}
+          </View>
+        );
+
+      case 'two_vertical':
+        const verticalHeight = postcardHeight / 2 - 2;
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {renderPhotoSlot(0, postcardWidth, verticalHeight, 0, 0)}
+            {renderPhotoSlot(1, postcardWidth, verticalHeight, 0, verticalHeight + 4)}
+          </View>
+        );
+
+      case 'five_collage':
+        const collageQuarterWidth = postcardWidth / 2 - 2;
+        const collageQuarterHeight = postcardHeight / 2 - 2;
+        const centerWidth = collageQuarterWidth * 0.7;
+        const centerHeight = collageQuarterHeight * 0.7;
+        const centerLeft = (postcardWidth - centerWidth) / 2;
+        const centerTop = (postcardHeight - centerHeight) / 2;
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {/* Background quarters */}
+            {renderPhotoSlot(0, collageQuarterWidth, collageQuarterHeight, 0, 0)}
+            {renderPhotoSlot(1, collageQuarterWidth, collageQuarterHeight, collageQuarterWidth + 4, 0)}
+            {renderPhotoSlot(2, collageQuarterWidth, collageQuarterHeight, 0, collageQuarterHeight + 4)}
+            {renderPhotoSlot(3, collageQuarterWidth, collageQuarterHeight, collageQuarterWidth + 4, collageQuarterHeight + 4)}
+            {/* Center overlay */}
+            <View style={{
+              position: 'absolute',
+              left: centerLeft,
+              top: centerTop,
+              zIndex: 1,
+            }}>
+              {renderPhotoSlot(4, centerWidth, centerHeight, 0, 0)}
+            </View>
+          </View>
+        );
+
+      case 'six_grid':
+        const sixthWidth = postcardWidth / 3 - 3;
+        const sixthHeight = postcardHeight / 2 - 2;
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {/* Top row */}
+            {renderPhotoSlot(0, sixthWidth, sixthHeight, 0, 0)}
+            {renderPhotoSlot(1, sixthWidth, sixthHeight, sixthWidth + 4, 0)}
+            {renderPhotoSlot(2, sixthWidth, sixthHeight, (sixthWidth + 4) * 2, 0)}
+            {/* Bottom row */}
+            {renderPhotoSlot(3, sixthWidth, sixthHeight, 0, sixthHeight + 4)}
+            {renderPhotoSlot(4, sixthWidth, sixthHeight, sixthWidth + 4, sixthHeight + 4)}
+            {renderPhotoSlot(5, sixthWidth, sixthHeight, (sixthWidth + 4) * 2, sixthHeight + 4)}
+          </View>
+        );
+
+      case 'three_horizontal':
+        const horizontalWidth = postcardWidth / 3 - 3;
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {renderPhotoSlot(0, horizontalWidth, postcardHeight, 0, 0)}
+            {renderPhotoSlot(1, horizontalWidth, postcardHeight, horizontalWidth + 4, 0)}
+            {renderPhotoSlot(2, horizontalWidth, postcardHeight, (horizontalWidth + 4) * 2, 0)}
           </View>
         );
 

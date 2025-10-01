@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import TemplatePickerModal from './TemplatePickerModal';
+import MoreTemplatesModal from './MoreTemplatesModal';
 import { SelectedImage } from './MultiImagePicker';
 
-export type TemplateType = 'single' | 'two_side_by_side' | 'three_photos' | 'four_quarters';
+export type TemplateType = 'single' | 'two_side_by_side' | 'three_photos' | 'four_quarters' | 'two_vertical' | 'five_collage' | 'six_grid' | 'three_horizontal';
 
 interface TemplateSelectorProps {
   selectedTemplate: TemplateType;
@@ -12,7 +13,7 @@ interface TemplateSelectorProps {
   onImagesChange: (images: SelectedImage[]) => void;
 }
 
-const templates = [
+const mainTemplates = [
   {
     id: 'single' as TemplateType,
     name: 'Single Photo',
@@ -35,6 +36,32 @@ const templates = [
   },
 ];
 
+const allTemplates = [
+  ...mainTemplates,
+  {
+    id: 'two_vertical' as TemplateType,
+    name: 'Two Vertical',
+    requiredImages: 2,
+  },
+  {
+    id: 'five_collage' as TemplateType,
+    name: 'Five Collage',
+    requiredImages: 5,
+  },
+  {
+    id: 'six_grid' as TemplateType,
+    name: 'Six Grid',
+    requiredImages: 6,
+  },
+  {
+    id: 'three_horizontal' as TemplateType,
+    name: 'Three Horizontal',
+    requiredImages: 3,
+  },
+];
+
+export { allTemplates };
+
 export default function TemplateSelector({ 
   selectedTemplate, 
   onTemplateSelect, 
@@ -42,19 +69,73 @@ export default function TemplateSelector({
   onImagesChange 
 }: TemplateSelectorProps) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [moreTemplatesVisible, setMoreTemplatesVisible] = useState(false);
   const [modalTemplateType, setModalTemplateType] = useState<TemplateType>('single');
 
   const openTemplateModal = (templateType: TemplateType) => {
     setModalTemplateType(templateType);
-    onTemplateSelect(templateType); // Set the selected template
+    onTemplateSelect(templateType);
     setModalVisible(true);
   };
 
+  const selectedTemplateData = allTemplates.find(t => t.id === selectedTemplate);
+  const hasSelectedTemplate = selectedTemplateData && images.length > 0;
+
+  if (hasSelectedTemplate) {
+    // Show single large template view
+    return (
+      <View style={styles.container}>
+        <Text style={styles.sectionLabel}>1) Template & Photos</Text>
+        
+        <TouchableOpacity
+          style={styles.selectedTemplateContainer}
+          onPress={() => openTemplateModal(selectedTemplate)}
+        >
+          <View style={styles.largeTemplatePreview}>
+            {renderTemplatePreview(selectedTemplate, images, true)}
+          </View>
+          <View style={styles.selectedTemplateInfo}>
+            <Text style={styles.selectedTemplateName}>{selectedTemplateData.name}</Text>
+            <Text style={styles.selectedImageCount}>
+              {images.length}/{selectedTemplateData.requiredImages} photos
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.moreTemplatesButton}
+          onPress={() => setMoreTemplatesVisible(true)}
+        >
+          <Text style={styles.moreTemplatesText}>Change Template</Text>
+        </TouchableOpacity>
+
+        <MoreTemplatesModal
+          visible={moreTemplatesVisible}
+          onClose={() => setMoreTemplatesVisible(false)}
+          onTemplateSelect={(templateType) => {
+            setMoreTemplatesVisible(false);
+            openTemplateModal(templateType);
+          }}
+          selectedTemplate={selectedTemplate}
+        />
+
+        <TemplatePickerModal
+          visible={modalVisible}
+          templateType={modalTemplateType}
+          images={images}
+          onClose={() => setModalVisible(false)}
+          onImagesChange={onImagesChange}
+        />
+      </View>
+    );
+  }
+
+  // Show grid of main templates + "More Templates" button
   return (
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>1) Select Template & Add Photos</Text>
       <View style={styles.templatesGrid} testID="template-grid">
-        {templates.map((template, index) => (
+        {mainTemplates.map((template, index) => (
           <TouchableOpacity
             key={template.id}
             style={[
@@ -69,7 +150,7 @@ export default function TemplateSelector({
             </View>
             <Text style={[
               styles.templateName,
-              selectedTemplate === template.id && styles.selectedTemplateName
+              selectedTemplate === template.id && { color: '#f28914' }
             ]}>
               {template.name}
             </Text>
@@ -82,6 +163,23 @@ export default function TemplateSelector({
         ))}
       </View>
 
+      <TouchableOpacity 
+        style={styles.moreTemplatesButton}
+        onPress={() => setMoreTemplatesVisible(true)}
+      >
+        <Text style={styles.moreTemplatesText}>More Templates</Text>
+      </TouchableOpacity>
+
+      <MoreTemplatesModal
+        visible={moreTemplatesVisible}
+        onClose={() => setMoreTemplatesVisible(false)}
+        onTemplateSelect={(templateType) => {
+          setMoreTemplatesVisible(false);
+          openTemplateModal(templateType);
+        }}
+        selectedTemplate={selectedTemplate}
+      />
+
       <TemplatePickerModal
         visible={modalVisible}
         templateType={modalTemplateType}
@@ -93,8 +191,8 @@ export default function TemplateSelector({
   );
 }
 
-function renderTemplatePreview(templateId: TemplateType, previewImages: SelectedImage[] = []) {
-  const previewSize = 60;
+function renderTemplatePreview(templateId: TemplateType, previewImages: SelectedImage[] = [], isLarge: boolean = false) {
+  const previewSize = isLarge ? 120 : 60;
   
   const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => {
     const image = previewImages[number - 1]; // Convert 1-based to 0-based index
@@ -112,11 +210,7 @@ function renderTemplatePreview(templateId: TemplateType, previewImages: Selected
     }
     
     return (
-      <View style={[styles.previewBox, { width, height }]}>
-        <View style={styles.previewNumber}>
-          <Text style={styles.previewNumberText}>{number}</Text>
-        </View>
-      </View>
+      <View style={[styles.previewBox, { width, height }]} />
     );
   };
   
@@ -154,6 +248,74 @@ function renderTemplatePreview(templateId: TemplateType, previewImages: Selected
             {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
             {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 4)}
           </View>
+        </View>
+      );
+
+    case 'two_vertical':
+      return (
+        <View style={{ gap: 2 }}>
+          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 1)}
+          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 2)}
+        </View>
+      );
+
+    case 'five_collage':
+      const quarterWidth = previewSize/2 - 1;
+      const quarterHeight = previewSize * 0.67 / 2 - 1;
+      const centerSize = quarterWidth * 0.6; // Made smaller for preview
+      const totalHeight = previewSize * 0.67;
+      return (
+        <View style={{ position: 'relative' }}>
+          <View style={{ gap: 2 }}>
+            <View style={{ flexDirection: 'row', gap: 2 }}>
+              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 1)}
+              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 2)}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 2 }}>
+              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 3)}
+              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 4)}
+            </View>
+          </View>
+          <View style={{ 
+            position: 'absolute', 
+            top: (totalHeight - centerSize) / 2, 
+            left: (previewSize - centerSize) / 2,
+            zIndex: 1,
+            borderWidth: 2,
+            borderColor: '#fff',
+            borderRadius: 4
+          }}>
+            {renderPreviewBoxWithNumber(centerSize, centerSize, 5)}
+          </View>
+        </View>
+      );
+
+    case 'six_grid':
+      const thirdWidth = previewSize/3 - 1;
+      const thirdHeight = previewSize * 0.67 / 2 - 1;
+      return (
+        <View style={{ gap: 2 }}>
+          <View style={{ flexDirection: 'row', gap: 2 }}>
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 1)}
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 2)}
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 3)}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 2 }}>
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 4)}
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 5)}
+            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 6)}
+          </View>
+        </View>
+      );
+
+    case 'three_horizontal':
+      const horizontalThirdWidth = previewSize/3 - 1;
+      const horizontalHeight = previewSize * 0.67;
+      return (
+        <View style={{ flexDirection: 'row', gap: 2 }}>
+          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 1)}
+          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 2)}
+          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 3)}
         </View>
       );
     
@@ -217,22 +379,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
-  previewNumber: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-    backgroundColor: '#f28914',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  previewNumberText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   templateName: {
     fontSize: 14,
     fontWeight: '600',
@@ -240,13 +386,48 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 4,
   },
-  selectedTemplateName: {
-    color: '#f28914',
-  },
   imageCount: {
     fontSize: 11,
     color: '#f28914',
     fontWeight: 'bold',
     marginTop: 2,
+  },
+  selectedTemplateContainer: {
+    backgroundColor: '#fff5f0',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#f28914',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  largeTemplatePreview: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedTemplateInfo: {
+    flex: 1,
+  },
+  selectedTemplateName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f28914',
+    marginBottom: 4,
+  },
+  selectedImageCount: {
+    fontSize: 14,
+    color: '#f28914',
+    fontWeight: '600',
+  },
+  moreTemplatesButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  moreTemplatesText: {
+    fontSize: 16,
+    color: '#f28914',
+    fontWeight: 'bold',
   },
 });

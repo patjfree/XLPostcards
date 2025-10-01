@@ -128,6 +128,10 @@ const templateRequirements = {
   two_side_by_side: 2,
   three_photos: 3,
   four_quarters: 4,
+  two_vertical: 2,
+  five_collage: 5,
+  six_grid: 6,
+  three_horizontal: 3,
 };
 
 export default function HomeScreen() {
