@@ -976,12 +976,17 @@ export default function HomeScreen() {
     // Close and unmount recipient modal before navigation
     setShowRecipientModal(false);
     setShowRecipientModalComponent(false);
+    
+    // Force reset any lingering modal states that might prevent navigation
+    setShowAddressModal(false);
+    setStateDropdownOpen(false);
+    setEditingAddressId(null);
+    setShowValidationOptions(false);
+    setShowUSPSNote(false);
+    
     setTimeout(async () => {
-      if (!showAddressModal && 
-          !stateDropdownOpen && 
-          !editingAddressId && 
-          !showValidationOptions && 
-          !showUSPSNote && !showRecipientModal) {
+      // Simplified check - just ensure we're not in the middle of creating a postcard
+      if (!isCreatingPostcard) {
         const recipientInfo = {
           to: selected.name,
           addressLine1: selected.address,
@@ -1134,7 +1139,7 @@ export default function HomeScreen() {
             });
           }
       } else {
-        console.warn('[XLPOSTCARDS][MAIN] Not navigating: one or more modals are still open!');
+        console.warn('[XLPOSTCARDS][MAIN] Not navigating: already creating postcard!');
       }
     }, 700); // 700ms delay for robust iOS modal teardown
   };
@@ -1277,12 +1282,19 @@ export default function HomeScreen() {
           setSelectedAddressId(newId);
         }
         
+        // Reset all modal states to ensure button functionality
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setEditingAddressId(null);
         setAddressValidationStatus('idle');
         setAddressValidationMessage('');
         setCorrectedAddress(null);
+        setShowValidationOptions(false);
+        setShowUSPSNote(false);
+        setStateDropdownOpen(false);
+        setShowAddressModal(false);
+        
         await loadAddresses();
+        
         // Navigate to main screen with new/edited address selected
         router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
       } else if (params.useOriginalAddress === 'true' && params.originalAddress) {
@@ -1302,12 +1314,19 @@ export default function HomeScreen() {
           setSelectedAddressId(newId);
         }
         
+        // Reset all modal states to ensure button functionality
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setEditingAddressId(null);
         setAddressValidationStatus('idle');
         setAddressValidationMessage('');
         setCorrectedAddress(null);
+        setShowValidationOptions(false);
+        setShowUSPSNote(false);
+        setStateDropdownOpen(false);
+        setShowAddressModal(false);
+        
         await loadAddresses();
+        
         // Navigate to main screen with new/edited address selected
         router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
       }
@@ -1389,6 +1408,7 @@ export default function HomeScreen() {
           setSelectedAddressId(newId);
         }
         
+        // Reset all modal states to ensure button functionality
         setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
         setShowAddressModal(false);
         setEditingAddressId(null);
@@ -1396,7 +1416,11 @@ export default function HomeScreen() {
         setAddressValidationMessage('');
         setCorrectedAddress(null);
         setShowUSPSNote(true);
+        setShowValidationOptions(false);
+        setStateDropdownOpen(false);
+        
         await loadAddresses();
+        
         // Navigate to main screen with new/edited address selected
         router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, imageUris: JSON.stringify(images.map(img => img.uri)), templateType, message: postcardMessage } });
         return;
@@ -1434,6 +1458,7 @@ export default function HomeScreen() {
         console.log('[ADDRESS] New address created and selected:', newId);
       }
       
+      // Reset all modal states to ensure button functionality
       setNewAddress({ name: '', salutation: '', address: '', address2: '', city: '', state: '', zip: '', birthday: '' });
       setShowAddressModal(false);
       setEditingAddressId(null);
@@ -1441,7 +1466,11 @@ export default function HomeScreen() {
       setAddressValidationMessage('');
       setCorrectedAddress(null);
       setShowUSPSNote(false);
+      setShowValidationOptions(false);
+      setStateDropdownOpen(false);
+      
       await loadAddresses();
+      
       // Navigate to main screen with new/edited address selected
       router.replace({ pathname: '/', params: { selectedRecipientId: newId, imageUri: images[0]?.uri, message: postcardMessage } });
     }
