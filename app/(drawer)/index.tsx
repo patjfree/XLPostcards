@@ -1593,7 +1593,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
               <View style={{ alignItems: 'center', marginBottom: 4 }}>
-                <Text style={{ color: '#888', fontSize: 14 }}>Same Low Price - $1.99 + tax</Text>
+                <Text style={{ color: '#888', fontSize: 14 }}>Same Low Price - $2.99 + tax</Text>
               </View>
             </View>
 

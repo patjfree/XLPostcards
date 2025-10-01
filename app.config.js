@@ -163,8 +163,8 @@ module.exports = {
       ? 'https://postcardservice-test.up.railway.app'
       : 'https://postcardservice-prod.up.railway.app',
     useRailway: process.env.USE_RAILWAY === 'true' || APP_VARIANT === 'development',
-    postcardPriceCents: 199,
-    postcardPriceDollars: 1.99,
+    postcardPriceCents: 299,
+    postcardPriceDollars: 2.99,
 
     // Internal build number for development/simulator tracking (not visible in production)
     internalBuildNumber: "2.3.1",

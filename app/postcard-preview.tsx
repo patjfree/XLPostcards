@@ -107,6 +107,7 @@ export default function PostcardPreviewScreen() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [confirmationChecked, setConfirmationChecked] = useState(false);
   const [sendResult, setSendResult] = useState<{
@@ -541,12 +542,13 @@ export default function PostcardPreviewScreen() {
     console.log('[XLPOSTCARDS][PREVIEW] Critical states:', {
       sending,
       isCapturing,
+      processingPayment,
       showSuccessModal,
       showErrorModal,
       showRefundModal,
       showRefundSuccessModal
     });
-  }, [sending, isCapturing, showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
+  }, [sending, isCapturing, processingPayment, showSuccessModal, showErrorModal, showRefundModal, showRefundSuccessModal]);
 
   // Update the navigation effect
   useEffect(() => {
@@ -569,6 +571,7 @@ export default function PostcardPreviewScreen() {
     setShowRefundSuccessModal(false);
     setSending(false);
     setIsCapturing(false);
+    setProcessingPayment(false);
     console.log('[XLPOSTCARDS][PREVIEW] State reset complete');
   };
 
@@ -674,17 +677,54 @@ export default function PostcardPreviewScreen() {
     }
   }, [showOnlyModal]);
 
-  // Update SuccessOverlay with full message and better centering
+  // Add state for user email
+  const [userEmail, setUserEmail] = useState<string>('');
+
+  // Load user email when success modal is shown
+  useEffect(() => {
+    if (showSuccessModal) {
+      const loadUserEmail = async () => {
+        try {
+          const savedEmail = await AsyncStorage.getItem('settings_email');
+          setUserEmail(savedEmail || '');
+        } catch (error) {
+          console.error('[XLPOSTCARDS][PREVIEW] Error loading user email:', error);
+          setUserEmail('');
+        }
+      };
+      loadUserEmail();
+    }
+  }, [showSuccessModal]);
+
+  // Update SuccessOverlay with conditional email messages
   const SuccessOverlay = React.useCallback(() => {
     if (!showSuccessModal) return null;
+    
+    const hasEmail = userEmail && userEmail.trim() !== '';
+    
     return (
       <View style={styles.successOverlay} pointerEvents="auto">
         <View style={styles.successContent}>
           <View style={{ width: '100%', height: 12, backgroundColor: '#fff' }} />
           <Text style={styles.successTitle}>Success!</Text>
-          <Text style={styles.successMessage}>
-            Your postcard was successfully created. It will be printed within 1 business day and should be received within 3-7 days.
-          </Text>
+          {hasEmail ? (
+            <Text style={styles.successMessage}>
+              Your postcard will be printed and mailed soon. A pdf proof was sent to your email address at {userEmail}.
+            </Text>
+          ) : (
+            <View>
+              <Text style={styles.successMessage}>
+                Your postcard will be printed and mailed soon. If you wish to get a pdf proof of the final postcard in the future please enter your email address in the settings drawer.
+              </Text>
+              <View style={styles.hamburgerContainer}>
+                <View style={styles.hamburgerIcon}>
+                  <View style={styles.hamburgerLine} />
+                  <View style={styles.hamburgerLine} />
+                  <View style={styles.hamburgerLine} />
+                </View>
+              </View>
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.successButton}
             onPress={() => {
@@ -700,7 +740,7 @@ export default function PostcardPreviewScreen() {
         </View>
       </View>
     );
-  }, [showSuccessModal, handleNavigation]);
+  }, [showSuccessModal, handleNavigation, userEmail]);
 
   // Note: Navigation is now handled directly in the OK button press
   // Removed automatic navigation useEffect to ensure modal stays open until user clicks OK
@@ -780,7 +820,7 @@ export default function PostcardPreviewScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: 199, // $1.99 in cents
+          amount: 299, // $2.99 in cents
           transactionId: finalTransactionId
         }),
       });
@@ -828,7 +868,8 @@ export default function PostcardPreviewScreen() {
       // Don't show success yet - wait for Stannp confirmation
       console.log('[XLPOSTCARDS][PREVIEW] Payment successful, waiting for Railway to process postcard...');
       setIsCapturing(false);
-      setSending(true); // Keep sending state to show "Processing..."
+      setSending(false); // Clear general sending state
+      setProcessingPayment(true); // Show post-payment processing
       
       // Poll for completion - only show success when Stannp confirms
       pollPaymentStatus(finalTransactionId);
@@ -842,11 +883,12 @@ export default function PostcardPreviewScreen() {
         message: err.message,
         stack: err.stack
       });
-      showOnlyModal('error');
-    } finally {
+      // Only clear processing state on error
       setSending(false);
       setIsCapturing(false);
-      console.log('[XLPOSTCARDS][PREVIEW] Railway Stripe checkout flow finished');
+      setProcessingPayment(false);
+      showOnlyModal('error');
+      console.log('[XLPOSTCARDS][PREVIEW] Railway Stripe checkout flow finished with error');
     }
   };
 
@@ -872,6 +914,8 @@ export default function PostcardPreviewScreen() {
             console.log('[XLPOSTCARDS][PREVIEW] Payment completed and postcard submitted to Stannp!');
             setSending(false);
             showOnlyModal('success');
+            // Clear processing state after success modal is shown
+            setProcessingPayment(false);
             return true;
           } else if (data.status === 'payment_completed') {
             // Payment done, still processing postcard
@@ -1332,10 +1376,14 @@ export default function PostcardPreviewScreen() {
           </View>
         </View>
         {/* Status indicators remain outside main layout */}
-        {sending && (
-          <View style={styles.statusContainer}>
-            <ActivityIndicator size="large" color="#A1CEDC" />
-            <Text style={styles.statusText}>Sending XLPostcards...</Text>
+        {processingPayment && !showSuccessModal && (
+          <View style={styles.loadingOverlay} pointerEvents="auto">
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="#f28914" />
+              <Text style={styles.loadingText}>
+                Please wait while postcard is submitted for printing
+              </Text>
+            </View>
           </View>
         )}
         {/* Add the new modals */}
@@ -1611,6 +1659,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 9999,
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9998,
+  },
+  loadingContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '80%',
+    maxWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingText: {
+    color: '#333',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 26,
+    fontWeight: '500',
+  },
   successContent: {
     backgroundColor: '#fff',
     borderRadius: 24,
@@ -1650,6 +1731,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 22,
+  },
+  hamburgerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  hamburgerIcon: {
+    width: 20,
+    height: 16,
+    justifyContent: 'space-between',
+  },
+  hamburgerLine: {
+    width: '100%',
+    height: 2,
+    backgroundColor: '#666',
+    borderRadius: 1,
   },
   backButton: {
     backgroundColor: '#fff',

@@ -272,16 +272,22 @@ class TemplateEngine:
         for i, (image, pos) in enumerate(zip(background_images, positions)):
             canvas.paste(image, pos)
         
-        # Add center overlay image (5th image) - smaller and centered
+        # Add center overlay image (5th image) - smaller and centered with white border
         center_size = (int(quarter_width * 0.7), int(quarter_height * 0.7))
         center_image = self._load_image_from_url(image_urls[4])
         center_image = self._resize_and_crop(center_image, center_size)
         
-        # Calculate center position
-        center_x = (self.width - center_size[0]) // 2
-        center_y = (self.height - center_size[1]) // 2
+        # Create white border around center image
+        border_width = 8  # Border thickness in pixels
+        bordered_size = (center_size[0] + border_width * 2, center_size[1] + border_width * 2)
+        bordered_image = Image.new('RGB', bordered_size, color='white')
+        bordered_image.paste(center_image, (border_width, border_width))
         
-        canvas.paste(center_image, (center_x, center_y))
+        # Calculate center position for bordered image
+        center_x = (self.width - bordered_size[0]) // 2
+        center_y = (self.height - bordered_size[1]) // 2
+        
+        canvas.paste(bordered_image, (center_x, center_y))
         
         return canvas
     
