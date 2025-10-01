@@ -1,44 +1,58 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import TemplatePickerModal from './TemplatePickerModal';
+import { SelectedImage } from './MultiImagePicker';
 
 export type TemplateType = 'single' | 'two_side_by_side' | 'three_photos' | 'four_quarters';
 
 interface TemplateSelectorProps {
   selectedTemplate: TemplateType;
   onTemplateSelect: (template: TemplateType) => void;
+  images: SelectedImage[];
+  onImagesChange: (images: SelectedImage[]) => void;
 }
 
 const templates = [
   {
     id: 'single' as TemplateType,
     name: 'Single Photo',
-    description: 'One photo covering the entire front',
     requiredImages: 1,
   },
   {
     id: 'two_side_by_side' as TemplateType,
     name: 'Side by Side',
-    description: 'Two photos side by side',
     requiredImages: 2,
   },
   {
     id: 'three_photos' as TemplateType,
     name: 'Three Photos',
-    description: 'One large left, two small right',
     requiredImages: 3,
   },
   {
     id: 'four_quarters' as TemplateType,
     name: 'Four Quarters',
-    description: 'Four photos in quarters',
     requiredImages: 4,
   },
 ];
 
-export default function TemplateSelector({ selectedTemplate, onTemplateSelect }: TemplateSelectorProps) {
+export default function TemplateSelector({ 
+  selectedTemplate, 
+  onTemplateSelect, 
+  images, 
+  onImagesChange 
+}: TemplateSelectorProps) {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTemplateType, setModalTemplateType] = useState<TemplateType>('single');
+
+  const openTemplateModal = (templateType: TemplateType) => {
+    setModalTemplateType(templateType);
+    onTemplateSelect(templateType); // Set the selected template
+    setModalVisible(true);
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionLabel}>1) Select Template</Text>
+      <Text style={styles.sectionLabel}>1) Select Template & Add Photos</Text>
       <View style={styles.templatesGrid} testID="template-grid">
         {templates.map((template, index) => (
           <TouchableOpacity
@@ -47,11 +61,11 @@ export default function TemplateSelector({ selectedTemplate, onTemplateSelect }:
               styles.templateCard,
               selectedTemplate === template.id && styles.selectedTemplateCard
             ]}
-            onPress={() => onTemplateSelect(template.id)}
+            onPress={() => openTemplateModal(template.id)}
             testID={index === 0 ? "first-template-card" : undefined}
           >
             <View style={styles.templatePreview}>
-              {renderTemplatePreview(template.id)}
+              {renderTemplatePreview(template.id, selectedTemplate === template.id ? images : [])}
             </View>
             <Text style={[
               styles.templateName,
@@ -59,29 +73,52 @@ export default function TemplateSelector({ selectedTemplate, onTemplateSelect }:
             ]}>
               {template.name}
             </Text>
-            <Text style={styles.templateDescription}>
-              {template.description}
-            </Text>
-            <Text style={styles.requiredImages}>
-              {template.requiredImages} photo{template.requiredImages > 1 ? 's' : ''}
-            </Text>
+            {selectedTemplate === template.id && (
+              <Text style={styles.imageCount}>
+                {images.length}/{template.requiredImages} photos
+              </Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>
+
+      <TemplatePickerModal
+        visible={modalVisible}
+        templateType={modalTemplateType}
+        images={images}
+        onClose={() => setModalVisible(false)}
+        onImagesChange={onImagesChange}
+      />
     </View>
   );
 }
 
-function renderTemplatePreview(templateId: TemplateType) {
+function renderTemplatePreview(templateId: TemplateType, previewImages: SelectedImage[] = []) {
   const previewSize = 60;
   
-  const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => (
-    <View style={[styles.previewBox, { width, height }]}>
-      <View style={styles.previewNumber}>
-        <Text style={styles.previewNumberText}>{number}</Text>
+  const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => {
+    const image = previewImages[number - 1]; // Convert 1-based to 0-based index
+    
+    if (image) {
+      return (
+        <View style={[styles.previewBox, { width, height }]}>
+          <Image 
+            source={{ uri: image.uri }} 
+            style={styles.previewImage}
+            resizeMode="cover"
+          />
+        </View>
+      );
+    }
+    
+    return (
+      <View style={[styles.previewBox, { width, height }]}>
+        <View style={styles.previewNumber}>
+          <Text style={styles.previewNumberText}>{number}</Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
   
   switch (templateId) {
     case 'single':
@@ -173,6 +210,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
   },
   previewNumber: {
     position: 'absolute',
@@ -200,15 +243,10 @@ const styles = StyleSheet.create({
   selectedTemplateName: {
     color: '#f28914',
   },
-  templateDescription: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  requiredImages: {
+  imageCount: {
     fontSize: 11,
-    color: '#888',
-    fontStyle: 'italic',
+    color: '#f28914',
+    fontWeight: 'bold',
+    marginTop: 2,
   },
 });

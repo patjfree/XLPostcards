@@ -13,7 +13,7 @@ import { uploadToCloudinary } from '@/utils/cloudinaryUpload';
 
 import AIDisclaimer from '../components/AIDisclaimer';
 import TemplateSelector, { TemplateType } from '../components/TemplateSelector';
-import MultiImagePicker, { SelectedImage } from '../components/MultiImagePicker';
+import { SelectedImage } from '../components/MultiImagePicker';
 import SpotlightBox, { SpotlightRect } from '../../components/SpotlightBox';
 
 // const US_STATES = [
@@ -1562,25 +1562,18 @@ export default function HomeScreen() {
         {/* Remove the teal XLPostcards title, but leave a space for layout balance */}
         <View style={{ height: 24 }} />
 
-        {/* Template & Photo Selection Combined */}
+        {/* Template Selection with Built-in Photo Picker */}
         <View style={{ width: '100%' }}>
-          {/* Template Selection */}
           <TemplateSelector
             selectedTemplate={templateType}
             onTemplateSelect={handleTemplateChange}
-          />
-
-          {/* Multi-Image Picker */}
-          <MultiImagePicker
             images={images}
             onImagesChange={setImages}
-            templateType={templateType}
-            maxImages={templateRequirements[templateType]}
           />
         </View>
 
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionLabel}>3) Select Postcard Size</Text>
+              <Text style={styles.sectionLabel}>2) Select Postcard Size</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
                 <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
                   <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
@@ -1602,7 +1595,7 @@ export default function HomeScreen() {
 
             {/* Address Dropdown Section */}
             <View style={[styles.sectionBlock, { zIndex: 3000 }]}>
-              <Text style={styles.sectionLabel}>4) Select Recipient</Text>
+              <Text style={styles.sectionLabel}>3) Select Recipient</Text>
               <TouchableOpacity
                 style={[styles.fullWidthButton, { marginBottom: 8 }]}
                 onPress={() => {
@@ -1632,7 +1625,7 @@ export default function HomeScreen() {
 
             {/* Message Block */}
             <View style={[styles.sectionBlock, { zIndex: 1000 }]}>
-          <Text style={styles.sectionLabel}>5) Write Message</Text>
+          <Text style={styles.sectionLabel}>4) Write Message</Text>
           <View style={styles.messageInputContainer}>
             <TextInput
               ref={messageInputRef}
