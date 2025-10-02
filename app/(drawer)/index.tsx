@@ -994,7 +994,7 @@ export default function HomeScreen() {
         const recipientInfo = {
           to: selected.name,
           addressLine1: selected.address,
-          addressLine2: '',
+          addressLine2: selected.address2 || '',
           city: selected.city,
           state: selected.state,
           zipcode: selected.zip,

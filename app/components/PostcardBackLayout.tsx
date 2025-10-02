@@ -44,7 +44,7 @@ const getScaledDims = (postcardSize: PostcardSize, width: number, height: number
 
       addressRight: 72 * scaleX,
       addressBottom: 172 * scaleY,
-      addressWidth: 600 * scaleX,
+      addressWidth: 680 * scaleX,
       addressHeight: 220 * scaleY,
     };
   } else {
@@ -57,7 +57,7 @@ const getScaledDims = (postcardSize: PostcardSize, width: number, height: number
 
       addressRight: 108 * scaleX,
       addressBottom: 228 * scaleY,
-      addressWidth: 700 * scaleX,
+      addressWidth: 800 * scaleX,
       addressHeight: 300 * scaleY,
     };
   }
