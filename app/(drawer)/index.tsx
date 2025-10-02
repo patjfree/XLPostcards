@@ -1526,18 +1526,20 @@ export default function HomeScreen() {
       {/* Spacer to prevent header image from being cut off by the status bar */}
       <View style={{ height: (Constants.statusBarHeight || 32), backgroundColor: '#e5851a', width: '100%' }} />
       {/* Header image and hamburger menu, now edge-to-edge and not cut off */}
-      <View style={{ width: '100%', backgroundColor: '#e5851a' }}>
+      <View style={{ width: '100%', backgroundColor: '#e5851a', position: 'relative' }}>
         <Image
           source={require('@/assets/images/XLPostcards-Header.png')}
           style={{
             width: '100%',
             height: undefined,
-            aspectRatio: 4, // 4:1 aspect ratio recommended
+            aspectRatio: 4.2, // Slightly wider ratio to fit mascot better
             backgroundColor: '#e5851a',
+            minHeight: 100, // Reduced minimum height
+            maxHeight: 140, // Add maximum height to prevent oversizing
           }}
-          resizeMode="cover"
+          resizeMode="contain" // Changed to contain to ensure mascot stays visible
         />
-        <View ref={hamburgerRef} style={styles.hamburgerInHeaderScroll}>
+        <View ref={hamburgerRef} style={[styles.hamburgerInHeaderScroll, { zIndex: 10 }]}>
           <TouchableOpacity 
             style={{ 
               width: '100%', 
@@ -1578,14 +1580,14 @@ export default function HomeScreen() {
 
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionLabel}>2) Select Postcard Size</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, marginVertical: 8 }}>
-                <Pressable onPress={() => setPostcardSize('regular')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+              <View style={styles.radioContainer}>
+                <Pressable onPress={() => setPostcardSize('regular')} style={styles.radioButtonWrapper}>
                   <View style={[styles.radioOuter, postcardSize === 'regular' && styles.radioOuterSelected]}>
                     {postcardSize === 'regular' && <View style={styles.radioInner} />}
                   </View>
                   <Text style={styles.radioLabel}>Regular (4"x6")</Text>
                 </Pressable>
-                <Pressable onPress={() => setPostcardSize('xl')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable onPress={() => setPostcardSize('xl')} style={styles.radioButtonWrapper}>
                   <View style={[styles.radioOuter, postcardSize === 'xl' && styles.radioOuterSelected]}>
                     {postcardSize === 'xl' && <View style={styles.radioInner} />}
                   </View>
@@ -2076,7 +2078,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 10,
+    zIndex: 10,
   },
   fullWidthButton: {
     width: '100%',
@@ -2189,9 +2192,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#fff',
   },
+  radioContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    gap: 16,
+    marginVertical: 8,
+  },
+  radioButtonWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 140,
+    flex: 1,
+    maxWidth: '48%', // Ensures wrap to new line if needed
+  },
   radioLabel: {
     fontSize: 16,
     color: '#222',
     fontWeight: '500',
+    marginLeft: 8,
   },
 });
