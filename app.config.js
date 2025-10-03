@@ -51,7 +51,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.3.3",
+  version: REMOTE_APP_VERSION || "2.3.3.2",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",
@@ -159,6 +159,10 @@ module.exports = {
       return (FORCE_TEST_MODE ? test : live);
     })(),
     
+    // Stripe merchant IDs for Apple Pay and Google Pay
+    appleMerchantId: process.env.APPLE_MERCHANT_ID || 'merchant.com.patjfree.xlpostcards',
+    googleMerchantId: process.env.GOOGLE_MERCHANT_ID || 'com.patjfree.xlpostcards',
+    
     railwayPostcardUrl: IS_DEV 
       ? 'https://postcardservice-test.up.railway.app'
       : 'https://postcardservice-prod.up.railway.app',
@@ -167,7 +171,7 @@ module.exports = {
     postcardPriceDollars: 2.99,
 
     // Internal build number for development/simulator tracking (not visible in production)
-    internalBuildNumber: "2.3.3",
+    internalBuildNumber: "2.3.3.2",
 
     APP_VARIANT,
     eas: { projectId: "f4dc464b-4ae2-4850-820b-015a17901641" }

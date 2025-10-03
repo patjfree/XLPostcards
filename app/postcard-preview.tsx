@@ -120,6 +120,10 @@ export default function PostcardPreviewScreen() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showRefundSuccessModal, setShowRefundSuccessModal] = useState(false);
+  const [showPromoCodeModal, setShowPromoCodeModal] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoCodeDiscount, setPromoCodeDiscount] = useState(0);
+  const [promoCodeUsedPermanently, setPromoCodeUsedPermanently] = useState(false);
   const [stannpAttempts, setStannpAttempts] = useState(0);
   const [refundData, setRefundData] = useState({
     date: new Date().toISOString(),
@@ -152,6 +156,21 @@ export default function PostcardPreviewScreen() {
   const [stannpConfirmed, setStannpConfirmed] = useState<boolean>(false);
   const [railwayBackImageUrl, setRailwayBackImageUrl] = useState<string | null>(null);
   
+  // Check if promo code was already used permanently
+  useEffect(() => {
+    const checkPromoCodeUsed = async () => {
+      try {
+        const used = await AsyncStorage.getItem('promo_code_used_permanently');
+        if (used === 'true') {
+          setPromoCodeUsedPermanently(true);
+        }
+      } catch (error) {
+        console.error('[XLPOSTCARDS][PROMO] Error checking promo code usage:', error);
+      }
+    };
+    checkPromoCodeUsed();
+  }, []);
+
   // Update the initial params effect
   useEffect(() => {
     console.log('[XLPOSTCARDS][PREVIEW] Initial params:', {
@@ -759,9 +778,15 @@ export default function PostcardPreviewScreen() {
     }
   }, [sendResult?.success, showSuccessModal, stannpConfirmed, showOnlyModal]);
 
-  // Function to start new Railway Stripe Checkout flow
+  // Function to start new purchase flow (Stripe or Free)
   const startNewPurchaseFlow = async () => {
     try {
+      // Check if this is a 100% discount promo code
+      if (promoCode && promoCodeDiscount === 100) {
+        console.log('[XLPOSTCARDS][PREVIEW] Processing 100% discount - skipping Stripe');
+        return await processFreePostcard();
+      }
+      
       console.log('[XLPOSTCARDS][PREVIEW] Continue button pressed - Using Railway Stripe Checkout');
       setSending(true);
       setSendResult(null);
@@ -814,15 +839,24 @@ export default function PostcardPreviewScreen() {
 
       // Step 2: Create PaymentIntent for native Payment Sheet
       console.log('[XLPOSTCARDS][PREVIEW] Creating PaymentIntent for Payment Sheet...');
+      const paymentPayload = {
+        amount: 299, // $2.99 in cents
+        transactionId: finalTransactionId
+      };
+
+      // Add promo code if available
+      if (promoCode && promoCodeDiscount > 0) {
+        paymentPayload.promoCode = promoCode;
+        paymentPayload.discountPercent = promoCodeDiscount;
+        console.log('[XLPOSTCARDS][PREVIEW] Applying promo code:', promoCode, 'with', promoCodeDiscount, '% discount');
+      }
+
       const paymentResponse = await fetch(`${railwayBaseUrl}/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: 299, // $2.99 in cents
-          transactionId: finalTransactionId
-        }),
+        body: JSON.stringify(paymentPayload),
       });
 
       if (!paymentResponse.ok) {
@@ -939,6 +973,174 @@ export default function PostcardPreviewScreen() {
 
     // Start polling after a brief delay
     setTimeout(checkStatus, 5000);
+  };
+
+  // Function to process free postcard with 100% discount
+  const processFreePostcard = async () => {
+    try {
+      setSending(true);
+      setSendResult(null);
+      setStannpConfirmed(false);
+      setIsCapturing(true);
+
+      // Get user email from AsyncStorage
+      let userEmail = '';
+      try {
+        userEmail = await AsyncStorage.getItem('settings_email') || '';
+      } catch (e) {
+        console.log('[XLPOSTCARDS][FREE] Could not get user email:', e);
+      }
+
+      console.log('[XLPOSTCARDS][FREE] Processing free postcard with promo code:', promoCode);
+      
+      if (!promoCode) {
+        throw new Error('No promo code available for free postcard processing');
+      }
+      
+      const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+      const transactionId = `free-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const response = await fetch(`${railwayBaseUrl}/process-free-postcard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          recipientInfo: {
+            to: recipientInfo?.to || '',
+            addressLine1: recipientInfo?.addressLine1 || '',
+            addressLine2: recipientInfo?.addressLine2 || '',
+            city: recipientInfo?.city || '',
+            state: recipientInfo?.state || '',
+            zipcode: recipientInfo?.zipcode || ''
+          },
+          postcardSize,
+          returnAddressText: returnAddress,
+          transactionId,
+          frontImageUri: railwayFrontUrl || imageUri,
+          userEmail,
+          promoCode
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('[XLPOSTCARDS][FREE] Free postcard processed successfully!');
+        setStannpConfirmed(true);
+        setSendResult({
+          success: true,
+          message: 'Your free postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.',
+        });
+        showOnlyModal('success');
+      } else {
+        throw new Error(result.error || 'Failed to process free postcard');
+      }
+
+    } catch (error) {
+      console.error('[XLPOSTCARDS][FREE] Error processing free postcard:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setLastErrorMessage(errorMessage);
+      showOnlyModal('error');
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
+    }
+  };
+
+  // Function to process free postcard with specific promo code
+  const processFreePostcardWithCode = async (promoCodeToUse: string) => {
+    try {
+      setSending(true);
+      setSendResult(null);
+      setStannpConfirmed(false);
+      setIsCapturing(true);
+
+      // Get user email from AsyncStorage
+      let userEmail = '';
+      try {
+        userEmail = await AsyncStorage.getItem('settings_email') || '';
+      } catch (e) {
+        console.log('[XLPOSTCARDS][FREE] Could not get user email:', e);
+      }
+
+      console.log('[XLPOSTCARDS][FREE] Processing free postcard with promo code:', promoCodeToUse);
+      
+      if (!promoCodeToUse) {
+        throw new Error('No promo code provided for free postcard processing');
+      }
+      
+      const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+      const transactionId = `free-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const response = await fetch(`${railwayBaseUrl}/process-free-postcard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          recipientInfo: {
+            to: recipientInfo?.to || '',
+            addressLine1: recipientInfo?.addressLine1 || '',
+            addressLine2: recipientInfo?.addressLine2 || '',
+            city: recipientInfo?.city || '',
+            state: recipientInfo?.state || '',
+            zipcode: recipientInfo?.zipcode || ''
+          },
+          postcardSize,
+          returnAddressText: returnAddress,
+          transactionId,
+          frontImageUri: railwayFrontUrl || imageUri,
+          userEmail,
+          promoCode: promoCodeToUse
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('[XLPOSTCARDS][FREE] Free postcard processed successfully!');
+        setStannpConfirmed(true);
+        setSendResult({
+          success: true,
+          message: 'Your free postcard will be printed and sent by First Class mail within 1 business day. It should arrive in 3-7 days.',
+        });
+        showOnlyModal('success');
+      } else {
+        throw new Error(result.error || 'Failed to process free postcard');
+      }
+
+    } catch (error) {
+      console.error('[XLPOSTCARDS][FREE] Error processing free postcard:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setLastErrorMessage(errorMessage);
+      showOnlyModal('error');
+    } finally {
+      setSending(false);
+      setIsCapturing(false);
+    }
+  };
+
+  // Function to start postcard sending after promo code validation
+  const startPostcardSending = async (validatedPromoCode: string, discountPercent: number) => {
+    try {
+      // Set the promo code state for the flow
+      setPromoCode(validatedPromoCode);
+      setPromoCodeDiscount(discountPercent);
+      
+      // Check if this is a 100% discount - use free flow
+      if (discountPercent === 100) {
+        console.log('[XLPOSTCARDS][PROMO] Processing 100% discount - skipping Stripe');
+        await processFreePostcardWithCode(validatedPromoCode);
+      } else {
+        // Use regular Stripe flow with discount
+        console.log('[XLPOSTCARDS][PROMO] Processing discounted payment via Stripe');
+        await startNewPurchaseFlow();
+      }
+    } catch (error) {
+      console.error('[XLPOSTCARDS][PROMO] Error in postcard sending:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setLastErrorMessage(errorMessage);
+      showOnlyModal('error');
+    }
   };
 
   const windowHeight = Dimensions.get('window').height;
@@ -1125,6 +1327,122 @@ export default function PostcardPreviewScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+    );
+  };
+
+  // Promo Code Modal Component
+  const PromoCodeModal = () => {
+    const [localPromoCode, setLocalPromoCode] = useState('');
+    const [isValidating, setIsValidating] = useState(false);
+    const [validationError, setValidationError] = useState('');
+
+    const handleValidatePromoCode = async () => {
+      if (!localPromoCode.trim()) {
+        setValidationError('Please enter a promo code');
+        return;
+      }
+
+      setIsValidating(true);
+      setValidationError('');
+
+      try {
+        const railwayBaseUrl = Constants.expoConfig?.extra?.railwayPostcardUrl || 'https://postcardservice-production.up.railway.app';
+        const response = await fetch(`${railwayBaseUrl}/validate-promo-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            code: localPromoCode.trim().toUpperCase(),
+            transactionId: `promo-check-${Date.now()}`
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.valid) {
+          setPromoCode(localPromoCode.trim().toUpperCase());
+          setPromoCodeDiscount(result.discount_percent || 100);
+          
+          // Mark promo code as used permanently
+          await AsyncStorage.setItem('promo_code_used_permanently', 'true');
+          setPromoCodeUsedPermanently(true);
+          
+          setShowPromoCodeModal(false);
+          setLocalPromoCode('');
+          
+          // Start sending postcard immediately
+          console.log('[XLPOSTCARDS][PROMO] Promo code applied, starting postcard send...');
+          await startPostcardSending(localPromoCode.trim().toUpperCase(), result.discount_percent || 100);
+        } else {
+          setValidationError(result.message || 'Invalid promo code');
+        }
+      } catch (error) {
+        console.error('Error validating promo code:', error);
+        setValidationError('Unable to validate promo code. Please try again.');
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    const handleClose = () => {
+      setShowPromoCodeModal(false);
+      setLocalPromoCode('');
+      setValidationError('');
+    };
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showPromoCodeModal}
+        onRequestClose={handleClose}
+      >
+        <TouchableOpacity 
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={handleClose}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={handleClose}
+            >
+              <MaterialIcons name="close" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Enter Promo Code</Text>
+            <Text style={styles.modalText}>
+              Enter your promo code to get a discount on your postcard.
+            </Text>
+            <TextInput
+              style={styles.refundInput}
+              placeholder="Promo Code (e.g., XLWelcomeNov)"
+              placeholderTextColor="#999"
+              value={localPromoCode}
+              onChangeText={setLocalPromoCode}
+              autoCapitalize="characters"
+              onSubmitEditing={handleValidatePromoCode}
+            />
+            {validationError ? (
+              <Text style={styles.errorMessage}>{validationError}</Text>
+            ) : null}
+            <TouchableOpacity 
+              style={[
+                styles.modalButton,
+                (!localPromoCode.trim() || isValidating) && { opacity: 0.5 }
+              ]}
+              onPress={handleValidatePromoCode}
+              disabled={!localPromoCode.trim() || isValidating}
+            >
+              <Text style={[styles.modalButtonText, { fontSize: 18, textAlign: 'center' }]}>
+                {isValidating ? 'Validating...' : 'Apply Promo Code and Send\nPostcard'}
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     );
   };
@@ -1365,12 +1683,21 @@ export default function PostcardPreviewScreen() {
                         disabled={sending}
                       >
                         <Text style={styles.buttonText}>
-                          Send Your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} Postcard
+                          Send Your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} Postcard{promoCodeDiscount === 100 ? ' (FREE!)' : promoCodeDiscount > 0 ? ` (${promoCodeDiscount}% OFF!)` : ''}
                         </Text>
                       </TouchableOpacity>
                     </>
                   ) : null}
                 </View>
+                {/* Promo code link below the buttons */}
+                {!sendResult?.success && !promoCode && !promoCodeUsedPermanently && (
+                  <TouchableOpacity
+                    style={styles.promoCodeLink}
+                    onPress={() => setShowPromoCodeModal(true)}
+                  >
+                    <Text style={styles.promoCodeText}>Use Promo Code</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
@@ -1386,10 +1713,21 @@ export default function PostcardPreviewScreen() {
             </View>
           </View>
         )}
+        {sending && !showSuccessModal && !showErrorModal && (
+          <View style={styles.loadingOverlay} pointerEvents="auto">
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="#f28914" />
+              <Text style={styles.loadingText}>
+                Please wait while your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} postcard is submitted for printing
+              </Text>
+            </View>
+          </View>
+        )}
         {/* Add the new modals */}
         <ErrorModal />
         <RefundModal />
         <RefundSuccessModal />
+        <PromoCodeModal />
       </View>
     </>
   );
@@ -1763,5 +2101,27 @@ const styles = StyleSheet.create({
     minWidth: 80,
     height: 56,
     flexDirection: 'row',
+  },
+  promoCodeLink: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingVertical: 8,
+  },
+  promoCodeText: {
+    color: '#f28914',
+    fontSize: 16,
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
+  errorMessage: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
   },
 }); 

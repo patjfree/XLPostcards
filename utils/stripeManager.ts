@@ -80,6 +80,21 @@ class StripeManager {
       const initResult = await stripe.initPaymentSheet({
         paymentIntentClientSecret: paymentClientSecret,
         merchantDisplayName: 'XLPostcards',
+        allowsDelayedPaymentMethods: true,
+        appearance: {
+          primaryButton: {
+            backgroundColor: '#f28914'
+          }
+        },
+        applePay: {
+          merchantId: Constants.expoConfig?.extra?.appleMerchantId || 'merchant.com.xlpostcards',
+        },
+        googlePay: {
+          merchantId: Constants.expoConfig?.extra?.googleMerchantId || 'xlpostcards',
+          testEnvironment: variant !== 'production',
+        },
+        defaultBillingDetails: {},
+        returnURL: 'xlpostcards://stripe-redirect',
       });
       if (initResult.error) throw new Error(initResult.error.message);
       const paymentResult = await stripe.presentPaymentSheet();

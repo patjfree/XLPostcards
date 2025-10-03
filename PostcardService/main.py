@@ -5,12 +5,18 @@ from typing import Dict, Optional, List
 from PIL import Image, ImageDraw, ImageFont
 import io, base64, os, tempfile, urllib.request, requests
 import asyncio, time, hmac, hashlib
-from datetime import datetime
+from threading import Timer
 import cloudinary
 import cloudinary.uploader
 import resend
 import stripe
 import json
+from datetime import datetime, timedelta
+import calendar
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy.sql import func
 # Embedded TemplateEngine to avoid import issues in Railway
 class TemplateEngine:
     """Handle multi-photo template layouts for postcard fronts"""
@@ -364,6 +370,27 @@ print("[STARTUP] TemplateEngine embedded successfully")
 
 app = FastAPI()
 
+@app.on_event("startup")
+async def startup_event():
+    """Run startup tasks including coupon creation"""
+    print("[STARTUP] PostcardService starting up...")
+    
+    # Automatically create next month's coupon if it doesn't exist
+    try:
+        print("[STARTUP] Checking if next month's coupon needs to be created...")
+        result = await create_monthly_coupon()
+        if result["success"]:
+            print(f"[STARTUP] ✅ Monthly coupon ready: {result.get('promo_code')}")
+        else:
+            print(f"[STARTUP] ⚠️ Coupon creation issue: {result.get('error')}")
+    except Exception as e:
+        print(f"[STARTUP] ❌ Error during coupon creation: {e}")
+    
+    print("[STARTUP] PostcardService ready!")
+    
+    # Schedule daily coupon check
+    schedule_daily_coupon_check()
+
 # Configure Cloudinary SDK
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "db9totnmb"),
@@ -379,9 +406,297 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./coupons.db")
+
+# Create engine with connection pooling and better error handling
+if DATABASE_URL.startswith("postgresql"):
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={"sslmode": "require"} if "railway" in DATABASE_URL else {}
+    )
+    print(f"[DATABASE] Connected to PostgreSQL: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'Railway'}")
+else:
+    engine = create_engine(DATABASE_URL)
+    print(f"[DATABASE] Using SQLite fallback: {DATABASE_URL}")
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Database Models
+class CouponCampaign(Base):
+    __tablename__ = "coupon_campaigns"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_name = Column(String(100), unique=True, nullable=False)
+    campaign_type = Column(String(50), nullable=False)
+    description = Column(Text)
+    max_redemptions = Column(Integer, default=500)
+    discount_percent = Column(Integer, default=100)
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+    
+    coupon_codes = relationship("CouponCode", back_populates="campaign")
+
+class CouponCode(Base):
+    __tablename__ = "coupon_codes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("coupon_campaigns.id"))
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    stripe_coupon_id = Column(String(100))
+    stripe_promo_id = Column(String(100))
+    max_redemptions = Column(Integer, default=500)
+    times_redeemed = Column(Integer, default=0)
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+    
+    campaign = relationship("CouponCampaign", back_populates="coupon_codes")
+    distributions = relationship("CouponDistribution", back_populates="coupon_code")
+    redemptions = relationship("CouponRedemption", back_populates="coupon_code")
+
+class CouponDistribution(Base):
+    __tablename__ = "coupon_distributions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    coupon_code_id = Column(Integer, ForeignKey("coupon_codes.id"))
+    transaction_id = Column(String(100), nullable=False, index=True)
+    recipient_name = Column(String(255))
+    recipient_address = Column(Text)
+    sent_at = Column(DateTime, default=func.now())
+    postcard_size = Column(String(20))
+    
+    coupon_code = relationship("CouponCode", back_populates="distributions")
+
+class CouponRedemption(Base):
+    __tablename__ = "coupon_redemptions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    coupon_code_id = Column(Integer, ForeignKey("coupon_codes.id"))
+    transaction_id = Column(String(100))
+    stripe_payment_intent_id = Column(String(100), index=True)
+    customer_email = Column(String(255))
+    redeemed_at = Column(DateTime, default=func.now())
+    redemption_value_cents = Column(Integer, default=299)
+    
+    coupon_code = relationship("CouponCode", back_populates="redemptions")
+
+class Customer(Base):
+    __tablename__ = "customers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True)
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    created_at = Column(DateTime, default=func.now())
+    total_orders = Column(Integer, default=0)
+    total_spent_cents = Column(Integer, default=0)
+    first_order_date = Column(DateTime)
+    last_order_date = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+
+# Create tables with error handling
+try:
+    Base.metadata.create_all(bind=engine)
+    print("[DATABASE] Tables created successfully")
+    
+    # Test database connection
+    test_session = SessionLocal()
+    test_session.execute("SELECT 1")
+    test_session.close()
+    print("[DATABASE] Database connection test successful")
+    
+except Exception as e:
+    print(f"[DATABASE] Error setting up database: {e}")
+    print("[DATABASE] Falling back to in-memory storage only")
+
+def get_db():
+    """Get database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_db_session():
+    """Get database session for direct use"""
+    try:
+        return SessionLocal()
+    except Exception as e:
+        print(f"[DATABASE] Error creating session: {e}")
+        return None
+
 # In-memory transaction storage (will be replaced with database)
 transaction_store = {}
 payment_sessions = {}  # Store payment session data
+
+def get_next_month_coupon_code():
+    """Generate the coupon code for next month (e.g., XLWelcomeNov)"""
+    next_month = datetime.now() + timedelta(days=32)
+    month_abbr = calendar.month_abbr[next_month.month]
+    return f"XLWelcome{month_abbr}"
+
+def get_next_month_details():
+    """Get next month's details for coupon creation"""
+    next_month = datetime.now() + timedelta(days=32)
+    next_month = next_month.replace(day=1)  # First day of next month
+    
+    # Last day of next month
+    last_day = calendar.monthrange(next_month.year, next_month.month)[1]
+    expiry_date = next_month.replace(day=last_day)
+    
+    month_name = calendar.month_name[next_month.month]
+    year = next_month.year
+    
+    return {
+        "month_name": month_name,
+        "year": year,
+        "expiry_timestamp": int(expiry_date.timestamp()),
+        "expiry_date": expiry_date,
+        "coupon_code": get_next_month_coupon_code()
+    }
+
+async def create_monthly_coupon():
+    """Create next month's coupon and promotional code automatically"""
+    db = SessionLocal()
+    try:
+        details = get_next_month_details()
+        coupon_id = f"xlwelcome-{details['month_name'].lower()}-{details['year']}"
+        promo_code = details["coupon_code"]
+        
+        print(f"[COUPON] Creating monthly coupon: {coupon_id} with code: {promo_code}")
+        
+        # Check if coupon already exists in database
+        existing_code = db.query(CouponCode).filter(CouponCode.code == promo_code).first()
+        if existing_code:
+            print(f"[COUPON] Code {promo_code} already exists in database")
+            return {
+                "success": True,
+                "message": f"Coupon already exists",
+                "coupon_id": existing_code.stripe_coupon_id,
+                "promo_code": promo_code
+            }
+        
+        # Get or create monthly welcome campaign
+        campaign = db.query(CouponCampaign).filter(
+            CouponCampaign.campaign_type == "monthly_welcome"
+        ).first()
+        
+        if not campaign:
+            campaign = CouponCampaign(
+                campaign_name="Monthly Welcome Campaign",
+                campaign_type="monthly_welcome",
+                description="Monthly rotating welcome codes for first-time customers",
+                max_redemptions=500,
+                discount_percent=100
+            )
+            db.add(campaign)
+            db.commit()
+            db.refresh(campaign)
+            print(f"[COUPON] Created new campaign: {campaign.id}")
+        
+        # Create Stripe coupon
+        try:
+            stripe_coupon = stripe.Coupon.create(
+                id=coupon_id,
+                name=f"XLWelcome {details['month_name']} {details['year']}",
+                percent_off=100,
+                duration="once",
+                max_redemptions=500
+            )
+            print(f"[COUPON] Created Stripe coupon: {stripe_coupon.id}")
+        except stripe.error.InvalidRequestError as e:
+            if "already exists" in str(e):
+                stripe_coupon = stripe.Coupon.retrieve(coupon_id)
+                print(f"[COUPON] Using existing Stripe coupon: {coupon_id}")
+            else:
+                raise e
+        
+        # Create Stripe promotional code
+        try:
+            stripe_promo = stripe.PromotionCode.create(
+                coupon=coupon_id,
+                code=promo_code,
+                active=True,
+                restrictions={
+                    "first_time_transaction": True  # First-time customers only
+                },
+                expires_at=details["expiry_timestamp"]
+            )
+            print(f"[COUPON] Created Stripe promotional code: {stripe_promo.code}")
+        except stripe.error.InvalidRequestError as e:
+            if "already exists" in str(e):
+                # Get existing promotional code
+                existing_promos = stripe.PromotionCode.list(code=promo_code, limit=1)
+                stripe_promo = existing_promos.data[0] if existing_promos.data else None
+                print(f"[COUPON] Using existing Stripe promotional code: {promo_code}")
+            else:
+                raise e
+        
+        # Save to database
+        db_coupon = CouponCode(
+            campaign_id=campaign.id,
+            code=promo_code,
+            stripe_coupon_id=stripe_coupon.id,
+            stripe_promo_id=stripe_promo.id if stripe_promo else None,
+            max_redemptions=500,
+            expires_at=details["expiry_date"]
+        )
+        db.add(db_coupon)
+        db.commit()
+        db.refresh(db_coupon)
+        
+        print(f"[COUPON] Saved coupon to database: {db_coupon.id}")
+        
+        return {
+            "success": True,
+            "message": f"Successfully created monthly coupon",
+            "coupon_id": coupon_id,
+            "promo_code": promo_code,
+            "expires": details["expiry_date"].strftime("%Y-%m-%d"),
+            "max_redemptions": 500,
+            "db_id": db_coupon.id
+        }
+        
+    except Exception as e:
+        print(f"[COUPON] Error creating monthly coupon: {e}")
+        db.rollback()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+    finally:
+        db.close()
+
+def schedule_daily_coupon_check():
+    """Schedule daily check for coupon creation at 2 AM UTC"""
+    def daily_check():
+        print("[SCHEDULER] Running daily coupon check...")
+        try:
+            # Run the coupon creation in an async context
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(create_monthly_coupon())
+            
+            if result["success"]:
+                print(f"[SCHEDULER] ✅ Daily check complete: {result.get('promo_code')}")
+            else:
+                print(f"[SCHEDULER] ⚠️ Daily check issue: {result.get('error')}")
+                
+        except Exception as e:
+            print(f"[SCHEDULER] ❌ Daily check error: {e}")
+        finally:
+            # Schedule next check in 24 hours
+            Timer(86400, daily_check).start()  # 24 hours = 86400 seconds
+    
+    # Start the first check in 24 hours
+    Timer(86400, daily_check).start()
+    print("[SCHEDULER] Daily coupon check scheduled (every 24 hours)")
 
 class Recipient(BaseModel):
     to: str = Field(default="")
@@ -409,6 +724,22 @@ class PaymentConfirmedRequest(BaseModel):
 
 class StannpSubmissionRequest(BaseModel):
     transactionId: str
+
+class PromoCodeValidationRequest(BaseModel):
+    code: str
+    transactionId: Optional[str] = ""
+
+class FreePostcardRequest(BaseModel):
+    message: str
+    recipientInfo: Recipient
+    postcardSize: str
+    returnAddressText: str = ""
+    transactionId: str = ""
+    frontImageUri: Optional[str] = ""
+    frontImageUris: Optional[List[str]] = []
+    templateType: Optional[str] = "single"
+    userEmail: Optional[str] = ""
+    promoCode: str
 
 class CreatePaymentSessionRequest(BaseModel):
     message: str
@@ -740,6 +1071,98 @@ async def generate_complete_postcard(request: PostcardRequest):
         except Exception as e:
             print(f"[LOGO] Error adding logo: {e}")
 
+        # Add promotional advertisement in upper right corner
+        try:
+            # Use monthly coupon code for all postcards (first-time customers only)
+            coupon_code = get_next_month_coupon_code()
+            
+            # Position promotional box in upper right corner
+            if request.postcardSize == "xl":
+                # XL postcard (9x6 inches)
+                ad_width = 500  # Compact width for upper right
+                ad_height = 200  # Compact height for upper right
+                ad_x = W - ad_width - 30  # Upper right position
+                ad_y = 30  # Top margin
+                title_font = load_font(26)
+                body_font = load_font(20)
+                code_font = load_font(24)
+                line_spacing = 30
+            else:
+                # Regular postcard (4x6 inches)
+                ad_width = 400
+                ad_height = 160
+                ad_x = W - ad_width - 25
+                ad_y = 25
+                title_font = load_font(20)
+                body_font = load_font(16)
+                code_font = load_font(18)
+                line_spacing = 25
+            
+            # Draw rounded rectangle background for advertisement
+            def draw_rounded_rectangle(draw, xy, radius, fill):
+                """Draw a rounded rectangle"""
+                x1, y1, x2, y2 = xy
+                # Draw main rectangle
+                draw.rectangle([x1 + radius, y1, x2 - radius, y2], fill=fill)
+                draw.rectangle([x1, y1 + radius, x2, y2 - radius], fill=fill)
+                # Draw corners
+                draw.pieslice([x1, y1, x1 + radius * 2, y1 + radius * 2], 180, 270, fill=fill)
+                draw.pieslice([x2 - radius * 2, y1, x2, y1 + radius * 2], 270, 360, fill=fill)
+                draw.pieslice([x1, y2 - radius * 2, x1 + radius * 2, y2], 90, 180, fill=fill)
+                draw.pieslice([x2 - radius * 2, y2 - radius * 2, x2, y2], 0, 90, fill=fill)
+            
+            # Draw advertisement background with subtle border
+            draw_rounded_rectangle(
+                draw,
+                [ad_x, ad_y, ad_x + ad_width, ad_y + ad_height],
+                15,
+                "#f8f8f8"
+            )
+            
+            # Add border
+            draw.rectangle([ad_x + 2, ad_y + 2, ad_x + ad_width - 2, ad_y + ad_height - 2], outline="#f28914", width=3)
+            
+            # Add promotional text content (compact for upper right)
+            text_x = ad_x + 15
+            current_y = ad_y + 15
+            
+            # Title
+            draw.text((text_x, current_y), "Get XLPostcards App!", font=title_font, fill="#f28914")
+            current_y += line_spacing
+            
+            # Main message - more compact
+            draw.text((text_x, current_y), "Download from App/Play Store", font=body_font, fill="#333333")
+            current_y += line_spacing
+            
+            # Coupon offer
+            draw.text((text_x, current_y), f"Code: {coupon_code}", font=code_font, fill="#f28914")
+            current_y += line_spacing - 5
+            draw.text((text_x, current_y), "First postcard FREE!", font=body_font, fill="#333333")
+            
+            print(f"[PROMO] Added promotional box in upper right with code {coupon_code}")
+            
+            # Track coupon distribution in database
+            try:
+                db = SessionLocal()
+                coupon_record = db.query(CouponCode).filter(CouponCode.code == coupon_code).first()
+                if coupon_record:
+                    distribution = CouponDistribution(
+                        coupon_code_id=coupon_record.id,
+                        transaction_id=request.transactionId,
+                        recipient_name=request.recipientInfo.to,
+                        recipient_address=f"{request.recipientInfo.addressLine1}, {request.recipientInfo.city}, {request.recipientInfo.state} {request.recipientInfo.zipcode}",
+                        postcard_size=request.postcardSize
+                    )
+                    db.add(distribution)
+                    db.commit()
+                    print(f"[COUPON] Tracked coupon distribution: {distribution.id}")
+                db.close()
+            except Exception as db_error:
+                print(f"[COUPON] Error tracking distribution: {db_error}")
+            
+        except Exception as e:
+            print(f"[COUPON] Error adding promotional code: {e}")
+
         # Generate back image data
         back_buf = io.BytesIO()
         back_img.save(back_buf, format="JPEG", quality=95)
@@ -857,6 +1280,52 @@ async def payment_confirmed(request: PaymentConfirmedRequest):
     """N8N calls this when Stripe payment succeeds"""
     try:
         print(f"[PAYMENT] Payment confirmed for transaction {request.transactionId}")
+        
+        # Check if promo code was used by looking at Stripe metadata
+        try:
+            # Retrieve PaymentIntent to check for promo code
+            payment_intent = stripe.PaymentIntent.retrieve(request.stripePaymentIntentId)
+            promo_code = payment_intent.metadata.get('promo_code')
+            
+            if promo_code:
+                print(f"[PAYMENT] Promo code detected in payment: {promo_code}")
+                
+                # Track promo code redemption in database
+                db = get_db_session()
+                try:
+                    # Find the coupon code
+                    db_coupon = db.query(CouponCode).filter(
+                        CouponCode.code == promo_code,
+                        CouponCode.is_active == True
+                    ).first()
+                    
+                    if db_coupon:
+                        # Create redemption record
+                        redemption = CouponRedemption(
+                            coupon_code_id=db_coupon.id,
+                            transaction_id=request.transactionId,
+                            stripe_payment_intent_id=request.stripePaymentIntentId,
+                            customer_email=request.userEmail or '',
+                            redemption_value_cents=int(payment_intent.metadata.get('discount_amount', 0))
+                        )
+                        db.add(redemption)
+                        
+                        # Increment redemption count
+                        db_coupon.times_redeemed += 1
+                        
+                        db.commit()
+                        print(f"[PAYMENT] Promo code redemption tracked in database: {promo_code}")
+                    else:
+                        print(f"[PAYMENT] Promo code {promo_code} not in local database - handled by Stripe directly")
+                        
+                except Exception as e:
+                    print(f"[PAYMENT] Error tracking promo code redemption: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
+                    
+        except Exception as e:
+            print(f"[PAYMENT] Error retrieving PaymentIntent for promo tracking: {e}")
         
         # Update transaction status
         if request.transactionId in transaction_store:
@@ -1182,6 +1651,98 @@ async def generate_postcard_back(request: PostcardRequest):
         except Exception as e:
             print(f"[LEGACY LOGO] Error adding logo: {e}")
 
+        # Add promotional advertisement in upper right corner (legacy endpoint)
+        try:
+            # Use monthly coupon code for all postcards (first-time customers only)
+            coupon_code = get_next_month_coupon_code()
+            
+            # Position promotional box in upper right corner
+            if request.postcardSize == "xl":
+                # XL postcard (9x6 inches)
+                ad_width = 500  # Compact width for upper right
+                ad_height = 200  # Compact height for upper right
+                ad_x = W - ad_width - 30  # Upper right position
+                ad_y = 30  # Top margin
+                title_font = load_font(26)
+                body_font = load_font(20)
+                code_font = load_font(24)
+                line_spacing = 30
+            else:
+                # Regular postcard (4x6 inches)
+                ad_width = 400
+                ad_height = 160
+                ad_x = W - ad_width - 25
+                ad_y = 25
+                title_font = load_font(20)
+                body_font = load_font(16)
+                code_font = load_font(18)
+                line_spacing = 25
+            
+            # Draw rounded rectangle background for advertisement
+            def draw_rounded_rectangle(draw, xy, radius, fill):
+                """Draw a rounded rectangle"""
+                x1, y1, x2, y2 = xy
+                # Draw main rectangle
+                draw.rectangle([x1 + radius, y1, x2 - radius, y2], fill=fill)
+                draw.rectangle([x1, y1 + radius, x2, y2 - radius], fill=fill)
+                # Draw corners
+                draw.pieslice([x1, y1, x1 + radius * 2, y1 + radius * 2], 180, 270, fill=fill)
+                draw.pieslice([x2 - radius * 2, y1, x2, y1 + radius * 2], 270, 360, fill=fill)
+                draw.pieslice([x1, y2 - radius * 2, x1 + radius * 2, y2], 90, 180, fill=fill)
+                draw.pieslice([x2 - radius * 2, y2 - radius * 2, x2, y2], 0, 90, fill=fill)
+            
+            # Draw advertisement background with subtle border
+            draw_rounded_rectangle(
+                draw,
+                [ad_x, ad_y, ad_x + ad_width, ad_y + ad_height],
+                15,
+                "#f8f8f8"
+            )
+            
+            # Add border
+            draw.rectangle([ad_x + 2, ad_y + 2, ad_x + ad_width - 2, ad_y + ad_height - 2], outline="#f28914", width=3)
+            
+            # Add promotional text content (compact for upper right)
+            text_x = ad_x + 15
+            current_y = ad_y + 15
+            
+            # Title
+            draw.text((text_x, current_y), "Get XLPostcards App!", font=title_font, fill="#f28914")
+            current_y += line_spacing
+            
+            # Main message - more compact
+            draw.text((text_x, current_y), "Download from App/Play Store", font=body_font, fill="#333333")
+            current_y += line_spacing
+            
+            # Coupon offer
+            draw.text((text_x, current_y), f"Code: {coupon_code}", font=code_font, fill="#f28914")
+            current_y += line_spacing - 5
+            draw.text((text_x, current_y), "First postcard FREE!", font=body_font, fill="#333333")
+            
+            print(f"[LEGACY PROMO] Added promotional box in upper right with code {coupon_code}")
+            
+            # Track coupon distribution in database (legacy endpoint)
+            try:
+                db = SessionLocal()
+                coupon_record = db.query(CouponCode).filter(CouponCode.code == coupon_code).first()
+                if coupon_record:
+                    distribution = CouponDistribution(
+                        coupon_code_id=coupon_record.id,
+                        transaction_id=request.transactionId,
+                        recipient_name=request.recipientInfo.to,
+                        recipient_address=f"{request.recipientInfo.addressLine1}, {request.recipientInfo.city}, {request.recipientInfo.state} {request.recipientInfo.zipcode}",
+                        postcard_size=request.postcardSize
+                    )
+                    db.add(distribution)
+                    db.commit()
+                    print(f"[LEGACY COUPON] Tracked coupon distribution: {distribution.id}")
+                db.close()
+            except Exception as db_error:
+                print(f"[LEGACY COUPON] Error tracking distribution: {db_error}")
+            
+        except Exception as e:
+            print(f"[LEGACY COUPON] Error adding promotional code: {e}")
+
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=95)
         b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
@@ -1205,19 +1766,41 @@ async def create_payment_intent(request: Request):
     """Create Stripe PaymentIntent for mobile app payment sheet"""
     try:
         body = await request.json()
-        amount = body.get('amount', 199)
+        original_amount = body.get('amount', 199)
         transaction_id = body.get('transactionId')
+        promo_code = body.get('promoCode')
+        discount_percent = body.get('discountPercent', 0)
         
-        print(f"[STRIPE] Creating PaymentIntent for transaction: {transaction_id}, amount: {amount}")
+        print(f"[STRIPE] Creating PaymentIntent for transaction: {transaction_id}, original amount: {original_amount}")
+        
+        final_amount = original_amount
+        metadata = {
+            'transaction_id': transaction_id,
+            'service': 'xlpostcards',
+            'original_amount': str(original_amount)
+        }
+        
+        # Apply promo code discount if provided
+        if promo_code and discount_percent > 0:
+            discount_amount = int(original_amount * discount_percent / 100)
+            final_amount = original_amount - discount_amount
+            
+            # Ensure minimum charge (Stripe minimum is $0.50)
+            if final_amount < 50:
+                final_amount = 50
+            
+            metadata['promo_code'] = promo_code
+            metadata['discount_percent'] = str(discount_percent)
+            metadata['discount_amount'] = str(discount_amount)
+            metadata['final_amount'] = str(final_amount)
+            
+            print(f"[STRIPE] Promo code {promo_code} applied: {discount_percent}% off, final amount: {final_amount}")
         
         # Create PaymentIntent
         intent = stripe.PaymentIntent.create(
-            amount=amount,
+            amount=final_amount,
             currency='usd',
-            metadata={
-                'transaction_id': transaction_id,
-                'service': 'xlpostcards'
-            }
+            metadata=metadata
         )
         
         print(f"[STRIPE] PaymentIntent created: {intent.id}")
@@ -1225,7 +1808,11 @@ async def create_payment_intent(request: Request):
         return {
             "success": True,
             "clientSecret": intent.client_secret,
-            "paymentIntentId": intent.id
+            "paymentIntentId": intent.id,
+            "original_amount": original_amount,
+            "final_amount": final_amount,
+            "discount_applied": discount_percent > 0,
+            "discount_percent": discount_percent if discount_percent > 0 else None
         }
         
     except Exception as e:
@@ -1378,6 +1965,49 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
             
             print(f"[WEBHOOK] PaymentIntent succeeded for transaction: {transaction_id}")
             
+            # Check if promotional code was used (Stripe handles validation automatically)
+            charges = payment_intent.get('charges', {}).get('data', [])
+            if charges:
+                charge = charges[0]
+                discount = charge.get('discount')
+                if discount:
+                    promo_code = discount.get('promotion_code', '')
+                    coupon_id = discount.get('coupon', {}).get('id', '')
+                    print(f"[WEBHOOK] Promotional code used: {promo_code}, Coupon: {coupon_id}")
+                    
+                    # Track redemption in database
+                    try:
+                        db = SessionLocal()
+                        # Find the coupon by Stripe coupon ID
+                        coupon_record = db.query(CouponCode).filter(
+                            CouponCode.stripe_coupon_id == coupon_id
+                        ).first()
+                        
+                        if coupon_record:
+                            # Create redemption record
+                            redemption = CouponRedemption(
+                                coupon_code_id=coupon_record.id,
+                                transaction_id=transaction_id,
+                                stripe_payment_intent_id=payment_intent['id'],
+                                customer_email=payment_intent.get('receipt_email', ''),
+                                redemption_value_cents=payment_intent.get('amount', 299)
+                            )
+                            db.add(redemption)
+                            
+                            # Update coupon redemption count
+                            coupon_record.times_redeemed = (coupon_record.times_redeemed or 0) + 1
+                            
+                            db.commit()
+                            print(f"[WEBHOOK] Tracked coupon redemption: {redemption.id}")
+                        else:
+                            print(f"[WEBHOOK] Coupon record not found for Stripe ID: {coupon_id}")
+                        
+                        db.close()
+                    except Exception as db_error:
+                        print(f"[WEBHOOK] Error tracking redemption: {db_error}")
+                    
+                    # Stripe automatically handles first-time customer validation
+            
             if transaction_id and transaction_id in transaction_store:
                 # Update transaction status
                 transaction_store[transaction_id]["status"] = "payment_confirmed"
@@ -1497,6 +2127,416 @@ async def get_payment_status(transaction_id: str):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "PostcardService", "version": "2.1.1"}
+
+@app.post("/create-monthly-coupon")
+async def create_monthly_coupon_endpoint():
+    """Manually trigger creation of next month's coupon"""
+    try:
+        result = await create_monthly_coupon()
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/coupon-status")
+async def get_coupon_status():
+    """Get current month's coupon information and usage"""
+    try:
+        details = get_next_month_details()
+        coupon_code = details["coupon_code"]
+        coupon_id = f"xlwelcome-{details['month_name'].lower()}-{details['year']}"
+        
+        # Check if coupon exists in Stripe
+        try:
+            coupon = stripe.Coupon.retrieve(coupon_id)
+            
+            # Get promotional code details
+            promo_codes = stripe.PromotionCode.list(code=coupon_code, limit=1)
+            promo_code = promo_codes.data[0] if promo_codes.data else None
+            
+            return {
+                "success": True,
+                "current_code": coupon_code,
+                "coupon_exists": True,
+                "coupon_id": coupon_id,
+                "max_redemptions": coupon.max_redemptions,
+                "times_redeemed": coupon.times_redeemed,
+                "remaining_redemptions": (coupon.max_redemptions or 0) - (coupon.times_redeemed or 0),
+                "expires": details["expiry_date"].strftime("%Y-%m-%d"),
+                "promo_code_active": promo_code.active if promo_code else False
+            }
+            
+        except stripe.error.InvalidRequestError:
+            return {
+                "success": True,
+                "current_code": coupon_code,
+                "coupon_exists": False,
+                "message": "Coupon needs to be created",
+                "expires": details["expiry_date"].strftime("%Y-%m-%d")
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.post("/validate-promo-code")
+async def validate_promo_code(request: PromoCodeValidationRequest):
+    """Validate a promo code and return discount information"""
+    try:
+        code = request.code.strip().upper()
+        print(f"[PROMO] Validating promo code: {code}")
+        
+        if not code:
+            return {
+                "valid": False,
+                "message": "Please enter a promo code"
+            }
+        
+        # Get database session
+        db = get_db_session()
+        
+        if not db:
+            print(f"[PROMO] Database unavailable, checking Stripe directly: {code}")
+            # Fall back to Stripe-only validation
+            try:
+                promo_codes = stripe.PromotionCode.list(code=code, limit=1)
+                if promo_codes.data:
+                    promo_code_obj = promo_codes.data[0]
+                    if promo_code_obj.active:
+                        coupon = stripe.Coupon.retrieve(promo_code_obj.coupon.id)
+                        if coupon.valid and (not coupon.max_redemptions or coupon.times_redeemed < coupon.max_redemptions):
+                            return {
+                                "valid": True,
+                                "code": code,
+                                "discount_percent": coupon.percent_off or 100,
+                                "message": f"Promo code applied! {coupon.percent_off or 100}% off your postcard.",
+                                "remaining_uses": (coupon.max_redemptions or 500) - (coupon.times_redeemed or 0)
+                            }
+                return {
+                    "valid": False,
+                    "message": "Invalid promo code"
+                }
+            except Exception as stripe_error:
+                print(f"[PROMO] Stripe validation failed: {stripe_error}")
+                return {
+                    "valid": False,
+                    "message": "Unable to validate promo code. Please try again."
+                }
+        
+        try:
+            # Check if code exists in our database
+            db_coupon = db.query(CouponCode).filter(
+                CouponCode.code == code,
+                CouponCode.is_active == True
+            ).first()
+            
+            if not db_coupon:
+                print(f"[PROMO] Code not found in database, checking Stripe: {code}")
+                
+                # Check Stripe directly for the promo code
+                try:
+                    promo_codes = stripe.PromotionCode.list(code=code, limit=1)
+                    if promo_codes.data:
+                        promo_code_obj = promo_codes.data[0]
+                        if promo_code_obj.active:
+                            # Get the associated coupon
+                            coupon = stripe.Coupon.retrieve(promo_code_obj.coupon.id)
+                            
+                            # Check if coupon is still valid
+                            if coupon.valid and (not coupon.max_redemptions or coupon.times_redeemed < coupon.max_redemptions):
+                                print(f"[PROMO] Found valid code in Stripe: {code}")
+                                return {
+                                    "valid": True,
+                                    "code": code,
+                                    "discount_percent": coupon.percent_off or 100,
+                                    "message": f"Promo code applied! {coupon.percent_off or 100}% off your postcard.",
+                                    "remaining_uses": (coupon.max_redemptions or 500) - (coupon.times_redeemed or 0)
+                                }
+                    
+                    print(f"[PROMO] Code not found in Stripe either: {code}")
+                    return {
+                        "valid": False,
+                        "message": "Invalid promo code"
+                    }
+                    
+                except Exception as stripe_error:
+                    print(f"[PROMO] Stripe lookup failed: {stripe_error}")
+                    return {
+                        "valid": False,
+                        "message": "Invalid promo code"
+                    }
+            
+            # Check if code has expired
+            if db_coupon.expires_at and datetime.utcnow() > db_coupon.expires_at:
+                print(f"[PROMO] Code expired: {code}")
+                return {
+                    "valid": False,
+                    "message": "This promo code has expired"
+                }
+            
+            # Check if code has reached max redemptions
+            if db_coupon.times_redeemed >= db_coupon.max_redemptions:
+                print(f"[PROMO] Code max redemptions reached: {code}")
+                return {
+                    "valid": False,
+                    "message": "This promo code has reached its usage limit"
+                }
+            
+            # Get campaign details for discount percentage
+            campaign = db.query(CouponCampaign).filter(
+                CouponCampaign.id == db_coupon.campaign_id
+            ).first()
+            
+            discount_percent = campaign.discount_percent if campaign else 100
+            
+            print(f"[PROMO] Valid code: {code}, discount: {discount_percent}%")
+            
+            return {
+                "valid": True,
+                "code": code,
+                "discount_percent": discount_percent,
+                "message": f"Promo code applied! {discount_percent}% off your postcard.",
+                "remaining_uses": db_coupon.max_redemptions - db_coupon.times_redeemed
+            }
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"[PROMO] Error validating promo code: {e}")
+        return {
+            "valid": False,
+            "message": "Unable to validate promo code. Please try again."
+        }
+
+@app.post("/process-free-postcard")
+async def process_free_postcard(request: FreePostcardRequest):
+    """Process a completely free postcard with 100% discount promo code"""
+    try:
+        print(f"[FREE] Processing free postcard with promo: {request.promoCode}")
+        
+        # Validate the promo code first
+        validation_request = PromoCodeValidationRequest(
+            code=request.promoCode,
+            transactionId=request.transactionId
+        )
+        validation_result = await validate_promo_code(validation_request)
+        
+        if not validation_result.get("valid") or validation_result.get("discount_percent") != 100:
+            return {
+                "success": False,
+                "error": "Invalid promo code or not 100% discount"
+            }
+        
+        # Track customer if email provided
+        customer_id = None
+        if request.userEmail:
+            db = get_db_session()
+            if db:
+                try:
+                    # Check if customer exists
+                    customer = db.query(Customer).filter(Customer.email == request.userEmail).first()
+                    
+                    if not customer:
+                        # Create new customer
+                        customer = Customer(
+                            email=request.userEmail,
+                            total_orders=1,
+                            total_spent_cents=0,  # Free postcard
+                            first_order_date=func.now(),
+                            last_order_date=func.now()
+                        )
+                        db.add(customer)
+                        db.commit()
+                        db.refresh(customer)
+                        print(f"[FREE] Created new customer: {request.userEmail}")
+                    else:
+                        # Update existing customer
+                        customer.total_orders += 1
+                        customer.last_order_date = func.now()
+                        db.commit()
+                        print(f"[FREE] Updated existing customer: {request.userEmail}")
+                    
+                    customer_id = customer.id
+                    
+                except Exception as e:
+                    print(f"[FREE] Error tracking customer: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
+        
+        # Generate the postcard
+        print(f"[FREE] Generating postcard for transaction: {request.transactionId}")
+        
+        # Use the same generation logic but skip payment
+        postcard_request = PostcardRequest(
+            message=request.message,
+            recipientInfo=request.recipientInfo,
+            postcardSize=request.postcardSize,
+            returnAddressText=request.returnAddressText,
+            transactionId=request.transactionId,
+            frontImageUri=request.frontImageUri or (request.frontImageUris[0] if request.frontImageUris else ""),
+            frontImageUris=request.frontImageUris,
+            templateType=request.templateType,
+            userEmail=request.userEmail
+        )
+        
+        result = await generate_complete_postcard(postcard_request)
+        
+        # Track promo code redemption
+        if result.get("success"):
+            db = get_db_session()
+            if db:
+                try:
+                    # Find the coupon code
+                    db_coupon = db.query(CouponCode).filter(
+                        CouponCode.code == request.promoCode.upper(),
+                        CouponCode.is_active == True
+                    ).first()
+                    
+                    if db_coupon:
+                        # Create redemption record
+                        redemption = CouponRedemption(
+                            coupon_code_id=db_coupon.id,
+                            transaction_id=request.transactionId,
+                            stripe_payment_intent_id="FREE_PROMO",
+                            customer_email=request.userEmail or '',
+                            redemption_value_cents=299  # Full value saved
+                        )
+                        db.add(redemption)
+                        
+                        # Increment redemption count
+                        db_coupon.times_redeemed += 1
+                        
+                        db.commit()
+                        print(f"[FREE] Promo code redemption tracked: {request.promoCode}")
+                        
+                except Exception as e:
+                    print(f"[FREE] Error tracking promo redemption: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
+            
+            # Submit directly to Stannp (skip payment)
+            print(f"[FREE] Submitting free postcard to Stannp...")
+            
+            # Mark as payment confirmed first
+            if request.transactionId in transaction_store:
+                transaction_store[request.transactionId]["status"] = "payment_confirmed"
+                transaction_store[request.transactionId]["stripePaymentIntentId"] = "FREE_PROMO"
+                transaction_store[request.transactionId]["userEmail"] = request.userEmail or ""
+            
+            # Now submit to Stannp
+            stannp_request = StannpSubmissionRequest(transactionId=request.transactionId)
+            stannp_result = await submit_to_stannp(stannp_request)
+            
+            return {
+                "success": True,
+                "message": "Free postcard processed successfully!",
+                "transaction_id": request.transactionId,
+                "promo_code": request.promoCode,
+                "customer_id": customer_id
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Failed to generate postcard"
+            }
+            
+    except Exception as e:
+        print(f"[FREE] Error processing free postcard: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/coupon-analytics")
+async def get_coupon_analytics():
+    """Get comprehensive coupon analytics"""
+    db = SessionLocal()
+    try:
+        # Current month's performance
+        current_code = get_next_month_coupon_code()
+        current_coupon = db.query(CouponCode).filter(CouponCode.code == current_code).first()
+        
+        analytics = {
+            "current_month": {
+                "code": current_code,
+                "exists": current_coupon is not None
+            }
+        }
+        
+        if current_coupon:
+            # Get distribution and redemption stats
+            distributions = db.query(CouponDistribution).filter(
+                CouponDistribution.coupon_code_id == current_coupon.id
+            ).count()
+            
+            redemptions = db.query(CouponRedemption).filter(
+                CouponRedemption.coupon_code_id == current_coupon.id
+            ).count()
+            
+            analytics["current_month"].update({
+                "postcards_sent": distributions,
+                "redemptions": redemptions,
+                "redemption_rate": round((redemptions / distributions * 100), 2) if distributions > 0 else 0,
+                "remaining_redemptions": current_coupon.max_redemptions - current_coupon.times_redeemed,
+                "expires": current_coupon.expires_at.strftime("%Y-%m-%d") if current_coupon.expires_at else None
+            })
+        
+        # All-time stats
+        total_campaigns = db.query(CouponCampaign).count()
+        total_codes = db.query(CouponCode).count()
+        total_distributions = db.query(CouponDistribution).count()
+        total_redemptions = db.query(CouponRedemption).count()
+        
+        analytics["all_time"] = {
+            "campaigns": total_campaigns,
+            "codes_created": total_codes,
+            "postcards_sent": total_distributions,
+            "total_redemptions": total_redemptions,
+            "overall_redemption_rate": round((total_redemptions / total_distributions * 100), 2) if total_distributions > 0 else 0
+        }
+        
+        # Recent activity (last 5 codes)
+        recent_codes = db.query(CouponCode).order_by(CouponCode.created_at.desc()).limit(5).all()
+        analytics["recent_codes"] = []
+        
+        for code in recent_codes:
+            distributions = db.query(CouponDistribution).filter(
+                CouponDistribution.coupon_code_id == code.id
+            ).count()
+            
+            redemptions = db.query(CouponRedemption).filter(
+                CouponRedemption.coupon_code_id == code.id
+            ).count()
+            
+            analytics["recent_codes"].append({
+                "code": code.code,
+                "created": code.created_at.strftime("%Y-%m-%d"),
+                "expires": code.expires_at.strftime("%Y-%m-%d") if code.expires_at else None,
+                "postcards_sent": distributions,
+                "redemptions": redemptions,
+                "redemption_rate": round((redemptions / distributions * 100), 2) if distributions > 0 else 0
+            })
+        
+        return {
+            "success": True,
+            "analytics": analytics
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+    finally:
+        db.close()
+
 
 @app.post("/test-email")
 async def test_email(email: str = "test@example.com"):
