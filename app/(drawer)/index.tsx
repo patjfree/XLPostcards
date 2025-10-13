@@ -1643,7 +1643,8 @@ export default function HomeScreen() {
               placeholder="Write your message here or put in some ideas and hit the 'Write for me' button below."
               placeholderTextColor="#888"
               autoFocus={false}
-              blurOnSubmit={true}
+              blurOnSubmit={false}
+              returnKeyType="default"
               editable={!loading}
             />
             {loading && (
