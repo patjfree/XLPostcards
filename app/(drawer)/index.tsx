@@ -1619,7 +1619,7 @@ export default function HomeScreen() {
                 }}
                 testID="select-recipient-btn"
               >
-              <Text style={styles.buttonText}>
+              <Text style={styles.buttonText} maxFontSizeMultiplier={1.05} numberOfLines={2} adjustsFontSizeToFit>
                 {addresses.length === 0
                   ? 'Add Recipient'
                   : (selectedAddressId
@@ -1657,7 +1657,7 @@ export default function HomeScreen() {
               onPress={analyzeImage}
               testID="write-for-me-btn"
             >
-              <Text style={[styles.buttonText, { fontSize: 18 }]}>Write for me</Text>
+              <Text style={[styles.buttonText, { fontSize: 18 }]} maxFontSizeMultiplier={1.05}>Write for me</Text>
             </TouchableOpacity>
               </View>
             </View>
@@ -1689,29 +1689,16 @@ export default function HomeScreen() {
               style={[
                 styles.submitButton,
                 styles.createButton,
-                { flex: 1, minWidth: 140 }
+                { flex: 1, minWidth: 140 },
+                isCreatingPostcard && { opacity: 0.6 }
               ]}
               onPress={handleCreatePostcard}
+              disabled={isCreatingPostcard}
               testID="create-postcard-btn"
             >
-              {isCreatingPostcard ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.createButtonText}>Creating</Text>
-                </View>
-              ) : (
-                <Text style={styles.createButtonText}>Create Postcard</Text>
-              )}
+              <Text style={styles.createButtonText} maxFontSizeMultiplier={1.05}>Create Postcard</Text>
             </TouchableOpacity>
             
-            {/* Progress indicator next to button */}
-            {isCreatingPostcard && postcardProgress && (
-              <View style={{ flex: 1, paddingLeft: 8 }}>
-                <Text style={{ fontSize: 13, color: '#666', flexWrap: 'wrap' }}>
-                  {postcardProgress}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -1872,6 +1859,22 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Progress Modal for Postcard Creation */}
+      <Modal
+        visible={isCreatingPostcard}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {}} // Prevent closing during creation
+      >
+        <View style={styles.progressModalOverlay}>
+          <View style={styles.progressModalContent}>
+            <ActivityIndicator size="large" color="#f28914" style={{ marginBottom: 16 }} />
+            <Text style={styles.progressModalTitle}>Creating Your Postcard</Text>
+            <Text style={styles.progressModalMessage}>{postcardProgress}</Text>
+          </View>
+        </View>
+      </Modal>
+
       {/* Custom Spotlight for hamburger button */}
       <SpotlightBox
         rect={spot}
@@ -1926,6 +1929,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     textAlign: 'center',
+    maxFontSizeMultiplier: 1.05, // Limit font scaling to 105% of original size
   },
   imagePreviewContainer: {
     marginBottom: 10,
@@ -2172,6 +2176,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     textAlign: 'center',
+    maxFontSizeMultiplier: 1.05, // Limit font scaling to 105% of original size
   },
   radioOuter: {
     width: 24,
@@ -2213,5 +2218,36 @@ const styles = StyleSheet.create({
     color: '#222',
     fontWeight: '500',
     marginLeft: 8,
+  },
+  progressModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    marginHorizontal: 32,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  progressModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#f28914',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  progressModalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

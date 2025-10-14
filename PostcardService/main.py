@@ -114,6 +114,16 @@ class TemplateEngine:
                 raise ValueError("Three horizontal template requires 3 images")
             return self._apply_three_horizontal(image_urls[0], image_urls[1], image_urls[2])
             
+        elif template_type == "three_bookmarks":
+            if len(image_urls) < 3:
+                raise ValueError("Three bookmarks template requires 3 images")
+            return self._apply_three_bookmarks(image_urls[0], image_urls[1], image_urls[2])
+            
+        elif template_type == "three_sideways":
+            if len(image_urls) < 3:
+                raise ValueError("Three sideways template requires 3 images")
+            return self._apply_three_sideways(image_urls[0], image_urls[1], image_urls[2])
+            
         else:
             # Default to single photo
             print(f"[TEMPLATE] Unknown template type: {template_type}, defaulting to single")
@@ -362,6 +372,65 @@ class TemplateEngine:
         canvas.paste(left_image, (0, 0))
         canvas.paste(center_image, (photo_width + gap, 0))
         canvas.paste(right_image, ((photo_width + gap) * 2, 0))
+        
+        return canvas
+
+    def _apply_three_bookmarks(self, top_image_url: str, middle_image_url: str, bottom_image_url: str) -> Image.Image:
+        """Template: Three narrow horizontal bookmark-style photos stacked vertically (3:0.67 ratio)"""
+        print(f"[TEMPLATE] Applying three bookmarks template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for narrow horizontal strips stacked vertically
+        gap = 15
+        photo_height = (self.height - (2 * gap)) // 3  # 3 photos with 2 gaps, stacked vertically
+        photo_size = (self.width, photo_height)  # Full width, narrow height
+        
+        # Load and resize images for bookmark style (wide and narrow)
+        top_image = self._load_image_from_url(top_image_url)
+        middle_image = self._load_image_from_url(middle_image_url)
+        bottom_image = self._load_image_from_url(bottom_image_url)
+        
+        # Apply bookmark aspect ratio (wide, narrow strips)
+        top_image = self._resize_and_crop(top_image, photo_size)
+        middle_image = self._resize_and_crop(middle_image, photo_size)
+        bottom_image = self._resize_and_crop(bottom_image, photo_size)
+        
+        # Paste images vertically stacked
+        canvas.paste(top_image, (0, 0))
+        canvas.paste(middle_image, (0, photo_height + gap))
+        canvas.paste(bottom_image, (0, (photo_height + gap) * 2))
+        
+        return canvas
+
+    def _apply_three_sideways(self, top_image_url: str, bottom_left_image_url: str, bottom_right_image_url: str) -> Image.Image:
+        """Template: One wide photo on top (3:1) with two photos below (1.5:1)"""
+        print(f"[TEMPLATE] Applying three sideways template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for top wide photo and bottom two photos
+        gap = 15
+        top_height = int(self.height * 0.4)  # Top photo takes 40% of height
+        bottom_height = self.height - top_height - gap
+        bottom_width = (self.width - gap) // 2  # Two bottom photos split width
+        
+        # Load and resize images
+        top_image = self._load_image_from_url(top_image_url)
+        bottom_left_image = self._load_image_from_url(bottom_left_image_url)
+        bottom_right_image = self._load_image_from_url(bottom_right_image_url)
+        
+        # Resize with appropriate ratios
+        top_image = self._resize_and_crop(top_image, (self.width, top_height))  # 3:1 wide
+        bottom_left_image = self._resize_and_crop(bottom_left_image, (bottom_width, bottom_height))  # 1.5:1
+        bottom_right_image = self._resize_and_crop(bottom_right_image, (bottom_width, bottom_height))  # 1.5:1
+        
+        # Paste images
+        canvas.paste(top_image, (0, 0))  # Top wide photo
+        canvas.paste(bottom_left_image, (0, top_height + gap))  # Bottom left
+        canvas.paste(bottom_right_image, (bottom_width + gap, top_height + gap))  # Bottom right
         
         return canvas
 
@@ -1076,27 +1145,27 @@ async def generate_complete_postcard(request: PostcardRequest):
             # Use monthly coupon code for all postcards (first-time customers only)
             coupon_code = get_next_month_coupon_code()
             
-            # Position promotional box in upper right corner
+            # Position promotional box above address block (bigger size)
             if request.postcardSize == "xl":
-                # XL postcard (9x6 inches)
-                ad_width = 500  # Compact width for upper right
-                ad_height = 200  # Compact height for upper right
-                ad_x = W - ad_width - 30  # Upper right position
-                ad_y = 30  # Top margin
-                title_font = load_font(26)
-                body_font = load_font(20)
-                code_font = load_font(24)
-                line_spacing = 30
+                # XL postcard (9x6 inches) - bigger box above address
+                ad_width = 700  # Much larger width
+                ad_height = 300  # Much larger height
+                ad_x = W - ad_width - 50  # Position above address block
+                ad_y = 100  # Higher up to be above address
+                title_font = load_font(36)
+                body_font = load_font(28)
+                code_font = load_font(32)
+                line_spacing = 40
             else:
-                # Regular postcard (4x6 inches)
-                ad_width = 400
-                ad_height = 160
-                ad_x = W - ad_width - 25
-                ad_y = 25
-                title_font = load_font(20)
-                body_font = load_font(16)
-                code_font = load_font(18)
-                line_spacing = 25
+                # Regular postcard (4x6 inches) - bigger box above address
+                ad_width = 500  # Much larger width  
+                ad_height = 220  # Much larger height
+                ad_x = W - ad_width - 40  # Position above address block
+                ad_y = 80   # Higher up to be above address
+                title_font = load_font(28)
+                body_font = load_font(22)
+                code_font = load_font(26)
+                line_spacing = 32
             
             # Draw rounded rectangle background for advertisement
             def draw_rounded_rectangle(draw, xy, radius, fill):
@@ -1119,27 +1188,47 @@ async def generate_complete_postcard(request: PostcardRequest):
                 "#f8f8f8"
             )
             
-            # Add border
-            draw.rectangle([ad_x + 2, ad_y + 2, ad_x + ad_width - 2, ad_y + ad_height - 2], outline="#f28914", width=3)
+            # Add thicker border for bigger box
+            draw.rectangle([ad_x + 3, ad_y + 3, ad_x + ad_width - 3, ad_y + ad_height - 3], outline="#f28914", width=6)
             
-            # Add promotional text content (compact for upper right)
-            text_x = ad_x + 15
-            current_y = ad_y + 15
+            # Add promotional text content (centered in bigger box)
+            text_x = ad_x + 25
+            current_y = ad_y + 25
             
-            # Title
-            draw.text((text_x, current_y), "Get XLPostcards App!", font=title_font, fill="#f28914")
+            # Calculate center positions for text
+            title_text = "Get XLPostcards App!"
+            title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+            title_width = title_bbox[2] - title_bbox[0]
+            title_x = ad_x + (ad_width - title_width) // 2
+            
+            # Title (centered)
+            draw.text((title_x, current_y), title_text, font=title_font, fill="#f28914")
             current_y += line_spacing
             
-            # Main message - more compact
-            draw.text((text_x, current_y), "Download from App/Play Store", font=body_font, fill="#333333")
+            # Main message (centered)
+            msg_text = "Download from App/Play Store"
+            msg_bbox = draw.textbbox((0, 0), msg_text, font=body_font)
+            msg_width = msg_bbox[2] - msg_bbox[0]
+            msg_x = ad_x + (ad_width - msg_width) // 2
+            draw.text((msg_x, current_y), msg_text, font=body_font, fill="#333333")
             current_y += line_spacing
             
-            # Coupon offer
-            draw.text((text_x, current_y), f"Code: {coupon_code}", font=code_font, fill="#f28914")
-            current_y += line_spacing - 5
-            draw.text((text_x, current_y), "First postcard FREE!", font=body_font, fill="#333333")
+            # Coupon code (centered and emphasized)
+            code_text = f"Code: {coupon_code}"
+            code_bbox = draw.textbbox((0, 0), code_text, font=code_font)
+            code_width = code_bbox[2] - code_bbox[0]
+            code_x = ad_x + (ad_width - code_width) // 2
+            draw.text((code_x, current_y), code_text, font=code_font, fill="#f28914")
+            current_y += line_spacing - 10
             
-            print(f"[PROMO] Added promotional box in upper right with code {coupon_code}")
+            # Free offer (centered)
+            free_text = "First postcard FREE!"
+            free_bbox = draw.textbbox((0, 0), free_text, font=body_font)
+            free_width = free_bbox[2] - free_bbox[0]
+            free_x = ad_x + (ad_width - free_width) // 2
+            draw.text((free_x, current_y), free_text, font=body_font, fill="#333333")
+            
+            print(f"[PROMO] Added larger promotional box above address with code {coupon_code}")
             
             # Track coupon distribution in database
             try:
@@ -1656,27 +1745,27 @@ async def generate_postcard_back(request: PostcardRequest):
             # Use monthly coupon code for all postcards (first-time customers only)
             coupon_code = get_next_month_coupon_code()
             
-            # Position promotional box in upper right corner
+            # Position promotional box above address block (bigger size)
             if request.postcardSize == "xl":
-                # XL postcard (9x6 inches)
-                ad_width = 500  # Compact width for upper right
-                ad_height = 200  # Compact height for upper right
-                ad_x = W - ad_width - 30  # Upper right position
-                ad_y = 30  # Top margin
-                title_font = load_font(26)
-                body_font = load_font(20)
-                code_font = load_font(24)
-                line_spacing = 30
+                # XL postcard (9x6 inches) - bigger box above address
+                ad_width = 700  # Much larger width
+                ad_height = 300  # Much larger height
+                ad_x = W - ad_width - 50  # Position above address block
+                ad_y = 100  # Higher up to be above address
+                title_font = load_font(36)
+                body_font = load_font(28)
+                code_font = load_font(32)
+                line_spacing = 40
             else:
-                # Regular postcard (4x6 inches)
-                ad_width = 400
-                ad_height = 160
-                ad_x = W - ad_width - 25
-                ad_y = 25
-                title_font = load_font(20)
-                body_font = load_font(16)
-                code_font = load_font(18)
-                line_spacing = 25
+                # Regular postcard (4x6 inches) - bigger box above address
+                ad_width = 500  # Much larger width  
+                ad_height = 220  # Much larger height
+                ad_x = W - ad_width - 40  # Position above address block
+                ad_y = 80   # Higher up to be above address
+                title_font = load_font(28)
+                body_font = load_font(22)
+                code_font = load_font(26)
+                line_spacing = 32
             
             # Draw rounded rectangle background for advertisement
             def draw_rounded_rectangle(draw, xy, radius, fill):
@@ -1699,27 +1788,47 @@ async def generate_postcard_back(request: PostcardRequest):
                 "#f8f8f8"
             )
             
-            # Add border
-            draw.rectangle([ad_x + 2, ad_y + 2, ad_x + ad_width - 2, ad_y + ad_height - 2], outline="#f28914", width=3)
+            # Add thicker border for bigger box
+            draw.rectangle([ad_x + 3, ad_y + 3, ad_x + ad_width - 3, ad_y + ad_height - 3], outline="#f28914", width=6)
             
-            # Add promotional text content (compact for upper right)
-            text_x = ad_x + 15
-            current_y = ad_y + 15
+            # Add promotional text content (centered in bigger box)
+            text_x = ad_x + 25
+            current_y = ad_y + 25
             
-            # Title
-            draw.text((text_x, current_y), "Get XLPostcards App!", font=title_font, fill="#f28914")
+            # Calculate center positions for text
+            title_text = "Get XLPostcards App!"
+            title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+            title_width = title_bbox[2] - title_bbox[0]
+            title_x = ad_x + (ad_width - title_width) // 2
+            
+            # Title (centered)
+            draw.text((title_x, current_y), title_text, font=title_font, fill="#f28914")
             current_y += line_spacing
             
-            # Main message - more compact
-            draw.text((text_x, current_y), "Download from App/Play Store", font=body_font, fill="#333333")
+            # Main message (centered)
+            msg_text = "Download from App/Play Store"
+            msg_bbox = draw.textbbox((0, 0), msg_text, font=body_font)
+            msg_width = msg_bbox[2] - msg_bbox[0]
+            msg_x = ad_x + (ad_width - msg_width) // 2
+            draw.text((msg_x, current_y), msg_text, font=body_font, fill="#333333")
             current_y += line_spacing
             
-            # Coupon offer
-            draw.text((text_x, current_y), f"Code: {coupon_code}", font=code_font, fill="#f28914")
-            current_y += line_spacing - 5
-            draw.text((text_x, current_y), "First postcard FREE!", font=body_font, fill="#333333")
+            # Coupon code (centered and emphasized)
+            code_text = f"Code: {coupon_code}"
+            code_bbox = draw.textbbox((0, 0), code_text, font=code_font)
+            code_width = code_bbox[2] - code_bbox[0]
+            code_x = ad_x + (ad_width - code_width) // 2
+            draw.text((code_x, current_y), code_text, font=code_font, fill="#f28914")
+            current_y += line_spacing - 10
             
-            print(f"[LEGACY PROMO] Added promotional box in upper right with code {coupon_code}")
+            # Free offer (centered)
+            free_text = "First postcard FREE!"
+            free_bbox = draw.textbbox((0, 0), free_text, font=body_font)
+            free_width = free_bbox[2] - free_bbox[0]
+            free_x = ad_x + (ad_width - free_width) // 2
+            draw.text((free_x, current_y), free_text, font=body_font, fill="#333333")
+            
+            print(f"[LEGACY PROMO] Added larger promotional box above address with code {coupon_code}")
             
             # Track coupon distribution in database (legacy endpoint)
             try:

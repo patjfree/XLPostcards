@@ -1644,7 +1644,7 @@ export default function PostcardPreviewScreen() {
             {/* Footer content */}
             <View style={[styles.footerContainer, { height: designFooterHeight, justifyContent: 'flex-end', width: designWidth, alignSelf: 'center' }]}> 
               {/* Disclaimer Text */}
-              <Text style={styles.disclaimerText}>
+              <Text style={styles.disclaimerText} maxFontSizeMultiplier={1.05} numberOfLines={3} adjustsFontSizeToFit>
                 By clicking the Continue button, I confirm the postcard preview is accurate and agree to print as shown. No further changes can be made.
               </Text>
               {/* Controls */}
@@ -1682,7 +1682,7 @@ export default function PostcardPreviewScreen() {
                         onPress={() => void startNewPurchaseFlow()}
                         disabled={sending}
                       >
-                        <Text style={styles.buttonText}>
+                        <Text style={styles.buttonText} maxFontSizeMultiplier={1.05} numberOfLines={2} adjustsFontSizeToFit>
                           Send Your {postcardSize === 'regular' ? '4"x6"' : '6"x9"'} Postcard{promoCodeDiscount === 100 ? ' (FREE!)' : promoCodeDiscount > 0 ? ` (${promoCodeDiscount}% OFF!)` : ''}
                         </Text>
                       </TouchableOpacity>

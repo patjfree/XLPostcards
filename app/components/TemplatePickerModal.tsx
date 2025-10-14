@@ -67,6 +67,13 @@ const TEMPLATE_ASPECT_RATIOS = {
   three_horizontal: {
     default: [1, 2], // Each photo is 1:2 (vertical)
   },
+  three_bookmarks: {
+    default: [3, 0.67], // Each photo is 3:0.67 ratio (wide bookmark)
+  },
+  three_sideways: {
+    0: [3, 1], // Top photo is 3:1 ratio (very wide)
+    default: [1.5, 1], // Bottom photos are 1.5:1 ratio
+  },
 } as const;
 
 // Calculate aspect ratio for each photo slot based on template and position
@@ -91,10 +98,12 @@ const templateInfo = {
   two_side_by_side: { name: 'Side by Side', description: 'Two photos side by side' },
   three_photos: { name: 'Three Photos', description: 'One large left, two small right' },
   four_quarters: { name: 'Four Quarters', description: 'Four photos in quarters' },
-  two_vertical: { name: 'Two Vertical', description: 'Two photos stacked vertically' },
+  two_vertical: { name: 'Two Horizontal', description: 'Two photos stacked horizontally' },
   five_collage: { name: 'Five Collage', description: 'Four photos with one overlaid in center' },
   six_grid: { name: 'Six Grid', description: 'Six photos in a 2x3 grid' },
-  three_horizontal: { name: 'Three Horizontal', description: 'Three photos side by side' },
+  three_horizontal: { name: 'Three Vertical', description: 'Three photos stacked vertically' },
+  three_bookmarks: { name: 'Three Horizontal (Bookmarks!)', description: 'Three wide bookmark-style photos' },
+  three_sideways: { name: 'Three Sideways', description: 'One wide top photo with two below' },
 } as const;
 
 export default function TemplatePickerModal({
@@ -402,6 +411,30 @@ export default function TemplatePickerModal({
             {renderPhotoSlot(0, horizontalWidth, postcardHeight, 0, 0)}
             {renderPhotoSlot(1, horizontalWidth, postcardHeight, horizontalWidth + 4, 0)}
             {renderPhotoSlot(2, horizontalWidth, postcardHeight, (horizontalWidth + 4) * 2, 0)}
+          </View>
+        );
+
+      case 'three_bookmarks':
+        const bookmarksWidth = postcardWidth;
+        const bookmarksHeight = postcardHeight / 3 - 3; // Three narrow horizontal strips
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {renderPhotoSlot(0, bookmarksWidth, bookmarksHeight, 0, 0)}
+            {renderPhotoSlot(1, bookmarksWidth, bookmarksHeight, 0, bookmarksHeight + 4)}
+            {renderPhotoSlot(2, bookmarksWidth, bookmarksHeight, 0, (bookmarksHeight + 4) * 2)}
+          </View>
+        );
+
+      case 'three_sideways':
+        const sidewaysTopWidth = postcardWidth;
+        const sidewaysTopHeight = postcardHeight / 2.5; // Top is wider and shorter
+        const sidewaysBottomWidth = postcardWidth / 2 - 2;
+        const sidewaysBottomHeight = postcardHeight - sidewaysTopHeight - 4;
+        return (
+          <View style={[styles.postcardContainer, { width: postcardWidth, height: postcardHeight }]}>
+            {renderPhotoSlot(0, sidewaysTopWidth, sidewaysTopHeight, 0, 0)}
+            {renderPhotoSlot(1, sidewaysBottomWidth, sidewaysBottomHeight, 0, sidewaysTopHeight + 4)}
+            {renderPhotoSlot(2, sidewaysBottomWidth, sidewaysBottomHeight, sidewaysBottomWidth + 4, sidewaysTopHeight + 4)}
           </View>
         );
 

@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import TemplatePickerModal from './TemplatePickerModal';
 import MoreTemplatesModal from './MoreTemplatesModal';
 import { SelectedImage } from './MultiImagePicker';
+import { renderTemplatePreview } from './TemplatePreview';
 
-export type TemplateType = 'single' | 'two_side_by_side' | 'three_photos' | 'four_quarters' | 'two_vertical' | 'five_collage' | 'six_grid' | 'three_horizontal';
+export type TemplateType = 'single' | 'two_side_by_side' | 'three_photos' | 'four_quarters' | 'two_vertical' | 'five_collage' | 'six_grid' | 'three_horizontal' | 'three_bookmarks' | 'three_sideways';
 
 interface TemplateSelectorProps {
   selectedTemplate: TemplateType;
@@ -40,7 +41,7 @@ const allTemplates = [
   ...mainTemplates,
   {
     id: 'two_vertical' as TemplateType,
-    name: 'Two Vertical',
+    name: 'Two Horizontal',
     requiredImages: 2,
   },
   {
@@ -55,7 +56,17 @@ const allTemplates = [
   },
   {
     id: 'three_horizontal' as TemplateType,
-    name: 'Three Horizontal',
+    name: 'Three Vertical',
+    requiredImages: 3,
+  },
+  {
+    id: 'three_bookmarks' as TemplateType,
+    name: 'Three Horizontal (Bookmarks!)',
+    requiredImages: 3,
+  },
+  {
+    id: 'three_sideways' as TemplateType,
+    name: 'Three Sideways',
     requiredImages: 3,
   },
 ];
@@ -92,13 +103,10 @@ export default function TemplateSelector({
           onPress={() => openTemplateModal(selectedTemplate)}
         >
           <View style={styles.largeTemplatePreview}>
-            {renderTemplatePreview(selectedTemplate, images, true)}
+            {renderTemplatePreviewWithImages(selectedTemplate, images, true)}
           </View>
           <View style={styles.selectedTemplateInfo}>
             <Text style={styles.selectedTemplateName}>{selectedTemplateData.name}</Text>
-            <Text style={styles.selectedImageCount}>
-              {images.length}/{selectedTemplateData.requiredImages} photos
-            </Text>
           </View>
         </TouchableOpacity>
 
@@ -146,7 +154,7 @@ export default function TemplateSelector({
             testID={index === 0 ? "first-template-card" : undefined}
           >
             <View style={styles.templatePreview}>
-              {renderTemplatePreview(template.id, selectedTemplate === template.id ? images : [])}
+              {renderTemplatePreviewWithImages(template.id, selectedTemplate === template.id ? images : [])}
             </View>
             <Text style={[
               styles.templateName,
@@ -154,11 +162,6 @@ export default function TemplateSelector({
             ]}>
               {template.name}
             </Text>
-            {selectedTemplate === template.id && (
-              <Text style={styles.imageCount}>
-                {images.length}/{template.requiredImages} photos
-              </Text>
-            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -191,7 +194,9 @@ export default function TemplateSelector({
   );
 }
 
-function renderTemplatePreview(templateId: TemplateType, previewImages: SelectedImage[] = [], isLarge: boolean = false) {
+// Local wrapper function that uses the shared template preview logic
+// This allows us to show selected images in the preview boxes
+function renderTemplatePreviewWithImages(templateId: TemplateType, previewImages: SelectedImage[] = [], isLarge: boolean = false) {
   const previewSize = isLarge ? 120 : 60;
   
   const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => {
@@ -214,114 +219,12 @@ function renderTemplatePreview(templateId: TemplateType, previewImages: Selected
     );
   };
   
-  switch (templateId) {
-    case 'single':
-      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
-    
-    case 'two_side_by_side':
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 2)}
-        </View>
-      );
-    
-    case 'three_photos':
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
-          <View style={{ gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
-          </View>
-        </View>
-      );
-    
-    case 'four_quarters':
-      return (
-        <View style={{ gap: 2 }}>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 1)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 4)}
-          </View>
-        </View>
-      );
-
-    case 'two_vertical':
-      return (
-        <View style={{ gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 1)}
-          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 2)}
-        </View>
-      );
-
-    case 'five_collage':
-      const quarterWidth = previewSize/2 - 1;
-      const quarterHeight = previewSize * 0.67 / 2 - 1;
-      const centerSize = quarterWidth * 0.6; // Made smaller for preview
-      const totalHeight = previewSize * 0.67;
-      return (
-        <View style={{ position: 'relative' }}>
-          <View style={{ gap: 2 }}>
-            <View style={{ flexDirection: 'row', gap: 2 }}>
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 1)}
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 2)}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 2 }}>
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 3)}
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 4)}
-            </View>
-          </View>
-          <View style={{ 
-            position: 'absolute', 
-            top: (totalHeight - centerSize) / 2, 
-            left: (previewSize - centerSize) / 2,
-            zIndex: 1,
-            borderWidth: 2,
-            borderColor: '#fff',
-            borderRadius: 4
-          }}>
-            {renderPreviewBoxWithNumber(centerSize, centerSize, 5)}
-          </View>
-        </View>
-      );
-
-    case 'six_grid':
-      const thirdWidth = previewSize/3 - 1;
-      const thirdHeight = previewSize * 0.67 / 2 - 1;
-      return (
-        <View style={{ gap: 2 }}>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 1)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 2)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 3)}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 4)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 5)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 6)}
-          </View>
-        </View>
-      );
-
-    case 'three_horizontal':
-      const horizontalThirdWidth = previewSize/3 - 1;
-      const horizontalHeight = previewSize * 0.67;
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 1)}
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 2)}
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 3)}
-        </View>
-      );
-    
-    default:
-      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
-  }
+  // Use the shared template preview logic - SINGLE SOURCE OF TRUTH
+  return renderTemplatePreview({
+    templateId,
+    previewSize,
+    renderPreviewBox: renderPreviewBoxWithNumber
+  });
 }
 
 const styles = StyleSheet.create({

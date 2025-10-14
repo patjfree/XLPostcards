@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TemplateType, allTemplates } from './TemplateSelector';
+import { renderTemplatePreview } from './TemplatePreview';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -21,122 +22,20 @@ interface MoreTemplatesModalProps {
   selectedTemplate: TemplateType;
 }
 
-// Import the preview function from TemplateSelector
-function renderTemplatePreview(templateId: TemplateType) {
+// Simple wrapper that uses the shared template preview logic
+// This ensures consistent template previews across all modals - SINGLE SOURCE OF TRUTH
+function renderTemplatePreviewForModal(templateId: TemplateType) {
   const previewSize = 80;
   
   const renderPreviewBoxWithNumber = (width: number, height: number, number: number) => (
     <View style={[styles.previewBox, { width, height }]} />
   );
   
-  switch (templateId) {
-    case 'single':
-      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
-    
-    case 'two_side_by_side':
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 2)}
-        </View>
-      );
-    
-    case 'three_photos':
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67, 1)}
-          <View style={{ gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
-          </View>
-        </View>
-      );
-    
-    case 'four_quarters':
-      return (
-        <View style={{ gap: 2 }}>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 1)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 2)}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 3)}
-            {renderPreviewBoxWithNumber(previewSize/2 - 1, previewSize * 0.67 / 2 - 1, 4)}
-          </View>
-        </View>
-      );
-
-    case 'two_vertical':
-      return (
-        <View style={{ gap: 2 }}>
-          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 1)}
-          {renderPreviewBoxWithNumber(previewSize, previewSize * 0.67 / 2 - 1, 2)}
-        </View>
-      );
-
-    case 'five_collage':
-      const quarterWidth = previewSize/2 - 1;
-      const quarterHeight = previewSize * 0.67 / 2 - 1;
-      const centerSize = quarterWidth * 0.6; // Made smaller for preview
-      const totalHeight = previewSize * 0.67;
-      return (
-        <View style={{ position: 'relative' }}>
-          <View style={{ gap: 2 }}>
-            <View style={{ flexDirection: 'row', gap: 2 }}>
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 1)}
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 2)}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 2 }}>
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 3)}
-              {renderPreviewBoxWithNumber(quarterWidth, quarterHeight, 4)}
-            </View>
-          </View>
-          <View style={{ 
-            position: 'absolute', 
-            top: (totalHeight - centerSize) / 2, 
-            left: (previewSize - centerSize) / 2,
-            zIndex: 1,
-            borderWidth: 2,
-            borderColor: '#fff',
-            borderRadius: 4
-          }}>
-            {renderPreviewBoxWithNumber(centerSize, centerSize, 5)}
-          </View>
-        </View>
-      );
-
-    case 'six_grid':
-      const thirdWidth = previewSize/3 - 1;
-      const thirdHeight = previewSize * 0.67 / 2 - 1;
-      return (
-        <View style={{ gap: 2 }}>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 1)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 2)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 3)}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 4)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 5)}
-            {renderPreviewBoxWithNumber(thirdWidth, thirdHeight, 6)}
-          </View>
-        </View>
-      );
-
-    case 'three_horizontal':
-      const horizontalThirdWidth = previewSize/3 - 1;
-      const horizontalHeight = previewSize * 0.67;
-      return (
-        <View style={{ flexDirection: 'row', gap: 2 }}>
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 1)}
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 2)}
-          {renderPreviewBoxWithNumber(horizontalThirdWidth, horizontalHeight, 3)}
-        </View>
-      );
-    
-    default:
-      return renderPreviewBoxWithNumber(previewSize, previewSize * 0.67, 1);
-  }
+  return renderTemplatePreview({
+    templateId,
+    previewSize,
+    renderPreviewBox: renderPreviewBoxWithNumber
+  });
 }
 
 export default function MoreTemplatesModal({
@@ -176,16 +75,13 @@ export default function MoreTemplatesModal({
                 onPress={() => onTemplateSelect(template.id)}
               >
                 <View style={styles.templatePreview}>
-                  {renderTemplatePreview(template.id)}
+                  {renderTemplatePreviewForModal(template.id)}
                 </View>
                 <Text style={[
                   styles.templateName,
                   selectedTemplate === template.id && styles.selectedTemplateName
                 ]}>
                   {template.name}
-                </Text>
-                <Text style={styles.photoCount}>
-                  {template.requiredImages} photo{template.requiredImages > 1 ? 's' : ''}
                 </Text>
               </TouchableOpacity>
             ))}
