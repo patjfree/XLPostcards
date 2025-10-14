@@ -621,11 +621,22 @@ export default function PostcardPreviewScreen() {
           navParams.selectedRecipientId = selectedRecipientId || recipientInfo.id;
         }
         console.log('[XLPOSTCARDS][PREVIEW] Navigation params:', navParams);
-        router.replace({
-          pathname: '/',
-          params: navParams
-        });
-        console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed');
+        try {
+          router.replace({
+            pathname: '/',
+            params: navParams
+          });
+          console.log('[XLPOSTCARDS][PREVIEW] Navigation command executed successfully');
+        } catch (navError) {
+          console.error('[XLPOSTCARDS][PREVIEW] Navigation router.replace failed:', navError);
+          // Fallback navigation
+          try {
+            router.push('/');
+            console.log('[XLPOSTCARDS][PREVIEW] Fallback navigation with router.push successful');
+          } catch (fallbackError) {
+            console.error('[XLPOSTCARDS][PREVIEW] Fallback navigation also failed:', fallbackError);
+          }
+        }
       }, 700); // Increased delay to 700ms
     } catch (error) {
       console.error('[XLPOSTCARDS][PREVIEW] Navigation failed:', error);
