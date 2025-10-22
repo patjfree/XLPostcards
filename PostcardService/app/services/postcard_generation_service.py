@@ -18,9 +18,6 @@ import cloudinary
 import cloudinary.uploader
 from sqlalchemy.orm import Session
 
-# Import enhanced font loading
-from app.utils.fonts import load_emoji_font_chain, draw_text_with_emoji_fallback, load_font, process_message_with_line_breaks, test_emoji_rendering
-
 # Type definitions for dependencies that need to be injected
 from pydantic import BaseModel, Field
 
@@ -261,7 +258,104 @@ def get_next_month_coupon_code():
     return f"XLWelcome{month_abbr}"
 
 
-# Font loading and message processing functions now imported from app.utils.fonts
+def load_font(size: int) -> ImageFont.FreeTypeFont:
+    """Load font with emoji support and fallback options"""
+    print(f"[FONT] Attempting to load {size}pt font with emoji support")
+    
+    # Try fonts that support emojis first
+    emoji_font_paths = [
+        "/System/Library/Fonts/Apple Color Emoji.ttc",  # macOS emoji font
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",  # Linux emoji font
+        "/Windows/Fonts/seguiemj.ttf",  # Windows emoji font
+    ]
+    
+    # Try regular fonts with good Unicode support
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 
+        "/System/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc"
+    ]
+    
+    # Try emoji fonts first
+    for font_path in emoji_font_paths:
+        try:
+            if os.path.exists(font_path):
+                font = ImageFont.truetype(font_path, size)
+                print(f"[FONT] SUCCESS: Loaded emoji font {font_path} at {size}pt")
+                return font
+        except Exception as e:
+            print(f"[FONT] Emoji font failed {font_path}: {e}")
+            continue
+    
+    # Try regular fonts
+    for font_path in font_paths:
+        try:
+            if os.path.exists(font_path):
+                font = ImageFont.truetype(font_path, size)
+                print(f"[FONT] SUCCESS: Loaded {font_path} at {size}pt")
+                return font
+        except Exception as e:
+            print(f"[FONT] Failed {font_path}: {e}")
+            continue
+    
+    # Download font as fallback
+    try:
+        print("[FONT] Downloading DejaVu Sans font...")
+        font_url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
+        font_path = os.path.join(tempfile.gettempdir(), "DejaVuSans.ttf")
+        urllib.request.urlretrieve(font_url, font_path)
+        font = ImageFont.truetype(font_path, size)
+        print(f"[FONT] SUCCESS: Downloaded font at {size}pt")
+        return font
+    except Exception as e:
+        print(f"[FONT] Download failed: {e}")
+    
+    # Absolute fallback
+    print("[FONT] WARNING: Using default font (will be small)")
+    return ImageFont.load_default()
+
+
+def process_message_with_line_breaks(message: str, max_width: int, font, draw) -> list:
+    """Process message while preserving user line breaks and handling emojis"""
+    print(f"[MESSAGE] Processing message with line breaks preserved")
+    
+    # Split by user-defined line breaks first
+    user_lines = message.split('\n')
+    processed_lines = []
+    
+    for user_line in user_lines:
+        if not user_line.strip():
+            # Empty line - preserve it for spacing
+            processed_lines.append('')
+            continue
+            
+        # Word wrap each user line individually
+        words = user_line.split()
+        current_line = ""
+        
+        for word in words:
+            test_line = (current_line + " " + word).strip() if current_line else word
+            
+            # Check if line fits
+            try:
+                text_width = draw.textlength(test_line, font=font)
+            except:
+                # Fallback for older PIL versions or compatibility issues
+                text_width = len(test_line) * (font.size * 0.6) if hasattr(font, 'size') else len(test_line) * 20
+                
+            if text_width <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    processed_lines.append(current_line)
+                current_line = word
+        
+        if current_line:
+            processed_lines.append(current_line)
+    
+    print(f"[MESSAGE] Processed {len(user_lines)} user lines into {len(processed_lines)} final lines")
+    return processed_lines
 
 
 def upload_to_cloudinary(image_data: bytes, filename: str) -> str:
@@ -311,7 +405,7 @@ def generate_complete_postcard_service(
         Dict containing success status, transaction ID, and image URLs
     """
     try:
-        print(f"[COMPLETE] Railway PostcardService v2.1.1.1-emoji-fix")
+        print(f"[COMPLETE] Railway PostcardService v2.1.1.17-dev")
         print(f"[COMPLETE] Generating complete {request.postcardSize} postcard")
         print(f"[COMPLETE] Received userEmail: '{request.userEmail}'")
         
@@ -324,57 +418,29 @@ def generate_complete_postcard_service(
         back_img = Image.new("RGB", (W, H), "white")
         draw = ImageDraw.Draw(back_img)
 
-        # Load font chains for comprehensive emoji support
-        body_font_chain = load_emoji_font_chain(40)
-        addr_font_chain = load_emoji_font_chain(36)
-        ret_font_chain = load_emoji_font_chain(32)
-        
-        # Test emoji rendering capability
-        print(f"[EMOJI] Testing emoji rendering capability...")
-        test_emoji_rendering(body_font_chain)
-        
-        # Legacy compatibility for single font usage
-        body_font = body_font_chain[0] if body_font_chain else load_font(40)
-        addr_font = addr_font_chain[0] if addr_font_chain else load_font(36)
-        ret_font = ret_font_chain[0] if ret_font_chain else load_font(32)
+        # Load fonts
+        body_font = load_font(40)
+        addr_font = load_font(36)
+        ret_font = load_font(32)
 
         # Return address with separator
         message_start_y = 150
-        print(f"[RETURN_ADDRESS] Received return address: '{request.returnAddressText}'")
-        
-        if request.returnAddressText and request.returnAddressText != "{{RETURN_ADDRESS}}" and request.returnAddressText.strip():
-            print(f"[RETURN_ADDRESS] Adding return address to postcard")
+        if request.returnAddressText and request.returnAddressText != "{{RETURN_ADDRESS}}":
             y = 108
-            lines_added = 0
-            
             for line in request.returnAddressText.split("\n")[:3]:
                 if line.strip():
-                    print(f"[RETURN_ADDRESS] Adding line: '{line.strip()}'")
-                    # Use emoji fallback for return address too
-                    try:
-                        draw_text_with_emoji_fallback(draw, (108, y), line.strip(), ret_font_chain, fill="black")
-                        print(f"[RETURN_ADDRESS] Successfully drew line with emoji support: '{line.strip()}'")
-                    except Exception as e:
-                        print(f"[RETURN_ADDRESS] Emoji fallback failed, using basic text: {e}")
-                        draw.text((108, y), line.strip(), font=ret_font, fill="black")
+                    draw.text((108, y), line.strip(), font=ret_font, fill="black")
                     y += 40
-                    lines_added += 1
             
-            if lines_added > 0:
-                # Separator line
-                line_y = y + 20
-                line_end_x = 1400 if request.postcardSize == "xl" else 900
-                draw.line([(108, line_y), (line_end_x, line_y)], fill="black", width=2)
-                message_start_y = line_y + 30
-                print(f"[RETURN_ADDRESS] Added {lines_added} return address lines with separator")
-            else:
-                print(f"[RETURN_ADDRESS] No valid return address lines found")
-        else:
-            print(f"[RETURN_ADDRESS] No return address provided or using placeholder")
+            # Separator line
+            line_y = y + 20
+            line_end_x = 1400 if request.postcardSize == "xl" else 900
+            draw.line([(108, line_y), (line_end_x, line_y)], fill="black", width=2)
+            message_start_y = line_y + 30
 
         # Process message with line breaks preserved
         max_width = 1400 if request.postcardSize == "xl" else 900
-        lines = process_message_with_line_breaks(request.message, max_width, body_font_chain[0] if body_font_chain else body_font, draw)
+        lines = process_message_with_line_breaks(request.message, max_width, body_font, draw)
 
         # Draw message with proper line spacing for empty lines
         y = message_start_y
@@ -383,8 +449,8 @@ def generate_complete_postcard_service(
         
         for line in lines[:20]:  # Limit to 20 lines
             if line.strip():
-                # Non-empty line - draw the text with comprehensive emoji fallback
-                draw_text_with_emoji_fallback(draw, (108, y), line, body_font_chain, fill="black")
+                # Non-empty line - draw the text
+                draw.text((108, y), line, font=body_font, fill="black")
             # Empty lines just add spacing without drawing text
             y += line_height
             lines_drawn += 1
@@ -407,27 +473,9 @@ def generate_complete_postcard_service(
 
         # Add XLPostcards logo to lower left corner
         try:
-            # Try multiple possible logo paths
-            possible_logo_paths = [
-                os.path.join(os.path.dirname(__file__), "..", "..", "Assets", "Images", "BW Icon - Back.png"),  # Relative to service file
-                os.path.join("/app", "Assets", "Images", "BW Icon - Back.png"),  # Absolute Railway path
-                os.path.join(os.getcwd(), "Assets", "Images", "BW Icon - Back.png"),  # Working directory
-                os.path.join(os.path.dirname(__file__), "Assets", "Images", "BW Icon - Back.png"),  # Original path
-            ]
-            
-            logo_img = None
-            logo_path = None
-            
-            for path in possible_logo_paths:
-                if os.path.exists(path):
-                    logo_path = path
-                    logo_img = Image.open(path).convert("RGBA")
-                    print(f"[LOGO] Found logo at: {path}")
-                    break
-                else:
-                    print(f"[LOGO] Logo not found at: {path}")
-            
-            if logo_img:
+            logo_path = os.path.join(os.path.dirname(__file__), "Assets", "Images", "BW Icon - Back.png")
+            if os.path.exists(logo_path):
+                logo_img = Image.open(logo_path).convert("RGBA")
                 
                 # Scale logo based on postcard size (2x bigger)
                 if request.postcardSize == "xl":
