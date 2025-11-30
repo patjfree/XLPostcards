@@ -7,7 +7,7 @@ from app.models.schemas import (
 )
 from app.models.database import get_db
 from app.services.postcard_generation_service import generate_complete_postcard_service
-from app.services.postcard_service import submit_to_stannp, generate_postcard_back
+from app.services.postcard_service import submit_to_stannp
 
 router = APIRouter()
 
@@ -16,8 +16,19 @@ router = APIRouter()
 async def generate_complete_postcard(request: PostcardRequest, db: Session = Depends(get_db)):
     """Generate both front and back images, upload to Cloudinary"""
     try:
-        # This would use the extracted service
-        result = await generate_complete_postcard_service(request, db)
+        from app.models.database import CouponCode, CouponDistribution
+        
+        # Create transaction store
+        transaction_store = {}
+        
+        # Call service with all required arguments
+        result = generate_complete_postcard_service(
+            request=request,
+            transaction_store=transaction_store,
+            db_session=db,
+            coupon_code_model=CouponCode,
+            coupon_distribution_model=CouponDistribution
+        )
         return result
     except Exception as e:
         print(f"[POSTCARD] Error generating postcard: {e}")
@@ -48,7 +59,27 @@ async def get_transaction_status(transaction_id: str):
 async def generate_postcard_back_endpoint(request: PostcardRequest):
     """Generate postcard back only"""
     try:
-        return await generate_postcard_back(request)
+        # Use the complete postcard generation service
+        from app.models.database import CouponCode, CouponDistribution
+        
+        # Create transaction store (simple dict for compatibility)
+        transaction_store = {}
+        
+        # Get database session
+        db = next(get_db())
+        
+        try:
+            # Call the complete service - it generates both front and back
+            result = generate_complete_postcard_service(
+                request=request,
+                transaction_store=transaction_store,
+                db_session=db,
+                coupon_code_model=CouponCode,
+                coupon_distribution_model=CouponDistribution
+            )
+            return result
+        finally:
+            db.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

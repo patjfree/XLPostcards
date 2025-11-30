@@ -132,6 +132,8 @@ const templateRequirements = {
   five_collage: 5,
   six_grid: 6,
   three_horizontal: 3,
+  three_bookmarks: 3,
+  three_sideways: 3,
 };
 
 export default function HomeScreen() {

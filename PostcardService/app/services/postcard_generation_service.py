@@ -125,6 +125,31 @@ class TemplateEngine:
                 raise ValueError("Two vertical template requires 2 images")
             return self._apply_two_vertical(image_urls[0], image_urls[1])
             
+        elif template_type == "five_collage":
+            if len(image_urls) < 5:
+                raise ValueError("Five collage template requires 5 images")
+            return self._apply_five_collage(image_urls)
+            
+        elif template_type == "six_grid":
+            if len(image_urls) < 6:
+                raise ValueError("Six grid template requires 6 images")
+            return self._apply_six_grid(image_urls)
+            
+        elif template_type == "three_horizontal":
+            if len(image_urls) < 3:
+                raise ValueError("Three horizontal template requires 3 images")
+            return self._apply_three_horizontal(image_urls[0], image_urls[1], image_urls[2])
+            
+        elif template_type == "three_bookmarks":
+            if len(image_urls) < 3:
+                raise ValueError("Three bookmarks template requires 3 images")
+            return self._apply_three_bookmarks(image_urls[0], image_urls[1], image_urls[2])
+            
+        elif template_type == "three_sideways":
+            if len(image_urls) < 3:
+                raise ValueError("Three sideways template requires 3 images")
+            return self._apply_three_sideways(image_urls[0], image_urls[1], image_urls[2])
+            
         else:
             # Default to single photo
             print(f"[TEMPLATE] Unknown template type: {template_type}, defaulting to single")
@@ -247,6 +272,189 @@ class TemplateEngine:
         # Paste images
         canvas.paste(top_image, (0, 0))
         canvas.paste(bottom_image, (0, photo_height + gap))
+        
+        return canvas
+
+    def _apply_five_collage(self, image_urls: List[str]) -> Image.Image:
+        """Template: Five photos - four quarters with one overlaid in center"""
+        print(f"[TEMPLATE] Applying five collage template")
+        
+        if len(image_urls) < 5:
+            raise ValueError("Five collage template requires exactly 5 images")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for background quarters
+        gap = 20
+        quarter_width = (self.width - gap) // 2
+        quarter_height = (self.height - gap) // 2
+        quarter_size = (quarter_width, quarter_height)
+        
+        # Load and resize background images (first 4)
+        background_images = []
+        for url in image_urls[:4]:
+            image = self._load_image_from_url(url)
+            image = self._resize_and_crop(image, quarter_size)
+            background_images.append(image)
+        
+        # Paste background images in quarters
+        positions = [
+            (0, 0),                                    # Top left
+            (quarter_width + gap, 0),                  # Top right
+            (0, quarter_height + gap),                 # Bottom left
+            (quarter_width + gap, quarter_height + gap) # Bottom right
+        ]
+        
+        for i, (image, pos) in enumerate(zip(background_images, positions)):
+            canvas.paste(image, pos)
+        
+        # Add center overlay image (5th image) - smaller and centered with white border
+        center_size = (int(quarter_width * 0.7), int(quarter_height * 0.7))
+        center_image = self._load_image_from_url(image_urls[4])
+        center_image = self._resize_and_crop(center_image, center_size)
+        
+        # Create white border around center image
+        border_width = 8  # Border thickness in pixels
+        bordered_size = (center_size[0] + border_width * 2, center_size[1] + border_width * 2)
+        bordered_image = Image.new('RGB', bordered_size, color='white')
+        bordered_image.paste(center_image, (border_width, border_width))
+        
+        # Calculate center position for bordered image
+        center_x = (self.width - bordered_size[0]) // 2
+        center_y = (self.height - bordered_size[1]) // 2
+        
+        canvas.paste(bordered_image, (center_x, center_y))
+        
+        return canvas
+
+    def _apply_six_grid(self, image_urls: List[str]) -> Image.Image:
+        """Template: Six photos in a 2x3 grid"""
+        print(f"[TEMPLATE] Applying six grid template")
+        
+        if len(image_urls) < 6:
+            raise ValueError("Six grid template requires exactly 6 images")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (3 columns, 2 rows)
+        gap = 15
+        cell_width = (self.width - (2 * gap)) // 3  # 3 columns with 2 gaps
+        cell_height = (self.height - gap) // 2      # 2 rows with 1 gap
+        cell_size = (cell_width, cell_height)
+        
+        # Load and resize images
+        images = []
+        for url in image_urls[:6]:  # Only use first 6 images
+            image = self._load_image_from_url(url)
+            image = self._resize_and_crop(image, cell_size)
+            images.append(image)
+        
+        # Paste images in grid (2 rows, 3 columns)
+        positions = [
+            # Top row
+            (0, 0),
+            (cell_width + gap, 0),
+            ((cell_width + gap) * 2, 0),
+            # Bottom row
+            (0, cell_height + gap),
+            (cell_width + gap, cell_height + gap),
+            ((cell_width + gap) * 2, cell_height + gap)
+        ]
+        
+        for i, (image, pos) in enumerate(zip(images, positions)):
+            canvas.paste(image, pos)
+        
+        return canvas
+
+    def _apply_three_horizontal(self, left_image_url: str, center_image_url: str, right_image_url: str) -> Image.Image:
+        """Template: Three photos side by side horizontally"""
+        print(f"[TEMPLATE] Applying three horizontal template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes (with small gaps between images)
+        gap = 15
+        photo_width = (self.width - (2 * gap)) // 3  # 3 photos with 2 gaps
+        photo_size = (photo_width, self.height)
+        
+        # Load and resize images
+        left_image = self._load_image_from_url(left_image_url)
+        center_image = self._load_image_from_url(center_image_url)
+        right_image = self._load_image_from_url(right_image_url)
+        
+        left_image = self._resize_and_crop(left_image, photo_size)
+        center_image = self._resize_and_crop(center_image, photo_size)
+        right_image = self._resize_and_crop(right_image, photo_size)
+        
+        # Paste images
+        canvas.paste(left_image, (0, 0))
+        canvas.paste(center_image, (photo_width + gap, 0))
+        canvas.paste(right_image, ((photo_width + gap) * 2, 0))
+        
+        return canvas
+
+    def _apply_three_bookmarks(self, top_image_url: str, middle_image_url: str, bottom_image_url: str) -> Image.Image:
+        """Template: Three narrow horizontal bookmark-style photos stacked vertically"""
+        print(f"[TEMPLATE] Applying three bookmarks template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for narrow horizontal strips stacked vertically
+        gap = 15
+        photo_height = (self.height - (2 * gap)) // 3  # 3 photos with 2 gaps, stacked vertically
+        photo_size = (self.width, photo_height)  # Full width, narrow height
+        
+        # Load and resize images for bookmark style (wide and narrow)
+        top_image = self._load_image_from_url(top_image_url)
+        middle_image = self._load_image_from_url(middle_image_url)
+        bottom_image = self._load_image_from_url(bottom_image_url)
+        
+        # Apply bookmark aspect ratio (wide, narrow strips)
+        top_image = self._resize_and_crop(top_image, photo_size)
+        middle_image = self._resize_and_crop(middle_image, photo_size)
+        bottom_image = self._resize_and_crop(bottom_image, photo_size)
+        
+        # Paste images vertically stacked
+        canvas.paste(top_image, (0, 0))
+        canvas.paste(middle_image, (0, photo_height + gap))
+        canvas.paste(bottom_image, (0, (photo_height + gap) * 2))
+        
+        return canvas
+
+    def _apply_three_sideways(self, top_image_url: str, bottom_left_image_url: str, bottom_right_image_url: str) -> Image.Image:
+        """Template: One wide photo on top with two photos below"""
+        print(f"[TEMPLATE] Applying three sideways template")
+        
+        # Create canvas
+        canvas = Image.new('RGB', self.size, color='white')
+        
+        # Calculate sizes for top wide photo and bottom two photos
+        gap = 15
+        top_height = int(self.height * 0.4)  # Top photo takes 40% of height
+        bottom_height = self.height - top_height - gap
+        bottom_width = (self.width - gap) // 2  # Bottom photos split width
+        
+        # Define rectangles
+        top_size = (self.width, top_height)
+        bottom_size = (bottom_width, bottom_height)
+        
+        # Load and resize images
+        top_image = self._load_image_from_url(top_image_url)
+        bottom_left_image = self._load_image_from_url(bottom_left_image_url)
+        bottom_right_image = self._load_image_from_url(bottom_right_image_url)
+        
+        top_image = self._resize_and_crop(top_image, top_size)
+        bottom_left_image = self._resize_and_crop(bottom_left_image, bottom_size)
+        bottom_right_image = self._resize_and_crop(bottom_right_image, bottom_size)
+        
+        # Paste images
+        canvas.paste(top_image, (0, 0))
+        canvas.paste(bottom_left_image, (0, top_height + gap))
+        canvas.paste(bottom_right_image, (bottom_width + gap, top_height + gap))
         
         return canvas
 
@@ -409,11 +617,11 @@ def generate_complete_postcard_service(
         print(f"[COMPLETE] Generating complete {request.postcardSize} postcard")
         print(f"[COMPLETE] Received userEmail: '{request.userEmail}'")
         
-        # Generate back image (existing logic)
-        if request.postcardSize == "regular":
-            W, H = 1800, 1200
+        # Generate back image - use exact dimensions from old working version
+        if request.postcardSize == "regular" or request.postcardSize == "4x6":
+            W, H = 1800, 1200  # 4x6 inches at 300 DPI
         else:
-            W, H = 2754, 1872
+            W, H = 2754, 1872  # XL size - exact dimensions from old version
 
         back_img = Image.new("RGB", (W, H), "white")
         draw = ImageDraw.Draw(back_img)
@@ -423,23 +631,25 @@ def generate_complete_postcard_service(
         addr_font = load_font(36)
         ret_font = load_font(32)
 
-        # Return address with separator
-        message_start_y = 150
+        # Return address with separator - align with logo's left edge
+        message_start_y = 180  # Move down slightly from top edge
+        text_x = 50  # Align with logo's left edge (three dashes position)
+        
         if request.returnAddressText and request.returnAddressText != "{{RETURN_ADDRESS}}":
-            y = 108
+            y = 80  # Start higher up
             for line in request.returnAddressText.split("\n")[:3]:
                 if line.strip():
-                    draw.text((108, y), line.strip(), font=ret_font, fill="black")
+                    draw.text((text_x, y), line.strip(), font=ret_font, fill="black")
                     y += 40
             
             # Separator line
             line_y = y + 20
-            line_end_x = 1400 if request.postcardSize == "xl" else 900
-            draw.line([(108, line_y), (line_end_x, line_y)], fill="black", width=2)
+            line_end_x = 1400 if request.postcardSize == "xl" else 650  # Even shorter to avoid address cutoff
+            draw.line([(text_x, line_y), (line_end_x, line_y)], fill="black", width=2)
             message_start_y = line_y + 30
 
-        # Process message with line breaks preserved
-        max_width = 1400 if request.postcardSize == "xl" else 900
+        # Process message with line breaks preserved - fine-tuned to prevent character cutoff
+        max_width = 1400 if request.postcardSize == "xl" else 620  # Reduced by ~30px to prevent cutoff
         lines = process_message_with_line_breaks(request.message, max_width, body_font, draw)
 
         # Draw message with proper line spacing for empty lines
@@ -447,35 +657,104 @@ def generate_complete_postcard_service(
         line_height = 50
         lines_drawn = 0
         
+        message_x = 50  # Align with logo's left edge (same as text_x)
+        
         for line in lines[:20]:  # Limit to 20 lines
             if line.strip():
                 # Non-empty line - draw the text
-                draw.text((108, y), line, font=body_font, fill="black")
+                draw.text((message_x, y), line, font=body_font, fill="black")
             # Empty lines just add spacing without drawing text
             y += line_height
             lines_drawn += 1
             
         print(f"[MESSAGE] Drew {lines_drawn} lines with preserved line breaks")
 
-        # Address block - increased width to prevent overflow
-        x = W - 800 if request.postcardSize == "xl" else W - 680
-        y = H - 360
-        r = request.recipientInfo
+        # Address block - positioned to match Stannp's actual placement
+        # Move further left to match Stannp's actual position (Stannp will overlay with white background)
+        # Use exact positioning from old working version
+        address_x = W - 800 if request.postcardSize == "xl" else W - 680
+        address_y = H - 360
         
-        for line in filter(None, [
+        # Add barcode and indicia stamp above address
+        try:
+            # Try multiple possible barcode paths
+            possible_barcode_paths = [
+                os.path.join(os.path.dirname(__file__), "..", "..", "Assets", "Images", "barcode_and_indica_stamp_sample.png"),
+                os.path.join("/app", "Assets", "Images", "barcode_and_indica_stamp_sample.png"),  # Railway path
+                os.path.join(os.getcwd(), "Assets", "Images", "barcode_and_indica_stamp_sample.png"),  # Current working directory
+                "Assets/Images/barcode_and_indica_stamp_sample.png"  # Relative path
+            ]
+            
+            barcode_img = None
+            barcode_path_used = None
+            
+            for barcode_path in possible_barcode_paths:
+                if os.path.exists(barcode_path):
+                    try:
+                        barcode_img = Image.open(barcode_path)
+                        barcode_path_used = barcode_path
+                        break
+                    except Exception as e:
+                        print(f"[BARCODE] Error loading image from {barcode_path}: {e}")
+            
+            if barcode_img:
+                # Resize barcode to appropriate size for postcard
+                barcode_width = 400 if request.postcardSize == "xl" else 320
+                barcode_height = int(barcode_img.height * (barcode_width / barcode_img.width))
+                barcode_img = barcode_img.resize((barcode_width, barcode_height), Image.Resampling.LANCZOS)
+                
+                # Position barcode above the address area
+                barcode_x = address_x + 50  # Slightly right of address
+                barcode_y = address_y - barcode_height - 30  # Above address with some spacing
+                
+                back_img.paste(barcode_img, (barcode_x, barcode_y), barcode_img if barcode_img.mode == 'RGBA' else None)
+                print(f"[BARCODE] Added barcode/indicia at position ({barcode_x}, {barcode_y}) from {barcode_path_used}")
+            else:
+                print(f"[BARCODE] Warning: Barcode image not found")
+        except Exception as e:
+            print(f"[BARCODE] Error adding barcode: {e}")
+        
+        # Draw address without white background (Stannp will handle overlay with clearzone=true)
+        r = request.recipientInfo
+        address_lines = list(filter(None, [
             r.to,
             r.addressLine1,
             r.addressLine2,
             f"{r.city}, {r.state} {r.zipcode}".strip(", ")
-        ]):
-            draw.text((x, y), line, font=addr_font, fill="black")
-            y += 46
+        ]))
+        
+        if address_lines:
+            # Draw address text directly (no white background - Stannp handles overlay)
+            current_y = address_y
+            for line in address_lines:
+                draw.text((address_x, current_y), line, font=addr_font, fill="black")
+                current_y += 46
+                
+            print(f"[ADDRESS] Drew address at position ({address_x}, {address_y}) - Stannp will overlay with clearzone")
 
         # Add XLPostcards logo to lower left corner
         try:
-            logo_path = os.path.join(os.path.dirname(__file__), "Assets", "Images", "BW Icon - Back.png")
-            if os.path.exists(logo_path):
-                logo_img = Image.open(logo_path).convert("RGBA")
+            # Try multiple possible logo paths
+            possible_logo_paths = [
+                os.path.join(os.path.dirname(__file__), "..", "..", "BW icon - Back.png"),  # Root level
+                os.path.join(os.path.dirname(__file__), "..", "..", "Assets", "Images", "BW Icon - Back.png"),  # Assets folder
+                os.path.join("/app", "BW icon - Back.png"),  # Railway root
+                os.path.join("/app", "Assets", "Images", "BW Icon - Back.png"),  # Railway assets
+            ]
+            
+            logo_img = None
+            logo_path = None
+            
+            for path in possible_logo_paths:
+                if os.path.exists(path):
+                    logo_path = path
+                    logo_img = Image.open(path).convert("RGBA")
+                    print(f"[LOGO] Found logo at: {path}")
+                    break
+                else:
+                    print(f"[LOGO] Logo not found at: {path}")
+            
+            if logo_img:
                 
                 # Scale logo based on postcard size (2x bigger)
                 if request.postcardSize == "xl":
@@ -505,9 +784,9 @@ def generate_complete_postcard_service(
             # Use monthly coupon code for all postcards (first-time customers only)
             coupon_code = get_next_month_coupon_code()
             
-            # Position promotional box above address block (bigger size)
+            # Use exact promotional box positioning from old working version
             if request.postcardSize == "xl":
-                # XL postcard (9x6 inches) - bigger box above address
+                # XL postcard - bigger box above address
                 ad_width = 700  # Much larger width
                 ad_height = 300  # Much larger height
                 ad_x = W - ad_width - 50  # Position above address block
@@ -687,13 +966,31 @@ def generate_complete_postcard_service(
             
         
         # Store transaction info in memory
-        # Check if transaction exists and preserve email
+        # Check if transaction exists and preserve email (check database first, then memory)
         existing_email = ""
-        if request.transactionId in transaction_store:
+        
+        # First check database for existing email
+        try:
+            from app.models.database import PostcardTransaction
+            existing_transaction = db_session.query(PostcardTransaction).filter_by(
+                transaction_id=request.transactionId
+            ).first()
+            if existing_transaction and existing_transaction.user_email:
+                existing_email = existing_transaction.user_email
+        except Exception as e:
+            print(f"[COMPLETE] Error checking database for existing email: {e}")
+        
+        # If not in database, check memory store
+        if not existing_email and request.transactionId in transaction_store:
             existing_email = transaction_store[request.transactionId].get("userEmail", "")
         
-        # Use provided email or preserve existing email
-        final_email = request.userEmail or existing_email
+        # Use provided email only if it's not empty, otherwise preserve existing email
+        if request.userEmail and request.userEmail.strip():
+            final_email = request.userEmail
+        elif existing_email:
+            final_email = existing_email
+        else:
+            final_email = ""
         
         transaction_store[request.transactionId] = {
             "frontUrl": front_url,
@@ -707,6 +1004,55 @@ def generate_complete_postcard_service(
         }
         
         print(f"[COMPLETE] Stored user email: '{final_email}' for transaction {request.transactionId}")
+        
+        # Store transaction data for later Stannp submission
+        try:
+            from app.models.database import PostcardTransaction
+            
+            # Create or update transaction record
+            existing_transaction = db_session.query(PostcardTransaction).filter_by(
+                transaction_id=request.transactionId
+            ).first()
+            
+            if existing_transaction:
+                # Update existing transaction
+                existing_transaction.recipient_name = request.recipientInfo.to
+                existing_transaction.recipient_address_line1 = request.recipientInfo.addressLine1
+                existing_transaction.recipient_address_line2 = request.recipientInfo.addressLine2 or ""
+                existing_transaction.recipient_city = request.recipientInfo.city or ""
+                existing_transaction.recipient_state = request.recipientInfo.state or ""
+                existing_transaction.recipient_zipcode = request.recipientInfo.zipcode or ""
+                existing_transaction.postcard_size = request.postcardSize
+                existing_transaction.front_url = front_url
+                existing_transaction.back_url = back_url
+                existing_transaction.message = request.message
+                # Only update email if we have a good one (don't overwrite with empty)
+                if final_email and final_email.strip():
+                    existing_transaction.user_email = final_email
+            else:
+                # Create new transaction record
+                transaction_record = PostcardTransaction(
+                    transaction_id=request.transactionId,
+                    recipient_name=request.recipientInfo.to,
+                    recipient_address_line1=request.recipientInfo.addressLine1,
+                    recipient_address_line2=request.recipientInfo.addressLine2 or "",
+                    recipient_city=request.recipientInfo.city or "",
+                    recipient_state=request.recipientInfo.state or "",
+                    recipient_zipcode=request.recipientInfo.zipcode or "",
+                    postcard_size=request.postcardSize,
+                    front_url=front_url,
+                    back_url=back_url,
+                    message=request.message,
+                    user_email=final_email
+                )
+                db_session.add(transaction_record)
+            
+            db_session.commit()
+            print(f"[COMPLETE] Stored transaction data for {request.transactionId}")
+            
+        except Exception as e:
+            print(f"[COMPLETE] Warning: Could not store transaction data: {e}")
+            db_session.rollback()
         
         print(f"[COMPLETE] Generated complete postcard for transaction {request.transactionId}")
         

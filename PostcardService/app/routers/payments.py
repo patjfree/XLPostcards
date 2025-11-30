@@ -25,14 +25,10 @@ async def payment_confirmed(request: PaymentConfirmedRequest):
 
 
 @router.post("/create-payment-intent")
-async def create_payment_intent(request: dict):
+async def create_payment_intent_endpoint(request: dict):
     """Create Stripe payment intent"""
-    try:
-        # This would contain the payment intent creation logic
-        # Extracted from the main file
-        pass
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    from app.services.payment_service import create_payment_intent
+    return await create_payment_intent(request)
 
 
 @router.post("/process-android-purchase")
@@ -64,10 +60,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
 
 
 @router.get("/payment-status/{transaction_id}")
-async def get_payment_status(transaction_id: str):
+async def get_payment_status_endpoint(transaction_id: str):
     """Get payment status for transaction"""
-    try:
-        # This would contain payment status lookup logic
-        pass
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    from app.services.payment_service import get_payment_status
+    return await get_payment_status(transaction_id)

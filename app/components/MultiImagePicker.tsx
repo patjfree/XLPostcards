@@ -29,6 +29,12 @@ const templateRequirements = {
   two_side_by_side: 2,
   three_photos: 3,
   four_quarters: 4,
+  two_vertical: 2,
+  five_collage: 5,
+  six_grid: 6,
+  three_horizontal: 3,
+  three_bookmarks: 3,
+  three_sideways: 3,
 };
 
 // Calculate aspect ratio for each photo slot based on template and position
@@ -49,6 +55,28 @@ const getAspectRatioForSlot = (templateType: TemplateType, slotIndex: number): [
     
     case 'four_quarters':
       return [3, 2]; // Each quarter is 3:2
+    
+    case 'two_vertical':
+      return [3, 1]; // Each photo is 3:1 (wide horizontal)
+    
+    case 'five_collage':
+      return [3, 2]; // All photos are 3:2
+    
+    case 'six_grid':
+      return [1, 1]; // Each photo is 1:1 (square)
+    
+    case 'three_horizontal':
+      return [1, 2]; // Each photo is 1:2 (vertical)
+    
+    case 'three_bookmarks':
+      return [3, 0.67]; // Each photo is 3:0.67 ratio (wide bookmark)
+    
+    case 'three_sideways':
+      if (slotIndex === 0) {
+        return [3, 1]; // Top photo is 3:1 ratio (very wide)
+      } else {
+        return [1.5, 1]; // Bottom photos are 1.5:1 ratio
+      }
     
     default:
       return [3, 2]; // Default fallback

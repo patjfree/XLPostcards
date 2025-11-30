@@ -8,12 +8,16 @@ import urllib.request
 class TemplateEngine:
     """Handle multi-photo template layouts for postcard fronts"""
     
-    # Standard postcard dimensions (6x9 inches at 300 DPI)
-    REGULAR_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI
-    XL_SIZE = (2700, 1800)       # 9x6 inches at 300 DPI
+    # Standard postcard dimensions - exact from old working version
+    REGULAR_SIZE = (1800, 1200)  # 4x6 inches at 300 DPI
+    XL_SIZE = (2754, 1872)       # XL size - exact dimensions from old version
     
     def __init__(self, postcard_size: str = "xl"):
-        self.size = self.XL_SIZE if postcard_size == "xl" else self.REGULAR_SIZE
+        # Use exact logic from old working version
+        if postcard_size == "regular" or postcard_size == "4x6":
+            self.size = self.REGULAR_SIZE  # 4x6 inches
+        else:
+            self.size = self.XL_SIZE  # XL size
         self.width, self.height = self.size
         
     def _load_image_from_url(self, image_url: str) -> Image.Image:

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
@@ -10,9 +10,10 @@ if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./postcards.db"
     print(f"[DATABASE] No DATABASE_URL found, using SQLite fallback: {DATABASE_URL}")
 else:
-    engine = create_engine(DATABASE_URL)
-    print(f"[DATABASE] Using SQLite fallback: {DATABASE_URL}")
+    print(f"[DATABASE] Using provided DATABASE_URL")
 
+# Create engine for all cases
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -95,6 +96,28 @@ class Customer(Base):
     is_active = Column(Boolean, default=True)
 
 
+class PostcardTransaction(Base):
+    __tablename__ = "postcard_transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(String(100), unique=True, nullable=False, index=True)
+    recipient_name = Column(String(255))
+    recipient_address_line1 = Column(String(255))
+    recipient_address_line2 = Column(String(255))
+    recipient_city = Column(String(100))
+    recipient_state = Column(String(50))
+    recipient_zipcode = Column(String(20))
+    postcard_size = Column(String(20))
+    front_url = Column(String(500))
+    back_url = Column(String(500))
+    message = Column(Text)
+    user_email = Column(String(255))
+    created_at = Column(DateTime, default=func.now())
+    submitted_to_stannp = Column(Boolean, default=False)
+    stannp_order_id = Column(String(100))
+    stannp_status = Column(String(50))
+
+
 def get_db():
     """Get database session"""
     db = SessionLocal()
@@ -117,7 +140,7 @@ def init_database():
         
         # Test database connection
         test_session = SessionLocal()
-        test_session.execute("SELECT 1")
+        test_session.execute(text("SELECT 1"))
         test_session.close()
         print("[DATABASE] Database connection test successful")
         

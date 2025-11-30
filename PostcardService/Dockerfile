@@ -12,5 +12,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+# Debug: Test imports to catch failures early
+RUN python -c "import main; print('Main import successful')"
+
 EXPOSE 8000
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info"]
