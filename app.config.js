@@ -51,7 +51,7 @@ module.exports = {
   slug: "XLPostcards",
 
   // Use EAS remote app version when available (falls back to a string if missing)
-  version: REMOTE_APP_VERSION || "2.3.7.1",
+  version: REMOTE_APP_VERSION || "2.3.8",
   runtimeVersion: { policy: "appVersion" },
 
   orientation: "portrait",
@@ -173,7 +173,7 @@ module.exports = {
     postcardPriceDollars: 2.99,
 
     // Internal build number for development/simulator tracking (not visible in production)
-    internalBuildNumber: "2.3.7.1",
+    internalBuildNumber: "2.3.8",
 
     APP_VARIANT,
     eas: { projectId: "f4dc464b-4ae2-4850-820b-015a17901641" }
