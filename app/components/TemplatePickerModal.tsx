@@ -180,12 +180,10 @@ export default function TemplatePickerModal({
         onImagesChange(updatedImages);
         
       } else {
-        // Android: Use Expo ImagePicker with template-aware aspect ratio
-        const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          alert('Sorry, we need camera roll permissions to select photos.');
-          return;
-        }
+        // Android: Use Expo ImagePicker with Android Photo Picker (no permissions needed)
+        // Android Photo Picker is used automatically on Android 11+ (SDK 30+)
+        // No need to call requestMediaLibraryPermissionsAsync() - it would request
+        // READ_MEDIA_IMAGES/READ_MEDIA_VIDEO which Google Play restricts
 
         const result = await ExpoImagePicker.launchImageLibraryAsync({
           mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,

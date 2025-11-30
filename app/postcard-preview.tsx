@@ -281,12 +281,20 @@ export default function PostcardPreviewScreen() {
       setSaving(true);
       
       // Request permissions if needed
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        alert('We need media library permissions to save the postcard');
-        setSaving(false);
-        return;
+      // Note: On Android 10+ (API 29+), saving to MediaStore works without READ permissions
+      // via scoped storage. We only need permission on iOS and older Android.
+      // On Android 13+ (API 33+), we avoid requesting READ_MEDIA_IMAGES/READ_MEDIA_VIDEO
+      // as Google Play restricts these permissions.
+      if (Platform.OS === 'ios') {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          alert('We need media library permissions to save the postcard');
+          setSaving(false);
+          return;
+        }
       }
+      // On Android, we'll try to save directly - it should work on Android 10+
+      // If it fails on older Android, we'll catch the error
       
       // Capture both front and back images with iOS-safe settings and fallback
       let frontUri, backUri;

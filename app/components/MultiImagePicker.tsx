@@ -193,14 +193,11 @@ export default function MultiImagePicker({
         onImagesChange(updatedImages);
         
       } else {
-        // Android: Use Expo ImagePicker with template-aware aspect ratio
+        // Android: Use Expo ImagePicker with Android Photo Picker (no permissions needed)
+        // Android Photo Picker is used automatically on Android 11+ (SDK 30+)
+        // No need to call requestMediaLibraryPermissionsAsync() - it would request
+        // READ_MEDIA_IMAGES/READ_MEDIA_VIDEO which Google Play restricts
         console.log(`Android cropping for slot ${slotIndex}: ${aspectWidth}:${aspectHeight}`);
-        
-        const { status } = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select photos.');
-          return;
-        }
 
         const result = await ExpoImagePicker.launchImageLibraryAsync({
           mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,

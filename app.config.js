@@ -97,8 +97,8 @@ module.exports = {
     },
     permissions: [
       "ACCESS_COARSE_LOCATION",
-      "ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_MEDIA_LOCATION"
+      "ACCESS_FINE_LOCATION"
+      // Removed ACCESS_MEDIA_LOCATION - not needed with Android Photo Picker
     ]
   },
 
@@ -121,12 +121,18 @@ module.exports = {
       locationAlwaysAndWhenInUsePermission:
         "Allow $(PRODUCT_NAME) to use your location to attach it to your photos."
     }],
+    // expo-image-picker: Use Android Photo Picker (no READ_MEDIA permissions needed)
+    ["expo-image-picker", {
+      photosPermission: "XLPostcards uses your photo library so you can select a photo for the front image on your postcard."
+    }],
+    // expo-media-library: Only for saving images, not picking
+    // Note: On Android 13+, saving to MediaStore doesn't require READ_MEDIA permissions
     ["expo-media-library", {
       photosPermission:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       savePhotosPermission:
         "Allow XLPostcards to save photos you create.",
-      isAccessMediaLocationEnabled: true
+      isAccessMediaLocationEnabled: false // Disable to avoid adding extra permissions
     }],
     ["expo-build-properties", {
       android: {
@@ -135,7 +141,12 @@ module.exports = {
         buildToolsVersion: "35.0.0",
         kotlinVersion: "2.0.21",
         // Use NDK 27+ for 16 KB page size support (required by Google Play Nov 2025)
-        ndkVersion: "27.0.12077973"
+        ndkVersion: "27.0.12077973",
+        // Blocklist READ_MEDIA permissions - we use Android Photo Picker instead
+        blockedPermissions: [
+          "android.permission.READ_MEDIA_IMAGES",
+          "android.permission.READ_MEDIA_VIDEO"
+        ]
       }
     }],
     "./plugins/android-stripe-fix"
