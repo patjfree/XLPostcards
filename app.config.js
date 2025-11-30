@@ -133,7 +133,9 @@ module.exports = {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "2.0.21"
+        kotlinVersion: "2.0.21",
+        // Use NDK 27+ for 16 KB page size support (required by Google Play Nov 2025)
+        ndkVersion: "27.0.12077973"
       }
     }],
     "./plugins/android-stripe-fix"
