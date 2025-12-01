@@ -127,12 +127,15 @@ module.exports = {
     }],
     // expo-media-library: Only for saving images, not picking
     // Note: On Android 13+, saving to MediaStore doesn't require READ_MEDIA permissions
+    // We explicitly remove READ_MEDIA permissions via remove-media-permissions plugin
     ["expo-media-library", {
       photosPermission:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       savePhotosPermission:
         "Allow XLPostcards to save photos you create.",
-      isAccessMediaLocationEnabled: false // Disable to avoid adding extra permissions
+      isAccessMediaLocationEnabled: false, // Disable to avoid adding extra permissions
+      // Explicitly disable READ permissions - we only need WRITE for saving
+      // The remove-media-permissions plugin will strip any READ_MEDIA permissions that get added
     }],
     ["expo-build-properties", {
       android: {
@@ -149,6 +152,7 @@ module.exports = {
         ]
       }
     }],
+    "./plugins/remove-media-permissions", // Explicitly remove READ_MEDIA permissions from manifest
     "./plugins/android-stripe-fix"
   ],
 
