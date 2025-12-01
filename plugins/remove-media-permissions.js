@@ -1,54 +1,70 @@
 /**
  * Config plugin to explicitly remove READ_MEDIA_IMAGES and READ_MEDIA_VIDEO permissions
- * from AndroidManifest.xml to comply with Google Play policy
+ * from AndroidManifest.xml to comply with Google Play policy.
+ * 
+ * This plugin checks ALL uses-permission* nodes including SDK-specific ones like
+ * uses-permission-sdk-33, as libraries may add permissions in various locations.
  */
 const { withAndroidManifest } = require('@expo/config-plugins');
+
+const PERMISSIONS_TO_REMOVE = [
+  'android.permission.READ_MEDIA_IMAGES',
+  'android.permission.READ_MEDIA_VIDEO',
+  'android.permission.READ_EXTERNAL_STORAGE', // Extra safety - legacy permission
+];
+
+function stripPermissionsArray(array) {
+  if (!Array.isArray(array)) return array;
+  return array.filter((permission) => {
+    const name = permission.$?.['android:name'];
+    if (!name) return true;
+    return !PERMISSIONS_TO_REMOVE.includes(name);
+  });
+}
 
 const withRemoveMediaPermissions = (config) => {
   return withAndroidManifest(config, (config) => {
     const androidManifest = config.modResults;
     const { manifest } = androidManifest;
 
-    if (!manifest) {
-      return config;
-    }
+    if (!manifest) return config;
 
-    // Remove READ_MEDIA_IMAGES permission
-    if (manifest['uses-permission']) {
-      manifest['uses-permission'] = manifest['uses-permission'].filter(
-        (permission) => {
-          const name = permission.$['android:name'];
-          return (
-            name !== 'android.permission.READ_MEDIA_IMAGES' &&
-            name !== 'android.permission.READ_MEDIA_VIDEO'
-          );
-        }
-      );
-    }
+    // Top-level uses-permission nodes (including SDK-specific like uses-permission-sdk-33)
+    const permissionKeys = Object.keys(manifest).filter((key) =>
+      key.startsWith('uses-permission')
+    );
 
-    // Also check application/activity level permissions
-    if (manifest.application && Array.isArray(manifest.application)) {
+    permissionKeys.forEach((key) => {
+      manifest[key] = stripPermissionsArray(manifest[key]);
+    });
+
+    // Application / activity-level uses-permission nodes (comprehensive pass)
+    if (Array.isArray(manifest.application)) {
       manifest.application.forEach((app) => {
-        if (app.activity && Array.isArray(app.activity)) {
+        const appKeys = Object.keys(app).filter((key) =>
+          key.startsWith('uses-permission')
+        );
+        appKeys.forEach((key) => {
+          app[key] = stripPermissionsArray(app[key]);
+        });
+
+        if (Array.isArray(app.activity)) {
           app.activity.forEach((activity) => {
-            if (activity['uses-permission']) {
-              activity['uses-permission'] = activity['uses-permission'].filter(
-                (permission) => {
-                  const name = permission.$['android:name'];
-                  return (
-                    name !== 'android.permission.READ_MEDIA_IMAGES' &&
-                    name !== 'android.permission.READ_MEDIA_VIDEO'
-                  );
-                }
-              );
-            }
+            const actKeys = Object.keys(activity).filter((key) =>
+              key.startsWith('uses-permission')
+            );
+            actKeys.forEach((key) => {
+              activity[key] = stripPermissionsArray(activity[key]);
+            });
           });
         }
       });
     }
 
-    console.log('[REMOVE-MEDIA-PERMISSIONS] Removed READ_MEDIA_IMAGES and READ_MEDIA_VIDEO from AndroidManifest.xml');
-    
+    console.log(
+      '[REMOVE-MEDIA-PERMISSIONS] Stripped media read permissions from all uses-permission* nodes in AndroidManifest.xml'
+    );
+
     return config;
   });
 };

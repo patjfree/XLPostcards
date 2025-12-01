@@ -15,8 +15,14 @@ blockedPermissions: [
 ]
 ```
 
-### 2. Custom Config Plugin
-Created `plugins/remove-media-permissions.js` that explicitly removes these permissions from the AndroidManifest.xml after all plugins have run. This ensures that even if a plugin (like `expo-media-library`) tries to add them, they get stripped out.
+### 2. Custom Config Plugin (Hardened)
+Created `plugins/remove-media-permissions.js` that explicitly removes these permissions from **ALL** `uses-permission*` nodes in AndroidManifest.xml, including:
+- Standard `uses-permission` nodes
+- SDK-specific nodes like `uses-permission-sdk-33`
+- Application-level permission nodes
+- Activity-level permission nodes
+
+This comprehensive approach ensures that even if a plugin (like `expo-media-library`) tries to add them in any location, they get stripped out.
 
 ### 3. Android Photo Picker
 - **expo-image-picker**: On Android 11+ (API 30+), it automatically uses the Android Photo Picker, which doesn't require any permissions
@@ -57,4 +63,6 @@ Created `plugins/remove-media-permissions.js` that explicitly removes these perm
 - Android Photo Picker is the system picker that doesn't require permissions
 - On Android 10+ (API 29+), saving to MediaStore works via scoped storage without READ permissions
 - The custom plugin runs AFTER all other plugins to ensure READ_MEDIA permissions are removed even if added by dependencies
+- The plugin now checks **all** `uses-permission*` variations including SDK-specific ones (e.g., `uses-permission-sdk-33`) to catch permissions added by libraries in any location
+- Also removes `READ_EXTERNAL_STORAGE` as an extra safety measure (legacy permission)
 
