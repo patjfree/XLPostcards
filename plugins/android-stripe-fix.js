@@ -11,12 +11,17 @@ const withStripeAndroidFix = (config) => {
             eachDependency { details ->
                 if (details.requested.group == 'com.stripe') {
                     if (details.requested.name == 'stripe-android') {
-                        details.useVersion '20.48.0'
-                        details.because 'Force compatible version with Kotlin 2.0'
+                        // Use newer version that includes payment element support
+                        details.useVersion '21.0.0'
+                        details.because 'Stripe React Native 0.45.0 requires payment element support'
                     }
                     if (details.requested.name == 'financial-connections') {
-                        details.useVersion '20.48.0'
-                        details.because 'Force compatible version with Kotlin 2.0'
+                        details.useVersion '21.0.0'
+                        details.because 'Match stripe-android version'
+                    }
+                    if (details.requested.name == 'paymentsheet') {
+                        details.useVersion '21.0.0'
+                        details.because 'Match stripe-android version'
                     }
                 }
             }
