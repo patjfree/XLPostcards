@@ -11,9 +11,11 @@ const withStripeAndroidFix = (config) => {
             eachDependency { details ->
                 if (details.requested.group == 'com.stripe') {
                     if (details.requested.name == 'stripe-android') {
-                        // Use newer version that includes payment element support
+                        // Stripe React Native 0.45.0 requires payment element support
+                        // Payment elements were added in stripe-android 21.0.0+
+                        // Try 21.0.0 first, fallback to latest if needed
                         details.useVersion '21.0.0'
-                        details.because 'Stripe React Native 0.45.0 requires payment element support'
+                        details.because 'Stripe React Native 0.45.0 requires payment element support (stripe-android 21.0.0+)'
                     }
                     if (details.requested.name == 'financial-connections') {
                         details.useVersion '21.0.0'
@@ -22,6 +24,11 @@ const withStripeAndroidFix = (config) => {
                     if (details.requested.name == 'paymentsheet') {
                         details.useVersion '21.0.0'
                         details.because 'Match stripe-android version'
+                    }
+                    // Payment element is a separate module in newer versions
+                    if (details.requested.name == 'paymentelement') {
+                        details.useVersion '21.0.0'
+                        details.because 'Required for payment element support'
                     }
                 }
             }
