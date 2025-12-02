@@ -140,7 +140,8 @@ module.exports = {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "1.9.25",
+        // Let Expo SDK 53 manage Kotlin version automatically
+        // kotlinVersion: "1.9.25",
         // Expo SDK 54 with React Native 0.81.5 includes 16 KB page size support
         // Let Expo SDK 54 manage the NDK version automatically
         // If you need to specify, use a version available in EAS (e.g., "27.0.12077973" or "28.0.12674087")
