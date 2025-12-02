@@ -140,10 +140,11 @@ module.exports = {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "2.0.21",
-        // Use NDK r28+ for 16 KB page size support (required by Google Play Nov 2025)
-        // r28+ compiles 16 KB-aligned by default (r27 requires explicit config)
-        ndkVersion: "28.0.12674087",
+        kotlinVersion: "1.9.25",
+        // Expo SDK 54 with React Native 0.81.5 includes 16 KB page size support
+        // Let Expo SDK 54 manage the NDK version automatically
+        // If you need to specify, use a version available in EAS (e.g., "27.0.12077973" or "28.0.12674087")
+        // ndkVersion: "27.0.12077973", // Uncomment if needed
         // Blocklist READ_MEDIA permissions - we use Android Photo Picker instead
         blockedPermissions: [
           "android.permission.READ_MEDIA_IMAGES",
