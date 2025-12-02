@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import * as ImageManipulator from 'expo-image-manipulator';
 import ViewShot from 'react-native-view-shot';
 import { useRef } from 'react';
@@ -350,15 +351,43 @@ export default function PostcardPreviewScreen() {
         }
       }
       
-      // Save both images to media library
-      const frontAsset = await MediaLibrary.createAssetAsync(frontUri);
-      const backAsset = await MediaLibrary.createAssetAsync(backUri);
-      
-      // Create album and add both images
-      await MediaLibrary.createAlbumAsync('Postcards', frontAsset, false);
-      await MediaLibrary.createAlbumAsync('Postcards', backAsset, false);
-      
-      alert('Postcard front and back saved to your photos!');
+      // Save images - use different methods for iOS vs Android
+      if (Platform.OS === 'ios') {
+        // iOS: Use MediaLibrary (requires permission, but iOS allows it)
+        const frontAsset = await MediaLibrary.createAssetAsync(frontUri);
+        const backAsset = await MediaLibrary.createAssetAsync(backUri);
+        
+        // Create album and add both images
+        await MediaLibrary.createAlbumAsync('Postcards', frontAsset, false);
+        await MediaLibrary.createAlbumAsync('Postcards', backAsset, false);
+        
+        alert('Postcard front and back saved to your photos!');
+      } else {
+        // Android: Use Share API (no permissions needed, more user-friendly)
+        // Share both images - user can save to Photos, Drive, etc.
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
+          // Share front image
+          await Sharing.shareAsync(frontUri, {
+            mimeType: 'image/jpeg',
+            dialogTitle: 'Save postcard front',
+            UTI: 'public.jpeg',
+          });
+          
+          // Small delay then share back image
+          setTimeout(async () => {
+            await Sharing.shareAsync(backUri, {
+              mimeType: 'image/jpeg',
+              dialogTitle: 'Save postcard back',
+              UTI: 'public.jpeg',
+            });
+          }, 500);
+          
+          alert('Use the share menu to save your postcards to Photos or any app!');
+        } else {
+          alert('Sharing is not available on this device');
+        }
+      }
       setSaving(false);
     } catch (error) {
       console.error('Error saving postcard:', error);

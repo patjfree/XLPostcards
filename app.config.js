@@ -125,17 +125,15 @@ module.exports = {
     ["expo-image-picker", {
       photosPermission: "XLPostcards uses your photo library so you can select a photo for the front image on your postcard."
     }],
-    // expo-media-library: Only for saving images, not picking
-    // Note: On Android 13+, saving to MediaStore doesn't require READ_MEDIA permissions
-    // We explicitly remove READ_MEDIA permissions via remove-media-permissions plugin
+    // expo-media-library: Only for iOS (Android uses expo-sharing instead to avoid READ_MEDIA permissions)
+    // Note: We keep it in plugins but our code uses sharing on Android
+    // The remove-media-permissions plugin will strip any READ_MEDIA permissions
     ["expo-media-library", {
       photosPermission:
         "XLPostcards uses your photo library so you can select a photo for the front image on your postcard.",
       savePhotosPermission:
         "Allow XLPostcards to save photos you create.",
-      isAccessMediaLocationEnabled: false, // Disable to avoid adding extra permissions
-      // Explicitly disable READ permissions - we only need WRITE for saving
-      // The remove-media-permissions plugin will strip any READ_MEDIA permissions that get added
+      isAccessMediaLocationEnabled: false,
     }],
     ["expo-build-properties", {
       android: {
@@ -143,8 +141,9 @@ module.exports = {
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
         kotlinVersion: "2.0.21",
-        // Use NDK 27+ for 16 KB page size support (required by Google Play Nov 2025)
-        ndkVersion: "27.0.12077973",
+        // Use NDK r28+ for 16 KB page size support (required by Google Play Nov 2025)
+        // r28+ compiles 16 KB-aligned by default (r27 requires explicit config)
+        ndkVersion: "28.0.12674087",
         // Blocklist READ_MEDIA permissions - we use Android Photo Picker instead
         blockedPermissions: [
           "android.permission.READ_MEDIA_IMAGES",
@@ -153,6 +152,8 @@ module.exports = {
       }
     }],
     "./plugins/remove-media-permissions", // Explicitly remove READ_MEDIA permissions from manifest
+    "./plugins/remove-expo-media-library-android", // Remove expo-media-library from Android to avoid Google Play detection
+    "./plugins/ensure-16kb-support", // Ensure 16 KB page size support for Google Play compliance
     "./plugins/android-stripe-fix"
   ],
 
