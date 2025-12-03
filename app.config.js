@@ -156,7 +156,7 @@ module.exports = {
       }
     }],
     "./plugins/fix-async-storage-namespace", // Fix async-storage namespace prefix null error - MUST be early
-    "./plugins/patch-async-storage-config", // Patch async-storage config.gradle to handle null namespace gracefully
+    // "./plugins/patch-async-storage-config", // TEMPORARILY DISABLED - testing if namespace fix alone works
     "./plugins/remove-media-permissions", // Explicitly remove READ_MEDIA permissions from manifest
     "./plugins/remove-expo-media-library-android", // Remove expo-media-library from Android to avoid Google Play detection
     "./plugins/ensure-16kb-support", // Ensure 16 KB page size support for Google Play compliance
