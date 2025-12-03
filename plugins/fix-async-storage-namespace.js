@@ -10,10 +10,15 @@ const { withAppBuildGradle } = require('@expo/config-plugins');
  * async-storage's config.gradle is evaluated during the "Configure project" phase
  */
 const withFixAsyncStorageNamespace = (config) => {
-  // Get the package name from config - use the actual package name
-  // For production builds, this will be 'com.patjfree.xlpostcards'
-  // For dev/preview, it might be 'com.patjfree.xlpostcards.dev' etc.
-  const packageName = config.android?.package || 'com.patjfree.xlpostcards';
+  // Get the package name from config
+  // IMPORTANT: Use the base package name (not .dev/.preview variants) for namespace
+  // async-storage needs a consistent namespace, and the base package works for all variants
+  // The actual applicationId can vary, but namespace should be consistent
+  const basePackageName = 'com.patjfree.xlpostcards';
+  // Try to get from config, but fall back to base package
+  const packageName = (config.android?.package && !config.android.package.includes('.dev') && !config.android.package.includes('.preview'))
+    ? config.android.package
+    : basePackageName;
   
   // CRITICAL: Set namespace in app/build.gradle BEFORE async-storage config is evaluated
   // This must be done in withAppBuildGradle, which runs during the prebuild phase
