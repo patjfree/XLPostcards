@@ -1,4 +1,4 @@
-const { withAppBuildGradle, withGradleProperties } = require('@expo/config-plugins');
+const { withAppBuildGradle } = require('@expo/config-plugins');
 
 /**
  * Config plugin to fix async-storage namespace issue
@@ -6,53 +6,53 @@ const { withAppBuildGradle, withGradleProperties } = require('@expo/config-plugi
  * The error "Cannot invoke String.length() because prefix is null" occurs when
  * async-storage can't find the namespace in the app's build.gradle
  * 
- * This plugin ensures the namespace is set both in build.gradle and as a gradle property
+ * This plugin ensures the namespace is set in the app's build.gradle BEFORE
+ * async-storage's config.gradle is evaluated during the "Configure project" phase
  */
 const withFixAsyncStorageNamespace = (config) => {
-  // Get the package name from config
+  // Get the package name from config - use the actual package name
+  // For production builds, this will be 'com.patjfree.xlpostcards'
+  // For dev/preview, it might be 'com.patjfree.xlpostcards.dev' etc.
   const packageName = config.android?.package || 'com.patjfree.xlpostcards';
   
-  // Set namespace as a gradle property so async-storage can read it early
-  config = withGradleProperties(config, (config) => {
-    // Add namespace as a gradle property
-    config.modResults.push({
-      type: 'property',
-      key: 'android.namespace',
-      value: packageName,
-    });
-    return config;
-  });
-
-  // Ensure namespace is set in app/build.gradle before async-storage config is evaluated
+  // CRITICAL: Set namespace in app/build.gradle BEFORE async-storage config is evaluated
+  // This must be done in withAppBuildGradle, which runs during the prebuild phase
   config = withAppBuildGradle(config, (config) => {
     if (config.modResults.language === 'groovy') {
-      // Ensure namespace is set as the FIRST line in the android block
+      // Remove any existing namespace declarations that might be problematic
+      // This ensures we start clean
+      config.modResults.contents = config.modResults.contents.replace(
+        /^\s*namespace\s+.*$/gm,
+        ''
+      );
+      
+      // Ensure namespace is set as the VERY FIRST line in the android block
       // This is critical - async-storage's config.gradle reads it during project evaluation
-      if (!config.modResults.contents.includes('namespace ')) {
-        // Find the android block and add namespace as the very first line
+      // and if it's not there or is null, it fails with "prefix is null"
+      const androidBlockPattern = /(android\s*\{)/;
+      if (androidBlockPattern.test(config.modResults.contents)) {
+        // Insert namespace immediately after android { with proper indentation
         config.modResults.contents = config.modResults.contents.replace(
-          /(android\s*\{)/,
+          androidBlockPattern,
           (match) => {
-            return match + `\n    namespace '${packageName}'`;
+            // Check if namespace is already there (shouldn't be after the replace above, but double-check)
+            const matchIndex = config.modResults.contents.indexOf(match);
+            const afterAndroid = config.modResults.contents.substring(
+              matchIndex + match.length,
+              matchIndex + match.length + 50 // Check first 50 chars after android {
+            );
+            if (!afterAndroid.includes('namespace')) {
+              return match + `\n    namespace '${packageName}'`;
+            }
+            return match;
           }
         );
       } else {
-        // If namespace exists but might be null or in wrong position, fix it
-        // Remove any existing namespace lines that might be problematic
-        config.modResults.contents = config.modResults.contents.replace(
-          /^\s*namespace\s+.*$/gm,
-          ''
-        );
-        // Then add it at the start of android block
-        config.modResults.contents = config.modResults.contents.replace(
-          /(android\s*\{)/,
-          (match) => {
-            return match + `\n    namespace '${packageName}'`;
-          }
-        );
+        // If android block doesn't exist, this is a problem - log warning
+        console.warn('[FIX-ASYNC-STORAGE-NAMESPACE] WARNING: android block not found in build.gradle');
       }
       
-      console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Set namespace to '${packageName}' in build.gradle and gradle.properties`);
+      console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Set namespace to '${packageName}' in app/build.gradle`);
     }
     return config;
   });
@@ -61,4 +61,3 @@ const withFixAsyncStorageNamespace = (config) => {
 };
 
 module.exports = withFixAsyncStorageNamespace;
-
