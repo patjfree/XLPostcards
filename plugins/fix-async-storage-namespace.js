@@ -1,4 +1,4 @@
-const { withAppBuildGradle } = require('@expo/config-plugins');
+const { withAppBuildGradle, withProjectBuildGradle } = require('@expo/config-plugins');
 
 /**
  * Config plugin to fix async-storage namespace issue
@@ -58,6 +58,36 @@ const withFixAsyncStorageNamespace = (config) => {
       }
       
       console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Set namespace to '${packageName}' in app/build.gradle`);
+    }
+    return config;
+  });
+
+  // Also ensure namespace is available in rootProject.ext for async-storage to read
+  config = withProjectBuildGradle(config, (config) => {
+    if (config.modResults.language === 'groovy') {
+      // Add namespace to rootProject.ext so async-storage can access it
+      // This is a fallback in case async-storage reads from rootProject instead of app module
+      const extBlockPattern = /(ext\s*\{)/;
+      if (extBlockPattern.test(config.modResults.contents)) {
+        // Add namespace to ext block if it doesn't already exist
+        if (!config.modResults.contents.includes('namespace')) {
+          config.modResults.contents = config.modResults.contents.replace(
+            extBlockPattern,
+            (match) => {
+              return match + `\n        namespace = '${packageName}'`;
+            }
+          );
+        }
+      } else {
+        // If ext block doesn't exist, add it
+        config.modResults.contents = config.modResults.contents.replace(
+          /(allprojects\s*\{)/,
+          (match) => {
+            return `ext {\n        namespace = '${packageName}'\n    }\n    ${match}`;
+          }
+        );
+      }
+      console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Also set namespace in rootProject.ext`);
     }
     return config;
   });
