@@ -46,7 +46,8 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "image": "latest"
+        "image": "latest",
+        "versionCode": 110
       }
     }
   },

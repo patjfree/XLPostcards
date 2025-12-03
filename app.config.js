@@ -85,10 +85,14 @@ module.exports = {
 
   android: {
     package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
-    // Use EAS auto-increment for versionCode (no manual override needed)
-    versionCode: parseInt(
-      (process.env.EAS_BUILD_ANDROID_VERSION_CODE ?? '1'),
-      10
+    // Use EAS auto-increment for versionCode, but ensure minimum is 110 (last Google Play version was 109)
+    // EAS will use the higher of: auto-incremented value or this minimum
+    versionCode: Math.max(
+      110, // Minimum versionCode (last Google Play version was 109)
+      parseInt(
+        (process.env.EAS_BUILD_ANDROID_VERSION_CODE ?? '110'),
+        10
+      )
     ),
     compileSdkVersion: 35,
     targetSdkVersion: 35,
