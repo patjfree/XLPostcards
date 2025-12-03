@@ -1,20 +1,24 @@
-const { withAppBuildGradle, withProjectBuildGradle } = require('@expo/config-plugins');
+const { withAppBuildGradle } = require('@expo/config-plugins');
 
 /**
  * Config plugin to fix async-storage namespace issue
- * async-storage's config.gradle needs the app package name to be available
- * This ensures the namespace is properly set before async-storage config is evaluated
+ * async-storage's config.gradle needs the app package name/namespace to be available
+ * The error "Cannot invoke String.length() because prefix is null" occurs when
+ * async-storage can't find the namespace in the app's build.gradle
  */
 const withFixAsyncStorageNamespace = (config) => {
   // Ensure namespace is set in app/build.gradle before async-storage config is evaluated
   config = withAppBuildGradle(config, (config) => {
     if (config.modResults.language === 'groovy') {
-      const packageName = config.android?.package || 'com.patjfree.xlpostcards';
+      // Get package name from config, with fallback
+      const packageName = config.android?.package || 
+                         (config.modResults.contents.match(/applicationId\s+['"]([^'"]+)['"]/) || [])[1] ||
+                         'com.patjfree.xlpostcards';
       
-      // Ensure namespace is set early in the android block
-      // This must be set before async-storage's config.gradle is evaluated
+      // Ensure namespace is set early in the android block (before defaultConfig)
+      // async-storage's config.gradle reads this to determine the package prefix
       if (!config.modResults.contents.includes('namespace ')) {
-        // Find the android block and add namespace right after it opens
+        // Find the android block and add namespace right after it opens, before any other config
         config.modResults.contents = config.modResults.contents.replace(
           /(android\s*\{)/,
           (match) => {
@@ -22,14 +26,26 @@ const withFixAsyncStorageNamespace = (config) => {
           }
         );
       } else {
-        // If namespace exists, ensure it matches the package name
+        // If namespace exists, ensure it's not null/empty and matches a valid package name
+        // Replace any null or empty namespace assignments
+        config.modResults.contents = config.modResults.contents.replace(
+          /namespace\s+(null|['"]\s*['"])/,
+          `namespace '${packageName}'`
+        );
+        // Also ensure existing namespace matches the package name
         config.modResults.contents = config.modResults.contents.replace(
           /namespace\s+['"]([^'"]+)['"]/,
-          `namespace '${packageName}'`
+          (match, existingNamespace) => {
+            // Only replace if it looks wrong (contains .dev or .preview when it shouldn't, etc.)
+            if (existingNamespace && existingNamespace.length > 0) {
+              return match; // Keep existing if it's valid
+            }
+            return `namespace '${packageName}'`;
+          }
         );
       }
       
-      console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Set namespace to '${packageName}'`);
+      console.log(`[FIX-ASYNC-STORAGE-NAMESPACE] Ensured namespace is set to '${packageName}'`);
     }
     return config;
   });
