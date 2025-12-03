@@ -13,6 +13,19 @@ const withEnsure16KbSupport = (config) => {
   // Ensure NDK version is r28+ and add linker flags for 16 KB alignment
   config = withAppBuildGradle(config, (config) => {
     if (config.modResults.language === 'groovy') {
+      // Remove any null ndkVersion assignments that cause build errors
+      // Expo SDK 53 manages NDK version automatically via expo-build-properties
+      config.modResults.contents = config.modResults.contents.replace(
+        /if\s*\(rootProject\.hasProperty\('ndkVersion'\)\)\s*\{[^}]*ndkVersion\s+rootProject\.ext\.ndkVersion[^}]*\}/g,
+        '// NDK version managed by Expo SDK 53 via expo-build-properties'
+      );
+      
+      // Also remove any direct ndkVersion assignments that might be null
+      config.modResults.contents = config.modResults.contents.replace(
+        /^\s*ndkVersion\s+rootProject\.ext\.ndkVersion\s*$/gm,
+        '// NDK version managed by Expo SDK 53'
+      );
+      
       // Add linker flags for 16 KB alignment if not already present
       // NDK r28+ does this by default, but we ensure it's explicit
       if (!config.modResults.contents.includes('max-page-size=16384')) {
