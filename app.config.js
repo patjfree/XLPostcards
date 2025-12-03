@@ -52,7 +52,8 @@ module.exports = {
 
   // Use EAS remote app version when available (falls back to a string if missing)
   version: REMOTE_APP_VERSION || "2.3.8",
-  runtimeVersion: { policy: "appVersion" },
+  // Bare workflow requires manual runtime version (cannot use policy)
+  runtimeVersion: REMOTE_APP_VERSION || "2.3.8",
 
   orientation: "portrait",
   icon: "./assets/images/icon1024.png",
