@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "eas-build-post-install": "chmod +x eas-hooks/pre-build.sh && ./eas-hooks/pre-build.sh"
+    "eas-build-post-install": "chmod +x eas-hooks/pre-build.sh && ./eas-hooks/pre-build.sh",
+    "postinstall": "node scripts/patch-async-storage.js"
   },
   "jest": {
     "preset": "jest-expo"
