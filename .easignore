@@ -1,0 +1,135 @@
+# EAS Build Archive Exclusions
+# This file reduces the project archive size by excluding unnecessary files
+
+# Large build artifacts and test files
+apks.zip
+apks.apks.zip
+bundletool.jar
+apks/
+*.apk
+*.aab
+*.apks
+
+# Build logs and documentation (not needed for build)
+*.md
+!README.md
+Build_*.md
+build*.md
+
+# Large log files
+*.log
+*.txt
+!package.json
+!tsconfig.json
+
+# Backend services (not needed for mobile app build)
+PostcardService/
+backend/
+*.py
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Design files
+*.psd
+*.ai
+*.sketch
+
+# Test and development files
+attached_assets/
+*.postman_collection.json
+n8n-collage-workflow.json
+generate-postcard-back-unified-simple.json
+
+# Scripts (not needed for build)
+*.sh
+!eas-hooks/pre-build.sh
+webhook-test-commands.sh
+sync-to-github.sh
+deploy-to-railway.sh
+update-version-and-deploy.sh
+setup-android.sh
+check-elf-alignment.sh
+verify-16kb-alignment.sh
+verify-manifest.sh
+
+# Database and schema files
+*.sql
+DATABASE_SCHEMA.sql
+
+# Configuration backups
+eas-backup*.json
+eas copy.json
+
+# Large assets that aren't needed
+XLPostards-Header.psd
+
+# iOS build artifacts (will be regenerated)
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcodeproj
+ios/SimulatorTestCCOK/
+
+# Android build artifacts (will be regenerated)
+android/build/
+android/.gradle/
+android/app/build/
+.gradle/
+
+# Node modules (EAS handles this, but exclude to be safe)
+node_modules/
+
+# Expo cache
+.expo/
+dist/
+web-build/
+
+# Git
+.git/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.local
+.env*.local
+
+# Certificates and keys
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+*.keystore
+!android/app/debug.keystore
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Replit
+replit.nix
+
+# Railway
+railway.toml
+!PostcardService/railway.toml
+
+# Docker (backend only)
+Dockerfile
+!PostcardService/Dockerfile
+
+# Python
+requirements.txt
+!PostcardService/requirements.txt
+
