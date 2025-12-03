@@ -85,14 +85,10 @@ module.exports = {
 
   android: {
     package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
-    // Use EAS auto-increment for versionCode, but ensure minimum is 110 (last Google Play version was 109)
-    // IMPORTANT: With appVersionSource: "remote", EAS manages versionCode, but we set a minimum here
-    // EAS will use the higher of: its auto-incremented value or this value
-    // If EAS can't sync with Google Play, it might start from 1, so we ensure minimum is 110
-    versionCode: Math.max(
-      110, // Minimum versionCode (last Google Play version was 109)
-      parseInt(process.env.EAS_BUILD_ANDROID_VERSION_CODE || '110', 10)
-    ),
+    // Set versionCode to 110 (last Google Play version was 109, so this must be higher)
+    // IMPORTANT: With appVersionSource: "local", we manually manage versionCode in app.config.js
+    // You must manually increment this value for each new release to Google Play
+    versionCode: 110,
     compileSdkVersion: 35,
     targetSdkVersion: 35,
     adaptiveIcon: {
