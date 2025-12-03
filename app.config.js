@@ -86,14 +86,11 @@ module.exports = {
   android: {
     package: (PROFILE === 'production' || APP_VARIANT === 'production') ? baseId : getPackageName(),
     // Use EAS auto-increment for versionCode, but ensure minimum is 110 (last Google Play version was 109)
-    // EAS will use the higher of: auto-incremented value or this minimum
-    versionCode: Math.max(
-      110, // Minimum versionCode (last Google Play version was 109)
-      parseInt(
-        (process.env.EAS_BUILD_ANDROID_VERSION_CODE ?? '110'),
-        10
-      )
-    ),
+    // IMPORTANT: EAS autoIncrement should handle this, but we set a minimum as safety
+    // If EAS provides a versionCode, use it; otherwise default to 110
+    versionCode: process.env.EAS_BUILD_ANDROID_VERSION_CODE 
+      ? Math.max(110, parseInt(process.env.EAS_BUILD_ANDROID_VERSION_CODE, 10))
+      : 110,
     compileSdkVersion: 35,
     targetSdkVersion: 35,
     adaptiveIcon: {
@@ -159,6 +156,7 @@ module.exports = {
       }
     }],
     "./plugins/fix-async-storage-namespace", // Fix async-storage namespace prefix null error - MUST be early
+    "./plugins/patch-async-storage-config", // Patch async-storage config.gradle to handle null namespace gracefully
     "./plugins/remove-media-permissions", // Explicitly remove READ_MEDIA permissions from manifest
     "./plugins/remove-expo-media-library-android", // Remove expo-media-library from Android to avoid Google Play detection
     "./plugins/ensure-16kb-support", // Ensure 16 KB page size support for Google Play compliance
