@@ -26,40 +26,44 @@ const withStripeAndroidFix = (config) => {
                         details.because 'Match stripe-android version'
                     }
                 }
-                // Force Jetpack Compose versions to fix NoSuchMethodError
+                // Force ALL Jetpack Compose versions to fix NoSuchMethodError
                 // Stripe Payment Sheet requires Compose 1.5.0+ but React Native 0.79.6 bundles older version
-                if (details.requested.group == 'androidx.compose.ui') {
-                    if (details.requested.name == 'ui' || details.requested.name == 'ui-util') {
-                        details.useVersion '1.5.4'
-                        details.because 'Fix Stripe Payment Sheet Compose compatibility (NoSuchMethodError)'
-                    }
-                }
-                if (details.requested.group == 'androidx.compose.foundation') {
-                    if (details.requested.name == 'foundation') {
-                        details.useVersion '1.5.4'
-                        details.because 'Fix Stripe Payment Sheet Compose compatibility'
-                    }
-                }
-                if (details.requested.group == 'androidx.compose.runtime') {
-                    if (details.requested.name == 'runtime') {
-                        details.useVersion '1.5.4'
-                        details.because 'Fix Stripe Payment Sheet Compose compatibility'
-                    }
+                // Force all Compose dependencies to 1.5.4 to ensure compatibility
+                if (details.requested.group.startsWith('androidx.compose.')) {
+                    details.useVersion '1.5.4'
+                    details.because 'Fix Stripe Payment Sheet Compose compatibility (NoSuchMethodError: performImeAction$default)'
                 }
             }
         }
     }`;
 
       // Insert the resolution strategy into the allprojects block
-      config.modResults.contents = config.modResults.contents.replace(
-        /allprojects\s*\{([^}]*)\}/,
-        (match, content) => {
-          if (!content.includes('configurations.all')) {
+      // If configurations.all already exists, merge our rules into it
+      if (config.modResults.contents.includes('configurations.all')) {
+        // Find the eachDependency block and add our rules
+        const eachDependencyPattern = /(eachDependency\s*\{[^}]*details\s*->)/;
+        if (config.modResults.contents.match(eachDependencyPattern)) {
+          // Merge into existing eachDependency block
+          config.modResults.contents = config.modResults.contents.replace(
+            /(eachDependency\s*\{[^}]*details\s*->)/,
+            (match) => {
+              // Check if our rules are already there
+              if (!config.modResults.contents.includes('androidx.compose.')) {
+                return match + '\n                // Force ALL Jetpack Compose versions to fix NoSuchMethodError\n                if (details.requested.group.startsWith(\'androidx.compose.\')) {\n                    details.useVersion \'1.5.4\'\n                    details.because \'Fix Stripe Payment Sheet Compose compatibility (NoSuchMethodError: performImeAction$default)\'\n                }';
+              }
+              return match;
+            }
+          );
+        }
+      } else {
+        // Insert new resolution strategy
+        config.modResults.contents = config.modResults.contents.replace(
+          /allprojects\s*\{([^}]*)\}/,
+          (match, content) => {
             return match.replace('}', resolutionStrategy + '\n}');
           }
-          return match;
-        }
-      );
+        );
+      }
     }
     return config;
   });
