@@ -158,7 +158,8 @@ module.exports = {
     "./plugins/remove-expo-media-library-android", // Remove expo-media-library from Android to avoid Google Play detection
     "./plugins/ensure-16kb-support", // Ensure 16 KB page size support for Google Play compliance
     "./plugins/android-stripe-fix",
-    "./plugins/fix-worklets-duplicate" // Fix duplicate classes between react-native-reanimated and react-native-worklets
+    "./plugins/fix-worklets-duplicate", // Fix duplicate classes between react-native-reanimated and react-native-worklets
+    "./plugins/fix-async-storage-namespace" // Fix async-storage namespace prefix null error
   ],
 
   experiments: {
