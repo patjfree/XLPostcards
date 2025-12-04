@@ -94,7 +94,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Force versionCode to 110 (last Google Play version was 109)
         // This will be overridden by app.config.js during EAS build, but set here as fallback
-        versionCode project.hasProperty('versionCode') ? project.versionCode.toInteger() : 110
+        versionCode 110
         versionName "2.3.8"
     }
     signingConfigs {
@@ -128,6 +128,40 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+// Enable Compose Compiler for all Kotlin compilation (including Stripe module)
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (project.android.hasProperty('compileOptions')) {
+                    compileOptions {
+                        sourceCompatibility JavaVersion.VERSION_17
+                        targetCompatibility JavaVersion.VERSION_17
+                    }
+                }
+            }
+        }
+        
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            compilerOptions {
+                freeCompilerArgs.addAll([
+                    "-P",
+                    "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true"
+                ])
+            }
+        }
     }
 }
 
