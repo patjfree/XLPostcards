@@ -140,9 +140,9 @@ module.exports = {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
-        // Use Kotlin 2.0.21 for Stripe compatibility (KSP warnings are non-blocking)
-        // KSP warnings from expo-updates are just warnings, not errors
-        kotlinVersion: "2.0.21",
+        // Use Kotlin 1.9.25 as compromise - works with Stripe and reduces KSP warnings
+        // Kotlin 2.0.21 causes Stripe compilation errors, 1.9.24 causes KSP warnings
+        kotlinVersion: "1.9.25",
         // Expo SDK 54 with React Native 0.81.5 includes 16 KB page size support
         // Let Expo SDK 54 manage the NDK version automatically
         // If you need to specify, use a version available in EAS (e.g., "27.0.12077973" or "28.0.12674087")
