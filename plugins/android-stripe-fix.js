@@ -13,9 +13,9 @@ const withStripeAndroidFix = (config) => {
                 if (details.requested.group == 'com.stripe') {
                     if (details.requested.name == 'stripe-android') {
                         // Stripe React Native 0.38.6 works with stripe-android 20.x
-                        // Use a stable version compatible with Kotlin 1.9.25
+                        // Stripe Android SDK requires Kotlin 1.9.24
                         details.useVersion '20.48.0'
-                        details.because 'Compatible with Stripe React Native 0.38.6 and Kotlin 1.9.25'
+                        details.because 'Compatible with Stripe React Native 0.38.6 and Kotlin 1.9.24'
                     }
                     if (details.requested.name == 'financial-connections') {
                         details.useVersion '20.48.0'
