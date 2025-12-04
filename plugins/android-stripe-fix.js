@@ -9,23 +9,8 @@ const withStripeAndroidFix = (config) => {
     configurations.all {
         resolutionStrategy {
             eachDependency { details ->
-                // Force Stripe Android SDK versions
-                if (details.requested.group == 'com.stripe') {
-                    if (details.requested.name == 'stripe-android') {
-                        // Stripe React Native 0.38.6 works with stripe-android 20.x
-                        // Stripe Android SDK requires Kotlin 1.9.24
-                        details.useVersion '20.48.0'
-                        details.because 'Compatible with Stripe React Native 0.38.6 and Kotlin 1.9.24'
-                    }
-                    if (details.requested.name == 'financial-connections') {
-                        details.useVersion '20.48.0'
-                        details.because 'Match stripe-android version'
-                    }
-                    if (details.requested.name == 'paymentsheet') {
-                        details.useVersion '20.48.0'
-                        details.because 'Match stripe-android version'
-                    }
-                }
+                // Let Stripe React Native 0.38.6 resolve its own stripe-android version
+                // (removed version forcing to allow it to use APIs it needs)
                 // Force ALL Jetpack Compose versions to fix NoSuchMethodError
                 // Stripe Payment Sheet requires Compose 1.5.0+ but React Native 0.79.6 bundles older version
                 // Force all Compose dependencies to 1.5.4 to ensure compatibility
