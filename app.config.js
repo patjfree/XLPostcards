@@ -133,7 +133,7 @@ module.exports = {
         compileSdkVersion: 35,
         targetSdkVersion: 35,
         buildToolsVersion: "35.0.0",
-        kotlinVersion: "2.0.21"
+        kotlinVersion: "2.0.20"
       }
     }]
     // Temporarily disabled to let Stripe use its own Gradle setup
