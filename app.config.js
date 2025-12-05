@@ -135,7 +135,8 @@ module.exports = {
         buildToolsVersion: "35.0.0",
         kotlinVersion: "2.0.20"
       }
-    }]
+    }],
+    "./plugins/android-kotlin-version-fix" // Force Kotlin 2.0.20 to match KSP version
     // Temporarily disabled to let Stripe use its own Gradle setup
     // "./plugins/android-stripe-fix"
   ],
