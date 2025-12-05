@@ -4,13 +4,6 @@ module.exports = function (api) {
     presets: ['babel-preset-expo'],
     plugins: [
       [
-        'react-native-reanimated/plugin',
-        {
-          globals: ['__reanimatedWorkletInit'],
-          relativeSourceLocation: true,
-        },
-      ],
-      [
         'module-resolver',
         {
           root: ['.'],
@@ -35,7 +28,9 @@ module.exports = function (api) {
             'STRIPE_PUBLISHABLE_KEY_LIVE'
           ]
         },
-      ]
+      ],
+      // react-native-reanimated plugin MUST be last
+      'react-native-reanimated/plugin',
     ],
   };
 }; 
