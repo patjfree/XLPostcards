@@ -30,7 +30,13 @@ module.exports = function (api) {
         },
       ],
       // react-native-reanimated plugin MUST be last
-      'react-native-reanimated/plugin',
+      [
+        'react-native-reanimated/plugin',
+        {
+          globals: ['__reanimatedWorkletInit'],
+          relativeSourceLocation: true,
+        },
+      ],
     ],
   };
 }; 
