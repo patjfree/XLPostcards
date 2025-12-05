@@ -58,7 +58,7 @@ module.exports = {
   icon: "./assets/images/icon1024.png",
   scheme: "XLPostcards",
   userInterfaceStyle: "automatic",
-  newArchEnabled: true,
+  newArchEnabled: false, // Temporarily disabled due to react-native-reanimated compatibility issue with RN 0.79.6
 
   splash: {
     image: "./assets/images/icon1024.png",
@@ -142,7 +142,7 @@ module.exports = {
 
   experiments: {
     tsconfigPaths: true,
-    newArchEnabled: true
+    newArchEnabled: false // Temporarily disabled due to react-native-reanimated compatibility issue with RN 0.79.6
   },
 
   extra: {
